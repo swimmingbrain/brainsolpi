@@ -8,11 +8,9 @@ from pathlib import Path
 from typing import Any
 
 from .jsonio import read_json, write_atomic
+from .simmodel import BAFFLE
 
 log = logging.getLogger(__name__)
-
-# shade wall height over sensor width, shared with the simulation and the ui
-BAFFLE = 1.2
 
 US_PER_DEG = 2000.0 / 180.0
 
