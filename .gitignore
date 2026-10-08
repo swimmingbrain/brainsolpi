@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+build/
+dist/
+
+# the built web app is copied here on the pi, it lives in the brainsol repo
+/web/
+
+.DS_Store
+Thumbs.db
