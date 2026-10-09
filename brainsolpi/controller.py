@@ -6,6 +6,8 @@ from .config import PARAM_BY_KEY
 
 # floor for |cos tilt| in the pan gain, keeps pan responsive at steep tilt without blowing up
 MIN_COS = 0.35
+# below this the tilt error does not say which way to leave the zenith band
+ESCAPE_EY = 0.002
 
 
 class Tracker:
@@ -94,16 +96,22 @@ class Tracker:
             self.ay = aey > self.dead_out
         vmax = self.vmax
         vx = vy = 0.0
-        if self.ax:
+        in_band = abs(tilt - 90.0) < self.zenith_band
+        if self.ax and not in_band:
+            # behind the zenith the pan direction flips, near it pan is undefined
             c = math.cos(math.radians(tilt))
-            if abs(tilt - 90.0) < self.zenith_band:
-                gx = 0.0
-            else:
-                # behind the zenith the pan direction flips, near it pan is undefined
-                gx = math.copysign(1.0, c) / max(abs(c), MIN_COS) if c != 0.0 else 0.0
+            gx = math.copysign(1.0, c) / max(abs(c), MIN_COS) if c != 0.0 else 0.0
             vx = max(-vmax, min(vmax, self.kp * ex * gx))
         if self.ay:
             vy = max(-vmax, min(vmax, self.kp * ey))
+        elif self.ax and in_band:
+            # pan cannot fix a sideways error at the zenith, so tip the panel out of the
+            # band toward the light, outside it pan takes over again
+            if abs(ey) > ESCAPE_EY:
+                side = 1.0 if ey > 0.0 else -1.0
+            else:
+                side = 1.0 if tilt > 90.0 else -1.0
+            vy = side * min(vmax, self.kp * abs(ex))
         return vx, vy
 
     @property
