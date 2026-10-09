@@ -31,6 +31,8 @@ class StateStore:
         self.sim = dict(DEFAULT_SIM)
         self.tokens: list[list] = []
         self._saved: dict | None = None
+        # set by the service so saves never block the control loop
+        self.writer = None
 
     @classmethod
     def load(cls, path: Path | None) -> StateStore:
@@ -79,10 +81,13 @@ class StateStore:
         if not force and data == self._saved:
             return False
         if self.path is not None:
-            try:
-                write_atomic(self.path, data)
-            except OSError as e:
-                log.warning("cannot write %s: %s", self.path, e)
-                return False
+            if self.writer is not None:
+                self.writer.write(self.path, data)
+            else:
+                try:
+                    write_atomic(self.path, data)
+                except OSError as e:
+                    log.warning("cannot write %s: %s", self.path, e)
+                    return False
         self._saved = data
         return True

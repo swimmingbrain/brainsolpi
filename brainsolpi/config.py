@@ -224,6 +224,8 @@ class Settings:
         self._fix_relations(problems)
         self.problems = problems
         self.dirty = False
+        # set by the service so saves never block the control loop
+        self.writer = None
 
     @classmethod
     def load(cls, path: Path) -> Settings:
@@ -243,7 +245,10 @@ class Settings:
         if self.path is None:
             self.dirty = False
             return
-        write_atomic(self.path, self.data)
+        if self.writer is not None:
+            self.writer.write(self.path, copy.deepcopy(self.data))
+        else:
+            write_atomic(self.path, self.data)
         self.dirty = False
 
     def flush(self) -> None:
