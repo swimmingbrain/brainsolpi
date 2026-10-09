@@ -109,3 +109,20 @@ def test_state_saves_only_when_changed(tmp_path):
     assert st.changed
     assert st.save()
     assert StateStore.load(path).pan == 12.35
+
+
+def test_background_writer_keeps_the_newest_version(tmp_path):
+    from brainsolpi.jsonio import BackgroundWriter
+
+    w = BackgroundWriter()
+    path = tmp_path / "a.json"
+    for i in range(50):
+        w.write(path, {"i": i})
+    assert w.flush()
+    assert read_json(path) == {"i": 49}
+    s = Settings(tmp_path / "s.json")
+    s.writer = w
+    s.set_value("kp", 100)
+    s.save()
+    w.close()
+    assert read_json(tmp_path / "s.json")["params"]["kp"] == 100
