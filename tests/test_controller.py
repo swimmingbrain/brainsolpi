@@ -113,12 +113,20 @@ def test_a_sideways_light_tips_the_head_out_of_the_zenith_band():
     feed(t, 0.3, 0.7, 0.5, 0.501)
     vx, vy = t.command(90)
     assert vx == 0 and vy < 0
+    # the side sticks until the head is clear of the band, even if the tilt error turns
+    feed(t, 0.3, 0.7, 0.6, 0.4, n=20)
+    assert t.command(86)[1] < 0
+    # out of the band pan works again while the escape runs a few more degrees
+    vx, vy = t.command(83)
+    assert vx != 0 and vy < 0
+    vx, vy = t.command(80)
+    assert vx != 0 and vy > 0
     # a tilt error picks the side
-    t.reset_filter()
+    t = tracker()
     feed(t, 0.3, 0.7, 0.51, 0.5)
     assert t.command(90)[1] > 0
     # behind the zenith it leaves toward the back
-    t.reset_filter()
+    t = tracker()
     feed(t, 0.3, 0.7, 0.5, 0.5)
     assert t.command(92)[1] > 0
 

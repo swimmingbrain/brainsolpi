@@ -8,6 +8,8 @@ from .config import PARAM_BY_KEY
 MIN_COS = 0.35
 # below this the tilt error does not say which way to leave the zenith band
 ESCAPE_EY = 0.002
+# how far past the band edge an escape goes before normal control takes over, degrees
+ESCAPE_MARGIN = 3.0
 
 
 class Tracker:
@@ -28,6 +30,7 @@ class Tracker:
         self.lowlight = True
         self.ax = False
         self.ay = False
+        self.escape = 0
         self._alpha_key: tuple[float, float] | None = None
         self._alpha = 0.0
         self.configure(params or {k: p.default for k, p in PARAM_BY_KEY.items()})
@@ -83,6 +86,7 @@ class Tracker:
         if self.lowlight:
             self.ax = False
             self.ay = False
+            self.escape = 0
             return 0.0, 0.0
         ex, ey = self.ex, self.ey
         aex, aey = abs(ex), abs(ey)
@@ -96,22 +100,26 @@ class Tracker:
             self.ay = aey > self.dead_out
         vmax = self.vmax
         vx = vy = 0.0
-        in_band = abs(tilt - 90.0) < self.zenith_band
+        dz = abs(tilt - 90.0)
+        in_band = dz < self.zenith_band
+        if self.escape and (not self.ax or dz >= self.zenith_band + ESCAPE_MARGIN):
+            self.escape = 0
+        if not self.escape and self.ax and in_band and not self.ay:
+            # pan cannot fix a sideways error at the zenith, so the panel tips out of the
+            # band first, the side is kept until it is clear of the band or it would turn back
+            if abs(ey) > ESCAPE_EY:
+                self.escape = 1 if ey > 0.0 else -1
+            else:
+                self.escape = 1 if tilt > 90.0 else -1
         if self.ax and not in_band:
             # behind the zenith the pan direction flips, near it pan is undefined
             c = math.cos(math.radians(tilt))
             gx = math.copysign(1.0, c) / max(abs(c), MIN_COS) if c != 0.0 else 0.0
             vx = max(-vmax, min(vmax, self.kp * ex * gx))
-        if self.ay:
+        if self.escape:
+            vy = self.escape * min(vmax, self.kp * abs(ex))
+        elif self.ay:
             vy = max(-vmax, min(vmax, self.kp * ey))
-        elif self.ax and in_band:
-            # pan cannot fix a sideways error at the zenith, so tip the panel out of the
-            # band toward the light, outside it pan takes over again
-            if abs(ey) > ESCAPE_EY:
-                side = 1.0 if ey > 0.0 else -1.0
-            else:
-                side = 1.0 if tilt > 90.0 else -1.0
-            vy = side * min(vmax, self.kp * abs(ex))
         return vx, vy
 
     @property
