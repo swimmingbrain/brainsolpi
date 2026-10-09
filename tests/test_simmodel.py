@@ -107,5 +107,6 @@ def test_sample_without_noise_is_repeatable():
 
 def test_ideal_calibration_for_the_phone_scene():
     dark, bright = ideal_calibration(900, 60)
-    assert dark == [6367.0] * 4
+    # dark at 60 + 900 / 4 = 285 lux, bright at 960 lux
+    assert dark == [7468.0] * 4
     assert bright == [7862.0] * 4

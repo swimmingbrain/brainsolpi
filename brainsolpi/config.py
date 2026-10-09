@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .jsonio import read_json, write_atomic
-from .simmodel import BAFFLE
+from .simmodel import BAFFLE, PHONE_SCENE, ideal_calibration
 
 log = logging.getLogger(__name__)
 
@@ -142,6 +142,10 @@ PROFILES = ("sim", "bridge")
 
 
 def calib_defaults_for(profile: str) -> tuple[list[float], list[float]]:
+    if profile == "sim":
+        # the simulated sensors start out calibrated for the phone light scene,
+        # as if dark had been taken in full shade and bright facing the lamp
+        return ideal_calibration(*PHONE_SCENE)
     return list(GENERIC_DARK), list(GENERIC_BRIGHT)
 
 

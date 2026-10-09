@@ -17,6 +17,7 @@ SERVO_RATE = 400.0  # degrees per second
 RAW_MAX = 8184
 RAW_NOISE = 6.0
 LUX_NOISE = 0.01
+DARK_SHARE = 0.25
 
 
 @dataclass
@@ -96,7 +97,9 @@ def sample(light: Light, pan: float, tilt: float, rng: random.Random | None) -> 
 
 
 def ideal_calibration(lux0: float, amb: float) -> tuple[list[float], list[float]]:
-    # dark is a sensor in full shade with only the ambient light, bright is a sensor facing the light
-    dark = float(round(RAW_MAX * divider(amb)))
+    # the dividers squeeze bright light into the top few percent of the range, so the dark end
+    # sits at a quarter of the lamp instead of full shade, that keeps the lock within a few
+    # degrees and still sees a lamp up to about 75 degrees off the panel normal
+    dark = float(round(RAW_MAX * divider(amb + DARK_SHARE * lux0)))
     bright = float(round(RAW_MAX * divider(lux0 + amb)))
     return [dark] * 4, [bright] * 4
