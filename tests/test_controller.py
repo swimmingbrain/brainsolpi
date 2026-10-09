@@ -107,6 +107,22 @@ def test_zenith_band_freezes_pan_only():
     assert t.command(97)[0] < 0
 
 
+def test_a_sideways_light_tips_the_head_out_of_the_zenith_band():
+    t = tracker()
+    # light far to the right, almost no tilt error, head flat at the zenith
+    feed(t, 0.3, 0.7, 0.5, 0.501)
+    vx, vy = t.command(90)
+    assert vx == 0 and vy < 0
+    # a tilt error picks the side
+    t.reset_filter()
+    feed(t, 0.3, 0.7, 0.51, 0.5)
+    assert t.command(90)[1] > 0
+    # behind the zenith it leaves toward the back
+    t.reset_filter()
+    feed(t, 0.3, 0.7, 0.5, 0.5)
+    assert t.command(92)[1] > 0
+
+
 def test_speed_is_capped_at_vmax():
     t = tracker(kp=300, vmax=20)
     feed(t, 0.0, 1.0, 1.0, 0.0)
