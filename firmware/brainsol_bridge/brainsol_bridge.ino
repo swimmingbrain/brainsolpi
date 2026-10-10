@@ -68,6 +68,23 @@ void send_identity() {
 }
 
 // ---------------------------------------------------------------------------
+// timing
+
+// true once per period. now minus last is computed in unsigned 32 bit, so the result
+// stays right when micros() wraps around after about 71 minutes
+bool tick_due(uint32_t &last, uint32_t period, uint32_t now) {
+  if ((uint32_t)(now - last) < period) {
+    return false;
+  }
+  last += period;
+  // after a long stall start fresh instead of firing a burst of late ticks
+  if ((uint32_t)(now - last) >= period) {
+    last = now;
+  }
+  return true;
+}
+
+// ---------------------------------------------------------------------------
 // light sensors
 
 // adc channels 0 to 3 are the pins a0 to a3: left, right, up, down
@@ -121,6 +138,30 @@ void adc_step() {
     }
   }
   adc_start(adc_channel);
+}
+
+// ---------------------------------------------------------------------------
+// sample frames
+
+const uint8_t RATE_DEFAULT = 50;
+
+uint32_t sample_period_us = 1000000UL / RATE_DEFAULT;
+uint32_t last_sample_us = 0;
+// counts every frame that was due, also the skipped ones, so the pi sees a gap
+uint16_t seq = 0;
+
+void send_frame() {
+  uint16_t this_seq = seq;
+  seq++;
+
+  char buf[72];
+  int len = snprintf(buf, sizeof(buf), "S,%u,%u,%u,%u,%u,%lu,%u,%ld,%u,%u,%u\n",
+                     this_seq, ldr_sum[0], ldr_sum[1], ldr_sum[2], ldr_sum[3],
+                     0UL, 0U, 0L, 0U, 0U, 0U);
+  if (len <= 0 || len >= (int)sizeof(buf)) {
+    return;
+  }
+  Serial.write(buf, len);
 }
 
 // ---------------------------------------------------------------------------
@@ -290,10 +331,17 @@ void setup() {
   Serial.begin(BAUD);
   adc_start(0);
   send_identity();
+  last_sample_us = micros();
 }
 
 void loop() {
+  uint32_t now_us = micros();
+
   flush_reply();
   read_serial();
   adc_step();
+
+  if (tick_due(last_sample_us, sample_period_us, now_us)) {
+    send_frame();
+  }
 }
