@@ -70,12 +70,111 @@ void send_identity() {
 // ---------------------------------------------------------------------------
 // command lines
 
-void handle_line(char *line) {
-  if (strcmp(line, "?") == 0) {
-    send_identity();
+// the longest command is M,<pan>,<tilt>, one more slot lets us notice extra fields
+const uint8_t FIELDS_MAX = 4;
+
+// splits a line in place at the commas, returns the number of fields,
+// or 0 when there are more than max of them
+uint8_t split_fields(char *line, char *field[], uint8_t max) {
+  uint8_t count = 0;
+  char *p = line;
+  while (true) {
+    if (count == max) {
+      return 0;
+    }
+    field[count] = p;
+    count++;
+    char *comma = strchr(p, ',');
+    if (comma == NULL) {
+      return count;
+    }
+    *comma = '\0';
+    p = comma + 1;
+  }
+}
+
+// strict decimal number: an optional minus and 1 to 9 digits, nothing else.
+// nine digits always fit into a long, so a silly value can never overflow
+bool parse_number(const char *text, long *out) {
+  bool negative = false;
+  if (*text == '-') {
+    negative = true;
+    text++;
+  }
+  uint8_t digits = 0;
+  long value = 0;
+  while (*text != '\0') {
+    if (*text < '0' || *text > '9') {
+      return false;
+    }
+    digits++;
+    if (digits > 9) {
+      return false;
+    }
+    value = value * 10 + (*text - '0');
+    text++;
+  }
+  if (digits == 0) {
+    return false;
+  }
+  *out = negative ? -value : value;
+  return true;
+}
+
+// the ping number is echoed as text, so the pi may use any counter up to 20 digits
+void command_ping(const char *number) {
+  uint8_t len = strlen(number);
+  if (len == 0 || len > 20) {
+    send_error(ERR_BAD_COMMAND, "bad number");
     return;
   }
-  send_error(ERR_BAD_COMMAND, "unknown command");
+  for (uint8_t i = 0; i < len; i++) {
+    if (number[i] < '0' || number[i] > '9') {
+      send_error(ERR_BAD_COMMAND, "bad number");
+      return;
+    }
+  }
+  char buf[sizeof(reply_buf)];
+  snprintf(buf, sizeof(buf), "P,%s", number);
+  queue_reply(buf);
+}
+
+void handle_line(char *line) {
+  char *field[FIELDS_MAX];
+  uint8_t count = split_fields(line, field, FIELDS_MAX);
+  if (count == 0 || strlen(field[0]) != 1) {
+    send_error(ERR_BAD_COMMAND, "unknown command");
+    return;
+  }
+  // lower case letters are fine too, that helps when someone types into a serial monitor
+  char cmd = (char)toupper((unsigned char)field[0][0]);
+
+  // how many fields each command has, the letter included
+  uint8_t want;
+  switch (cmd) {
+    case '?':
+      want = 1;
+      break;
+    case 'P':
+      want = 2;
+      break;
+    default:
+      send_error(ERR_BAD_COMMAND, "unknown command");
+      return;
+  }
+  if (count != want) {
+    send_error(ERR_BAD_COMMAND, "wrong field count");
+    return;
+  }
+
+  switch (cmd) {
+    case '?':
+      send_identity();
+      break;
+    case 'P':
+      command_ping(field[1]);
+      break;
+  }
 }
 
 // the line being received, it never holds more than LINE_MAX characters
