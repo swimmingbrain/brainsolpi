@@ -68,6 +68,62 @@ void send_identity() {
 }
 
 // ---------------------------------------------------------------------------
+// light sensors
+
+// adc channels 0 to 3 are the pins a0 to a3: left, right, up, down
+const uint8_t LDR_COUNT = 4;
+// readings summed per channel and set, 8 x 1023 = 8184 still fits into a uint16_t
+const uint8_t ADC_READS = 8;
+
+// the last complete set of sums, this is what the frames report
+uint16_t ldr_sum[LDR_COUNT];
+
+// the set being measured right now
+uint16_t adc_work[LDR_COUNT];
+uint8_t adc_channel = 0;
+// conversions done on this channel so far, number 0 is the throwaway one
+uint8_t adc_reads = 0;
+
+// analogRead waits about 110 us for every conversion. here we start one and pick up
+// the result on a later pass of loop, so the loop never waits for the adc
+void adc_start(uint8_t channel) {
+  // avcc as reference, the same as analogRead with the default reference
+  ADMUX = _BV(REFS0) | (channel & 0x07);
+  ADCSRA |= _BV(ADSC);
+}
+
+void adc_step() {
+  if (bit_is_set(ADCSRA, ADSC)) {
+    // still converting
+    return;
+  }
+  // ADCL has to be read first, that keeps ADCH from changing until it is read too
+  uint8_t low = ADCL;
+  uint8_t high = ADCH;
+  uint16_t value = ((uint16_t)high << 8) | low;
+
+  // the first reading after a channel switch is thrown away, the sample and hold
+  // capacitor still carries some charge from the previous channel
+  if (adc_reads > 0) {
+    adc_work[adc_channel] += value;
+  }
+  adc_reads++;
+  if (adc_reads > ADC_READS) {
+    adc_reads = 0;
+    adc_channel++;
+    if (adc_channel == LDR_COUNT) {
+      // a full set is done, publish it and start the next one
+      for (uint8_t i = 0; i < LDR_COUNT; i++) {
+        ldr_sum[i] = adc_work[i];
+        adc_work[i] = 0;
+      }
+      adc_channel = 0;
+    }
+  }
+  adc_start(adc_channel);
+}
+
+// ---------------------------------------------------------------------------
 // command lines
 
 // the longest command is M,<pan>,<tilt>, one more slot lets us notice extra fields
@@ -232,10 +288,12 @@ void read_serial() {
 
 void setup() {
   Serial.begin(BAUD);
+  adc_start(0);
   send_identity();
 }
 
 void loop() {
   flush_reply();
   read_serial();
+  adc_step();
 }
