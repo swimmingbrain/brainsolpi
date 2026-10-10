@@ -637,9 +637,16 @@ class Engine:
         self._cfg_dirty = True
 
     def set_calibration(self, calib: dict, saved: bool) -> None:
+        # a new servo mapping must not move the head, so the pose follows the pulses
+        pulses = (self.pan_map.to_us(self.motion.pan), self.tilt_map.to_us(self.motion.tilt))
         self.calib = calib
         self.calib_saved = saved
         self._apply_calib()
+        lp, lt = self.settings.pan_limits, self.settings.tilt_limits
+        self.motion.pan = clamp(self.pan_map.to_angle(pulses[0]), *lp)
+        self.motion.tilt = clamp(self.tilt_map.to_angle(pulses[1]), *lt)
+        self.motion.stop_now()
+        self._force_send = True
 
     # running
 
