@@ -132,6 +132,7 @@ class Engine:
         self.history = History()
         self.recorder = Recorder(data_dir / "recordings") if data_dir is not None else None
         self.last_scan: dict | None = None
+        self.last_sys: dict | None = None
         self.on_sys = None
         if driver.has_simlight:
             driver.set_light(**state.sim)
@@ -363,7 +364,8 @@ class Engine:
             self._next_sys += 1.0
             if self._next_sys < now:
                 self._next_sys = now + 1.0
-            self.sink.publish(self.sys_frame(), "sys")
+            self.last_sys = self.sys_frame()
+            self.sink.publish(self.last_sys, "sys")
         if self._cfg_dirty and now >= self._next_cfg:
             self._cfg_dirty = False
             self._next_cfg = now + 0.2
