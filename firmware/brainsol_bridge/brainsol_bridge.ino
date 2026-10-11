@@ -4,6 +4,8 @@
 // drives the two servos and talks a small line protocol over the usb serial port.
 // the protocol and the pin map are described in firmware/README.md
 
+#include <Servo.h>
+
 #define FW_VERSION "1.0.0"
 
 // serial link, same settings on the pi side
@@ -68,7 +70,18 @@ void send_identity() {
 }
 
 // ---------------------------------------------------------------------------
-// timing
+// helpers
+
+// out of range values from the pi are clamped, so the board never ends up in an odd state
+long clamp_long(long value, long low, long high) {
+  if (value < low) {
+    return low;
+  }
+  if (value > high) {
+    return high;
+  }
+  return value;
+}
 
 // true once per period. now minus last is computed in unsigned 32 bit, so the result
 // stays right when micros() wraps around after about 71 minutes
@@ -141,6 +154,58 @@ void adc_step() {
 }
 
 // ---------------------------------------------------------------------------
+// servos
+
+const uint8_t PAN_PIN = 9;
+const uint8_t TILT_PIN = 10;
+const int PULSE_MIN = 500;
+const int PULSE_MAX = 2500;
+
+Servo pan_servo;
+Servo tilt_servo;
+bool servos_attached = false;
+
+// the pulses going out now and the pulses we are heading for, in us
+int pan_now = 0;
+int tilt_now = 0;
+int pan_target = 0;
+int tilt_target = 0;
+
+// both servos start right at the commanded pulse, nothing jumps to the default 1500 us.
+// the library learns our 500 to 2500 range only inside attach(), a write before that is
+// clamped to its own default of 544 to 2400. so we set the pulse before attach, attach,
+// and write once more to get the exact value. interrupts stay off for these few
+// microseconds, the servo timer cannot start a pulse with a half set value in between
+void attach_at(int pan_us, int tilt_us) {
+  noInterrupts();
+  pan_servo.writeMicroseconds(pan_us);
+  tilt_servo.writeMicroseconds(tilt_us);
+  pan_servo.attach(PAN_PIN, PULSE_MIN, PULSE_MAX);
+  tilt_servo.attach(TILT_PIN, PULSE_MIN, PULSE_MAX);
+  pan_servo.writeMicroseconds(pan_us);
+  tilt_servo.writeMicroseconds(tilt_us);
+  interrupts();
+
+  pan_now = pan_us;
+  tilt_now = tilt_us;
+  servos_attached = true;
+}
+
+void command_move(long pan_us, long tilt_us) {
+  pan_target = (int)clamp_long(pan_us, PULSE_MIN, PULSE_MAX);
+  tilt_target = (int)clamp_long(tilt_us, PULSE_MIN, PULSE_MAX);
+
+  if (!servos_attached) {
+    attach_at(pan_target, tilt_target);
+    return;
+  }
+  pan_now = pan_target;
+  tilt_now = tilt_target;
+  pan_servo.writeMicroseconds(pan_now);
+  tilt_servo.writeMicroseconds(tilt_now);
+}
+
+// ---------------------------------------------------------------------------
 // sample frames
 
 const uint8_t RATE_DEFAULT = 50;
@@ -152,29 +217,30 @@ uint32_t last_sample_us = 0;
 // counts every frame that was due, also the skipped ones, so the pi sees a gap
 uint16_t seq = 0;
 
+const uint8_t FLAG_ATTACHED = 1;
+
 void send_frame() {
   uint16_t this_seq = seq;
   seq++;
 
+  // a detached servo gets no pulses at all, the frame says 0 for it
+  unsigned pan_out = 0;
+  unsigned tilt_out = 0;
+  unsigned flags = 0;
+  if (servos_attached) {
+    pan_out = pan_now;
+    tilt_out = tilt_now;
+    flags |= FLAG_ATTACHED;
+  }
+
   char buf[72];
   int len = snprintf(buf, sizeof(buf), "S,%u,%u,%u,%u,%u,%lu,%u,%ld,%u,%u,%u\n",
                      this_seq, ldr_sum[0], ldr_sum[1], ldr_sum[2], ldr_sum[3],
-                     0UL, 0U, 0L, 0U, 0U, 0U);
+                     0UL, 0U, 0L, pan_out, tilt_out, flags);
   if (len <= 0 || len >= (int)sizeof(buf)) {
     return;
   }
   Serial.write(buf, len);
-}
-
-// out of range values are clamped like the servo pulses, the board never ends up in an odd state
-long clamp_long(long value, long low, long high) {
-  if (value < low) {
-    return low;
-  }
-  if (value > high) {
-    return high;
-  }
-  return value;
 }
 
 void command_rate(long hz) {
@@ -276,6 +342,9 @@ void handle_line(char *line) {
     case 'R':
       want = 2;
       break;
+    case 'M':
+      want = 3;
+      break;
     default:
       send_error(ERR_BAD_COMMAND, "unknown command");
       return;
@@ -287,7 +356,14 @@ void handle_line(char *line) {
 
   // every number is checked before anything changes, a bad line has no effect at all
   long a = 0;
-  if (cmd == 'R' && !parse_number(field[1], &a)) {
+  long b = 0;
+  bool numbers_ok = true;
+  if (cmd == 'R') {
+    numbers_ok = parse_number(field[1], &a);
+  } else if (cmd == 'M') {
+    numbers_ok = parse_number(field[1], &a) && parse_number(field[2], &b);
+  }
+  if (!numbers_ok) {
     send_error(ERR_BAD_COMMAND, "bad number");
     return;
   }
@@ -301,6 +377,9 @@ void handle_line(char *line) {
       break;
     case 'R':
       command_rate(a);
+      break;
+    case 'M':
+      command_move(a, b);
       break;
   }
 }
@@ -359,6 +438,12 @@ void read_serial() {
 // ---------------------------------------------------------------------------
 
 void setup() {
+  // the servo lines stay low until the first M, a floating line can make a servo twitch
+  pinMode(PAN_PIN, OUTPUT);
+  digitalWrite(PAN_PIN, LOW);
+  pinMode(TILT_PIN, OUTPUT);
+  digitalWrite(TILT_PIN, LOW);
+
   Serial.begin(BAUD);
   adc_start(0);
   send_identity();
