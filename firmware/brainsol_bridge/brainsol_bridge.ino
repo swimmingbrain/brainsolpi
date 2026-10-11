@@ -160,6 +160,8 @@ const uint8_t PAN_PIN = 9;
 const uint8_t TILT_PIN = 10;
 const int PULSE_MIN = 500;
 const int PULSE_MAX = 2500;
+const uint32_t SLEW_TICK_US = 10000;
+const int SLEW_DEFAULT = 30;
 
 Servo pan_servo;
 Servo tilt_servo;
@@ -170,6 +172,10 @@ int pan_now = 0;
 int tilt_now = 0;
 int pan_target = 0;
 int tilt_target = 0;
+
+// largest pulse change per slew tick
+int slew_cap = SLEW_DEFAULT;
+uint32_t last_slew_us = 0;
 
 // both servos start right at the commanded pulse, nothing jumps to the default 1500 us.
 // the library learns our 500 to 2500 range only inside attach(), a write before that is
@@ -195,14 +201,45 @@ void command_move(long pan_us, long tilt_us) {
   pan_target = (int)clamp_long(pan_us, PULSE_MIN, PULSE_MAX);
   tilt_target = (int)clamp_long(tilt_us, PULSE_MIN, PULSE_MAX);
 
+  // later targets are reached by slew_tick, step by step
   if (!servos_attached) {
     attach_at(pan_target, tilt_target);
+  }
+}
+
+// one step of at most cap us toward the target. both values are between 500 and 2500,
+// so the difference stays within 2000 and a 16 bit int never overflows
+int slew_toward(int now, int target, int cap) {
+  int diff = target - now;
+  if (diff > cap) {
+    return now + cap;
+  }
+  if (diff < -cap) {
+    return now - cap;
+  }
+  return target;
+}
+
+// runs every SLEW_TICK_US, so the cap is a speed limit in us per 10 ms
+void slew_tick() {
+  if (!servos_attached) {
     return;
   }
-  pan_now = pan_target;
-  tilt_now = tilt_target;
-  pan_servo.writeMicroseconds(pan_now);
-  tilt_servo.writeMicroseconds(tilt_now);
+  int pan_next = slew_toward(pan_now, pan_target, slew_cap);
+  int tilt_next = slew_toward(tilt_now, tilt_target, slew_cap);
+  // only write on a change, every write briefly blocks interrupts in the library
+  if (pan_next != pan_now) {
+    pan_now = pan_next;
+    pan_servo.writeMicroseconds(pan_now);
+  }
+  if (tilt_next != tilt_now) {
+    tilt_now = tilt_next;
+    tilt_servo.writeMicroseconds(tilt_now);
+  }
+}
+
+bool servos_slewing() {
+  return servos_attached && (pan_now != pan_target || tilt_now != tilt_target);
 }
 
 // ---------------------------------------------------------------------------
@@ -218,6 +255,7 @@ uint32_t last_sample_us = 0;
 uint16_t seq = 0;
 
 const uint8_t FLAG_ATTACHED = 1;
+const uint8_t FLAG_SLEWING = 4;
 
 void send_frame() {
   uint16_t this_seq = seq;
@@ -231,6 +269,9 @@ void send_frame() {
     pan_out = pan_now;
     tilt_out = tilt_now;
     flags |= FLAG_ATTACHED;
+  }
+  if (servos_slewing()) {
+    flags |= FLAG_SLEWING;
   }
 
   char buf[72];
@@ -448,6 +489,7 @@ void setup() {
   adc_start(0);
   send_identity();
   last_sample_us = micros();
+  last_slew_us = last_sample_us;
 }
 
 void loop() {
@@ -457,6 +499,9 @@ void loop() {
   read_serial();
   adc_step();
 
+  if (tick_due(last_slew_us, SLEW_TICK_US, now_us)) {
+    slew_tick();
+  }
   if (tick_due(last_sample_us, sample_period_us, now_us)) {
     send_frame();
   }
