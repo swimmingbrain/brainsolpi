@@ -14,7 +14,7 @@ from .config import Settings
 from .controller import Tracker
 from .derived import gain, light_estimate, measured_mw, offset_deg, panel_mw
 from .drivers.base import Driver
-from .drivers.protocol import CAP_LUX, CAP_PV, FLAG_WATCHDOG
+from .drivers.protocol import CAP_LUX, CAP_PV, FLAG_ATTACHED, FLAG_WATCHDOG
 from .history import History, Recorder
 from .jsonio import r1, r2, r3
 from .kinematics import ServoMap, clamp
@@ -160,6 +160,7 @@ class Engine:
         self._last_send = -1e9
         self._force_send = True
         self._wd_warned = -1e9
+        self._link_t = -1e9
         self._next_pub = 0.0
         self._next_sys = 0.0
         self._next_cfg = 0.0
@@ -262,7 +263,15 @@ class Engine:
         bits = drv.ident.caps if drv.ident is not None else 0
         self.lux = f.lux10 / 10.0 if bits & CAP_LUX else None
         self.tracker.sense(f.raw, DT)
-        if f.flags & FLAG_WATCHDOG and now - self._last_send < 0.2 and now - self._wd_warned > 30.0:
+        # the flag is also up before the first command and after a detach, only an attached
+        # board that keeps flagging while we send means our commands get lost
+        if (
+            f.flags & FLAG_WATCHDOG
+            and f.flags & FLAG_ATTACHED
+            and now - self._link_t > 3.0
+            and now - self._last_send < 0.2
+            and now - self._wd_warned > 30.0
+        ):
             self._wd_warned = now
             self._force_send = True
             self.event("warn", "the board says our commands stopped arriving, sending again")
@@ -331,6 +340,7 @@ class Engine:
         self.link = link
         if link:
             self._force_send = True
+            self._link_t = self.now
             self.tracker.reset_filter()
             fw = self.fw
             what = f"firmware {fw}" if fw else self.driver.name
@@ -366,6 +376,11 @@ class Engine:
                 self._next_sys = now + 1.0
             self.last_sys = self.sys_frame()
             self.sink.publish(self.last_sys, "sys")
+            caps = self.caps()
+            if caps != self._caps:
+                # a sensor plugged in later only shows in a fresh identity line
+                self._caps = caps
+                self.sink.caps_changed()
         if self._cfg_dirty and now >= self._next_cfg:
             self._cfg_dirty = False
             self._next_cfg = now + 0.2
@@ -499,6 +514,7 @@ class Engine:
             "fw": self.fw,
             "rec": bool(self.recorder is not None and self.recorder.on),
             "act": self.activity.kind if self.activity is not None else None,
+            "drop": getattr(self.driver, "dropped", 0),
         }
 
     def hello(self, admin: bool = False) -> dict:

@@ -11,7 +11,7 @@ S_FIELDS = {
     "pmw", "pv", "gain", "off", "tgt", "sun", "sim",
 }
 SYS_FIELDS = {
-    "t", "viewers", "admins", "cpu", "temp", "mem", "up", "hz", "jit", "drv", "link", "fw", "rec", "act",
+    "t", "viewers", "admins", "cpu", "temp", "mem", "up", "hz", "jit", "drv", "link", "fw", "rec", "act", "drop",
 }
 
 
