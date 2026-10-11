@@ -240,6 +240,17 @@ void slew_tick() {
   }
 }
 
+// no pulses at all, the head goes limp. the next M attaches again right at its pulse
+void command_detach() {
+  pan_servo.detach();
+  tilt_servo.detach();
+  // detach() only stops the timer from touching the pin. when it lands in the middle
+  // of a pulse the line would stay high for good, so pull both lines low ourselves
+  digitalWrite(PAN_PIN, LOW);
+  digitalWrite(TILT_PIN, LOW);
+  servos_attached = false;
+}
+
 void command_slew(long cap) {
   slew_cap = (int)clamp_long(cap, SLEW_MIN, SLEW_MAX);
 }
@@ -383,6 +394,7 @@ void handle_line(char *line) {
   uint8_t want;
   switch (cmd) {
     case '?':
+    case 'D':
       want = 1;
       break;
     case 'P':
@@ -428,6 +440,9 @@ void handle_line(char *line) {
       break;
     case 'L':
       command_slew(a);
+      break;
+    case 'D':
+      command_detach();
       break;
     case 'M':
       command_move(a, b);
