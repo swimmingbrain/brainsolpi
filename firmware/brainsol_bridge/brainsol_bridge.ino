@@ -144,6 +144,8 @@ void adc_step() {
 // sample frames
 
 const uint8_t RATE_DEFAULT = 50;
+const uint8_t RATE_MIN = 1;
+const uint8_t RATE_MAX = 100;
 
 uint32_t sample_period_us = 1000000UL / RATE_DEFAULT;
 uint32_t last_sample_us = 0;
@@ -162,6 +164,24 @@ void send_frame() {
     return;
   }
   Serial.write(buf, len);
+}
+
+// out of range values are clamped like the servo pulses, the board never ends up in an odd state
+long clamp_long(long value, long low, long high) {
+  if (value < low) {
+    return low;
+  }
+  if (value > high) {
+    return high;
+  }
+  return value;
+}
+
+void command_rate(long hz) {
+  hz = clamp_long(hz, RATE_MIN, RATE_MAX);
+  sample_period_us = 1000000UL / (uint32_t)hz;
+  // the next frame comes one new period from now
+  last_sample_us = micros();
 }
 
 // ---------------------------------------------------------------------------
@@ -253,6 +273,7 @@ void handle_line(char *line) {
       want = 1;
       break;
     case 'P':
+    case 'R':
       want = 2;
       break;
     default:
@@ -264,12 +285,22 @@ void handle_line(char *line) {
     return;
   }
 
+  // every number is checked before anything changes, a bad line has no effect at all
+  long a = 0;
+  if (cmd == 'R' && !parse_number(field[1], &a)) {
+    send_error(ERR_BAD_COMMAND, "bad number");
+    return;
+  }
+
   switch (cmd) {
     case '?':
       send_identity();
       break;
     case 'P':
       command_ping(field[1]);
+      break;
+    case 'R':
+      command_rate(a);
       break;
   }
 }
