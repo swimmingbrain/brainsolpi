@@ -162,6 +162,8 @@ const int PULSE_MIN = 500;
 const int PULSE_MAX = 2500;
 const uint32_t SLEW_TICK_US = 10000;
 const int SLEW_DEFAULT = 30;
+const int SLEW_MIN = 1;
+const int SLEW_MAX = 200;
 
 Servo pan_servo;
 Servo tilt_servo;
@@ -236,6 +238,10 @@ void slew_tick() {
     tilt_now = tilt_next;
     tilt_servo.writeMicroseconds(tilt_now);
   }
+}
+
+void command_slew(long cap) {
+  slew_cap = (int)clamp_long(cap, SLEW_MIN, SLEW_MAX);
 }
 
 bool servos_slewing() {
@@ -381,6 +387,7 @@ void handle_line(char *line) {
       break;
     case 'P':
     case 'R':
+    case 'L':
       want = 2;
       break;
     case 'M':
@@ -399,7 +406,7 @@ void handle_line(char *line) {
   long a = 0;
   long b = 0;
   bool numbers_ok = true;
-  if (cmd == 'R') {
+  if (cmd == 'R' || cmd == 'L') {
     numbers_ok = parse_number(field[1], &a);
   } else if (cmd == 'M') {
     numbers_ok = parse_number(field[1], &a) && parse_number(field[2], &b);
@@ -418,6 +425,9 @@ void handle_line(char *line) {
       break;
     case 'R':
       command_rate(a);
+      break;
+    case 'L':
+      command_slew(a);
       break;
     case 'M':
       command_move(a, b);
