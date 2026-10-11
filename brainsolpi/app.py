@@ -15,6 +15,9 @@ from .auth import Auth, hash_pin
 from .commands import Commands
 from .config import Settings
 from .drivers.base import Driver
+from .drivers.bridge import BridgeDriver
+from .drivers.detect import find_board
+from .drivers.fakeboard import FakeBoard
 from .drivers.sim import SimDriver
 from .engine import Engine
 from .hub import Hub
@@ -30,11 +33,33 @@ log = logging.getLogger("brainsolpi")
 RESTART_CODE = 75
 
 
+AUTO_WAIT_S = 6.0
+
+
 async def open_driver(args, settings: Settings) -> Driver:
     kind = args.driver
+    serial_cfg = settings.data["serial"]
+    rate, slew = serial_cfg["rate"], serial_cfg["slew"]
     if kind == "sim":
-        return SimDriver()
-    raise SystemExit(f"the {kind} driver is not available")
+        return SimDriver(rate=rate)
+    if kind == "fake":
+        # the bridge code path end to end, against a board that lives in memory
+        board = FakeBoard(boot_s=1.0)
+        log.info("fake board on an in memory serial link")
+        return BridgeDriver("fake", opener=board.opener, rate=rate, slew=slew, profile="sim")
+    if kind == "bridge":
+        finder = None if args.port else (lambda: find_board(AUTO_WAIT_S))
+        return BridgeDriver(args.port, finder=finder, rate=rate, slew=slew)
+    # auto: a board that answers wins, otherwise the sim keeps the demo going
+    log.info("looking for a board for up to %.0f s", AUTO_WAIT_S)
+    ports = [args.port] if args.port else None
+    found = await asyncio.get_running_loop().run_in_executor(None, lambda: find_board(AUTO_WAIT_S, ports=ports))
+    if found is not None:
+        port, _, ident = found
+        log.info("found the board on %s, firmware %s", port, ident.fw)
+        return BridgeDriver(port, initial=found, rate=rate, slew=slew)
+    log.warning("no board answered within %.0f s, falling back to the sim driver", AUTO_WAIT_S)
+    return SimDriver(rate=rate)
 
 
 def _install_signals(stop: asyncio.Event) -> None:
