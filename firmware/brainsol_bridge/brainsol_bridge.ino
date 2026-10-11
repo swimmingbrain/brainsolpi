@@ -164,6 +164,8 @@ const uint32_t SLEW_TICK_US = 10000;
 const int SLEW_DEFAULT = 30;
 const int SLEW_MIN = 1;
 const int SLEW_MAX = 200;
+// longest wait for a running pulse to end before a detach, a bit more than 2500 us
+const uint32_t DETACH_WAIT_US = 3000;
 
 Servo pan_servo;
 Servo tilt_servo;
@@ -240,14 +242,31 @@ void slew_tick() {
   }
 }
 
+// detach() only stops the timer from touching the pin. called in the middle of a pulse
+// the line would stay high for good, and pulling it low by hand would cut the pulse short,
+// which the servo takes as a command to jump. so we wait until the line is low, at most
+// one pulse of 2.5 ms, and detach with interrupts off so no new pulse can start meanwhile
+void detach_between_pulses(Servo &servo, uint8_t pin) {
+  uint32_t start = micros();
+  bool done = false;
+  while (!done) {
+    bool timed_out = (uint32_t)(micros() - start) > DETACH_WAIT_US;
+    noInterrupts();
+    if (digitalRead(pin) == LOW || timed_out) {
+      servo.detach();
+      done = true;
+    }
+    interrupts();
+  }
+  digitalWrite(pin, LOW);
+}
+
 // no pulses at all, the head goes limp. the next M attaches again right at its pulse
 void command_detach() {
-  pan_servo.detach();
-  tilt_servo.detach();
-  // detach() only stops the timer from touching the pin. when it lands in the middle
-  // of a pulse the line would stay high for good, so pull both lines low ourselves
-  digitalWrite(PAN_PIN, LOW);
-  digitalWrite(TILT_PIN, LOW);
+  if (servos_attached) {
+    detach_between_pulses(pan_servo, PAN_PIN);
+    detach_between_pulses(tilt_servo, TILT_PIN);
+  }
   servos_attached = false;
 }
 
