@@ -5,6 +5,7 @@
 // the protocol and the pin map are described in firmware/README.md
 
 #include <Servo.h>
+#include <Wire.h>
 
 #define FW_VERSION "1.0.0"
 
@@ -55,11 +56,6 @@ void send_error(uint8_t code, const char *text) {
   char buf[sizeof(reply_buf)];
   snprintf(buf, sizeof(buf), "E,%u,%s", (unsigned)code, text);
   queue_reply(buf);
-}
-
-uint8_t caps() {
-  // no sensors yet
-  return 0;
 }
 
 // the pi waits for this line after it opens the port, so it is the first thing we send
@@ -151,6 +147,103 @@ void adc_step() {
     }
   }
   adc_start(adc_channel);
+}
+
+// ---------------------------------------------------------------------------
+// i2c sensors
+
+// i2c transfers wait for the bus. without a timeout a stuck or half plugged sensor would
+// hang the loop for good, 3 ms is about ten times a normal transfer at 100 khz
+const uint32_t I2C_TIMEOUT_US = 3000;
+// one sensor transfer per step keeps every loop pass short
+const uint32_t SENSOR_STEP_MS = 50;
+// failed reads in a row before a sensor counts as unplugged
+const uint8_t SENSOR_FAILS_MAX = 3;
+
+// the stock module has ADDR low and answers on 0x23, with ADDR high it is 0x5c
+const uint8_t BH1750_ADDRS[2] = {0x23, 0x5C};
+const uint8_t BH1750_POWER_ON = 0x01;
+const uint8_t BH1750_CONT_HRES = 0x10;
+
+// 0 while no bh1750 is found
+uint8_t bh1750_addr = 0;
+uint8_t bh1750_fails = 0;
+// the last reading, lux times 10, 0 without a sensor as the protocol says
+uint32_t lux10 = 0;
+
+uint32_t last_sensor_ms = 0;
+uint8_t sensor_turn = 0;
+
+bool i2c_send_byte(uint8_t addr, uint8_t value) {
+  Wire.beginTransmission(addr);
+  Wire.write(value);
+  return Wire.endTransmission() == 0;
+}
+
+// reads two bytes, high byte first. leftovers of a short read are thrown away
+bool i2c_read_word(uint8_t addr, uint16_t *value) {
+  if (Wire.requestFrom(addr, (uint8_t)2) != 2) {
+    while (Wire.available() > 0) {
+      Wire.read();
+    }
+    return false;
+  }
+  uint8_t high = Wire.read();
+  uint8_t low = Wire.read();
+  *value = ((uint16_t)high << 8) | low;
+  return true;
+}
+
+void bh1750_probe() {
+  for (uint8_t i = 0; i < 2; i++) {
+    uint8_t addr = BH1750_ADDRS[i];
+    // wake it up, then continuous high resolution mode: 1 lx steps, a new value every 120 ms
+    if (i2c_send_byte(addr, BH1750_POWER_ON) && i2c_send_byte(addr, BH1750_CONT_HRES)) {
+      bh1750_addr = addr;
+      bh1750_fails = 0;
+      return;
+    }
+  }
+}
+
+void bh1750_read() {
+  uint16_t raw;
+  if (i2c_read_word(bh1750_addr, &raw)) {
+    // lux is raw / 1.2, so lux times 10 is raw * 25 / 3. done in 32 bit and rounded,
+    // the largest raw value gives 546125 which needs more than 16 bit
+    lux10 = ((uint32_t)raw * 25 + 1) / 3;
+    bh1750_fails = 0;
+    return;
+  }
+  bh1750_fails++;
+  if (bh1750_fails >= SENSOR_FAILS_MAX) {
+    bh1750_addr = 0;
+    lux10 = 0;
+  }
+}
+
+void sensors_step(uint32_t now_ms) {
+  if ((uint32_t)(now_ms - last_sensor_ms) < SENSOR_STEP_MS) {
+    return;
+  }
+  last_sensor_ms = now_ms;
+
+  // the bh1750 makes a new value every 120 ms, reading every third step is plenty
+  if (sensor_turn == 0 && bh1750_addr != 0) {
+    bh1750_read();
+  }
+  sensor_turn++;
+  if (sensor_turn >= 3) {
+    sensor_turn = 0;
+  }
+}
+
+uint8_t caps() {
+  uint8_t bits = 0;
+  if (bh1750_addr != 0) {
+    bits |= CAP_BH1750;
+  }
+  return bits;
 }
 
 // ---------------------------------------------------------------------------
@@ -333,7 +426,7 @@ void send_frame() {
   char buf[72];
   int len = snprintf(buf, sizeof(buf), "S,%u,%u,%u,%u,%u,%lu,%u,%ld,%u,%u,%u\n",
                      this_seq, ldr_sum[0], ldr_sum[1], ldr_sum[2], ldr_sum[3],
-                     0UL, 0U, 0L, pan_out, tilt_out, flags);
+                     lux10, 0U, 0L, pan_out, tilt_out, flags);
   if (len <= 0 || len >= (int)sizeof(buf)) {
     return;
   }
@@ -551,6 +644,12 @@ void setup() {
 
   Serial.begin(BAUD);
   adc_start(0);
+
+  Wire.begin();
+  Wire.setWireTimeout(I2C_TIMEOUT_US, true);
+  // the sensors are looked for before the identity line, so its caps are right
+  bh1750_probe();
+
   send_identity();
   last_sample_us = micros();
   last_slew_us = last_sample_us;
@@ -574,4 +673,5 @@ void loop() {
 
   uint32_t now_ms = millis();
   watchdog_check(now_ms);
+  sensors_step(now_ms);
 }
