@@ -194,11 +194,14 @@ def sensor_layout():
         "U": ((0.0, hh + e), (0, -1)),
         "D": ((0.0, -hh - e), (0, 1)),
     }
-    inner_v = P.HEAD_H / 2 - P.HEAD_WALL_T - 0.4
-    bh_v = inner_v - P.MOD_W / 2
-    inner_u = P.HEAD_W / 2 - P.HEAD_WALL_T - 0.4
-    bh_u = inner_u - P.BH_CHIP_FROM_END
-    lay["lux"] = ((bh_u, bh_v), (-1, 0))
+    # the far corner of the board has to stay inside the rounded corner of the head
+    inner_u = P.HEAD_W / 2 - P.HEAD_WALL_T
+    inner_v = P.HEAD_H / 2 - P.HEAD_WALL_T
+    rc = P.R_MID - P.HEAD_WALL_T - 0.6
+    cu, cv = P.HEAD_W / 2 - P.R_MID, P.HEAD_H / 2 - P.R_MID
+    end_u = min(inner_u - 0.4, cu + rc * 0.98)
+    top_v = min(inner_v - 0.4, cv + math.sqrt(max(rc * rc - (end_u - cu) ** 2, 0.0)))
+    lay["lux"] = ((end_u - P.BH_CHIP_FROM_END, top_v - P.MOD_W / 2), (-1, 0))
     return lay
 
 
