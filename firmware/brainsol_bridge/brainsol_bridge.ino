@@ -157,6 +157,7 @@ void adc_step() {
 const uint32_t I2C_TIMEOUT_US = 3000;
 // one sensor transfer per step keeps every loop pass short
 const uint32_t SENSOR_STEP_MS = 50;
+const uint32_t PROBE_EVERY_MS = 3000;
 // failed reads in a row before a sensor counts as unplugged
 const uint8_t SENSOR_FAILS_MAX = 3;
 
@@ -187,6 +188,7 @@ uint16_t panel_mv = 0;
 long panel_ua = 0;
 
 uint32_t last_sensor_ms = 0;
+uint32_t last_probe_ms = 0;
 uint8_t sensor_turn = 0;
 
 bool i2c_send_byte(uint8_t addr, uint8_t value) {
@@ -292,6 +294,20 @@ void ina219_read_shunt() {
 }
 
 void sensors_step(uint32_t now_ms) {
+  // missing sensors are looked for again now and then, so one plugged in later shows up
+  // in the frames and in the caps of the next identity line. a probe of an empty address
+  // is a single short transfer, nothing else happens on that pass
+  if ((uint32_t)(now_ms - last_probe_ms) >= PROBE_EVERY_MS) {
+    last_probe_ms = now_ms;
+    if (bh1750_addr == 0) {
+      bh1750_probe();
+    }
+    if (!ina219_found) {
+      ina219_probe();
+    }
+    return;
+  }
+
   if ((uint32_t)(now_ms - last_sensor_ms) < SENSOR_STEP_MS) {
     return;
   }
