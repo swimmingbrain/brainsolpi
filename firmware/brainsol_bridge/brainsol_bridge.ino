@@ -171,6 +171,21 @@ uint8_t bh1750_fails = 0;
 // the last reading, lux times 10, 0 without a sensor as the protocol says
 uint32_t lux10 = 0;
 
+const uint8_t INA219_ADDR = 0x40;
+const uint8_t INA219_REG_CONFIG = 0x00;
+const uint8_t INA219_REG_SHUNT = 0x01;
+const uint8_t INA219_REG_BUS = 0x02;
+// 32 v range, shunt gain /8 for +-320 mv, 12 bit, shunt and bus measured all the time.
+// that is the power on default, we write it anyway because the chip keeps an older
+// setting for as long as it has power
+const uint16_t INA219_CONFIG = 0x399F;
+
+bool ina219_found = false;
+uint8_t ina219_fails = 0;
+// the last readings, 0 without a sensor as the protocol says
+uint16_t panel_mv = 0;
+long panel_ua = 0;
+
 uint32_t last_sensor_ms = 0;
 uint8_t sensor_turn = 0;
 
@@ -222,15 +237,74 @@ void bh1750_read() {
   }
 }
 
+bool ina219_write(uint8_t reg, uint16_t value) {
+  Wire.beginTransmission(INA219_ADDR);
+  Wire.write(reg);
+  Wire.write((uint8_t)(value >> 8));
+  Wire.write((uint8_t)(value & 0xFF));
+  return Wire.endTransmission() == 0;
+}
+
+bool ina219_read(uint8_t reg, uint16_t *value) {
+  if (!i2c_send_byte(INA219_ADDR, reg)) {
+    return false;
+  }
+  return i2c_read_word(INA219_ADDR, value);
+}
+
+void ina219_probe() {
+  if (ina219_write(INA219_REG_CONFIG, INA219_CONFIG)) {
+    ina219_found = true;
+    ina219_fails = 0;
+  }
+}
+
+void ina219_failed() {
+  ina219_fails++;
+  if (ina219_fails >= SENSOR_FAILS_MAX) {
+    ina219_found = false;
+    panel_mv = 0;
+    panel_ua = 0;
+  }
+}
+
+void ina219_read_bus() {
+  uint16_t raw;
+  if (!ina219_read(INA219_REG_BUS, &raw)) {
+    ina219_failed();
+    return;
+  }
+  // bits 15 to 3 hold the bus voltage in 4 mv steps, the low bits are status flags
+  panel_mv = (raw >> 3) * 4;
+  ina219_fails = 0;
+}
+
+void ina219_read_shunt() {
+  uint16_t raw;
+  if (!ina219_read(INA219_REG_SHUNT, &raw)) {
+    ina219_failed();
+    return;
+  }
+  // signed, 10 uv per step. with the usual 0.1 ohm shunt on the module that is
+  // 100 ua per step, so +-32000 steps become at most +-3.2 a, a long holds that easily
+  panel_ua = (long)(int16_t)raw * 100;
+  ina219_fails = 0;
+}
+
 void sensors_step(uint32_t now_ms) {
   if ((uint32_t)(now_ms - last_sensor_ms) < SENSOR_STEP_MS) {
     return;
   }
   last_sensor_ms = now_ms;
 
-  // the bh1750 makes a new value every 120 ms, reading every third step is plenty
+  // one transfer per step, so every value is fresh every 150 ms.
+  // the bh1750 makes a new value every 120 ms, that is plenty
   if (sensor_turn == 0 && bh1750_addr != 0) {
     bh1750_read();
+  } else if (sensor_turn == 1 && ina219_found) {
+    ina219_read_bus();
+  } else if (sensor_turn == 2 && ina219_found) {
+    ina219_read_shunt();
   }
   sensor_turn++;
   if (sensor_turn >= 3) {
@@ -242,6 +316,9 @@ uint8_t caps() {
   uint8_t bits = 0;
   if (bh1750_addr != 0) {
     bits |= CAP_BH1750;
+  }
+  if (ina219_found) {
+    bits |= CAP_INA219;
   }
   return bits;
 }
@@ -426,7 +503,7 @@ void send_frame() {
   char buf[72];
   int len = snprintf(buf, sizeof(buf), "S,%u,%u,%u,%u,%u,%lu,%u,%ld,%u,%u,%u\n",
                      this_seq, ldr_sum[0], ldr_sum[1], ldr_sum[2], ldr_sum[3],
-                     lux10, 0U, 0L, pan_out, tilt_out, flags);
+                     lux10, panel_mv, panel_ua, pan_out, tilt_out, flags);
   if (len <= 0 || len >= (int)sizeof(buf)) {
     return;
   }
@@ -649,6 +726,7 @@ void setup() {
   Wire.setWireTimeout(I2C_TIMEOUT_US, true);
   // the sensors are looked for before the identity line, so its caps are right
   bh1750_probe();
+  ina219_probe();
 
   send_identity();
   last_sample_us = micros();
