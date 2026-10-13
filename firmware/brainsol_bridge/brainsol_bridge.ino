@@ -500,6 +500,11 @@ void send_frame() {
   uint16_t this_seq = seq;
   seq++;
 
+  // an answer to the pi goes first, the next frame comes soon enough
+  if (reply_pending) {
+    return;
+  }
+
   // a detached servo gets no pulses at all, the frame says 0 for it
   unsigned pan_out = 0;
   unsigned tilt_out = 0;
@@ -521,6 +526,11 @@ void send_frame() {
                      this_seq, ldr_sum[0], ldr_sum[1], ldr_sum[2], ldr_sum[3],
                      lux10, panel_mv, panel_ua, pan_out, tilt_out, flags);
   if (len <= 0 || len >= (int)sizeof(buf)) {
+    return;
+  }
+  // Serial.write waits when the 64 byte transmit buffer is full. a frame is at most 62
+  // characters, so we skip it instead of stalling the loop, the gap in seq shows it
+  if (Serial.availableForWrite() < len) {
     return;
   }
   Serial.write(buf, len);
