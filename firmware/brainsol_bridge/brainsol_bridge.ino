@@ -166,6 +166,8 @@ const int SLEW_MIN = 1;
 const int SLEW_MAX = 200;
 // longest wait for a running pulse to end before a detach, a bit more than 2500 us
 const uint32_t DETACH_WAIT_US = 3000;
+// time without an M command before flag 2 goes up
+const uint32_t WATCHDOG_MS = 1500;
 
 Servo pan_servo;
 Servo tilt_servo;
@@ -180,6 +182,18 @@ int tilt_target = 0;
 // largest pulse change per slew tick
 int slew_cap = SLEW_DEFAULT;
 uint32_t last_slew_us = 0;
+
+// the board never moves on its own. when the pi goes quiet we keep the last target
+// and only raise a flag, the pi decides what happens next
+uint32_t last_move_ms = 0;
+bool watchdog_expired = false;
+
+// the flag is latched, so it cannot clear by itself when millis() wraps after 49 days
+void watchdog_check(uint32_t now_ms) {
+  if (!watchdog_expired && (uint32_t)(now_ms - last_move_ms) >= WATCHDOG_MS) {
+    watchdog_expired = true;
+  }
+}
 
 // both servos start right at the commanded pulse, nothing jumps to the default 1500 us.
 // the library learns our 500 to 2500 range only inside attach(), a write before that is
@@ -204,6 +218,8 @@ void attach_at(int pan_us, int tilt_us) {
 void command_move(long pan_us, long tilt_us) {
   pan_target = (int)clamp_long(pan_us, PULSE_MIN, PULSE_MAX);
   tilt_target = (int)clamp_long(tilt_us, PULSE_MIN, PULSE_MAX);
+  last_move_ms = millis();
+  watchdog_expired = false;
 
   // later targets are reached by slew_tick, step by step
   if (!servos_attached) {
@@ -291,6 +307,7 @@ uint32_t last_sample_us = 0;
 uint16_t seq = 0;
 
 const uint8_t FLAG_ATTACHED = 1;
+const uint8_t FLAG_WATCHDOG = 2;
 const uint8_t FLAG_SLEWING = 4;
 
 void send_frame() {
@@ -305,6 +322,9 @@ void send_frame() {
     pan_out = pan_now;
     tilt_out = tilt_now;
     flags |= FLAG_ATTACHED;
+  }
+  if (watchdog_expired) {
+    flags |= FLAG_WATCHDOG;
   }
   if (servos_slewing()) {
     flags |= FLAG_SLEWING;
@@ -534,19 +554,24 @@ void setup() {
   send_identity();
   last_sample_us = micros();
   last_slew_us = last_sample_us;
+  last_move_ms = millis();
 }
 
 void loop() {
-  uint32_t now_us = micros();
-
   flush_reply();
   read_serial();
   adc_step();
 
+  // the clocks are read after the commands ran, a command may have just restarted a timer
+  // and a time from before that would look like a huge negative gap
+  uint32_t now_us = micros();
   if (tick_due(last_slew_us, SLEW_TICK_US, now_us)) {
     slew_tick();
   }
   if (tick_due(last_sample_us, sample_period_us, now_us)) {
     send_frame();
   }
+
+  uint32_t now_ms = millis();
+  watchdog_check(now_ms);
 }
