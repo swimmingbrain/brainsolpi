@@ -23,7 +23,7 @@ const uint8_t CAP_INA219 = 2;
 const uint8_t ERR_BAD_COMMAND = 1;
 const uint8_t ERR_TOO_LONG = 2;
 
-// ---------------------------------------------------------------------------
+// ===========================================================================
 // replies
 
 // a reply (I, P or E line) waits here until the transmit buffer has room for all of it,
@@ -65,7 +65,7 @@ void send_identity() {
   queue_reply(buf);
 }
 
-// ---------------------------------------------------------------------------
+// ===========================================================================
 // helpers
 
 // out of range values from the pi are clamped, so the board never ends up in an odd state
@@ -93,7 +93,7 @@ bool tick_due(uint32_t &last, uint32_t period, uint32_t now) {
   return true;
 }
 
-// ---------------------------------------------------------------------------
+// ===========================================================================
 // light sensors
 
 // adc channels 0 to 3 are the pins a0 to a3: left, right, up, down
@@ -149,7 +149,7 @@ void adc_step() {
   adc_start(adc_channel);
 }
 
-// ---------------------------------------------------------------------------
+// ===========================================================================
 // i2c sensors
 
 // i2c transfers wait for the bus. without a timeout a stuck or half plugged sensor would
@@ -176,9 +176,9 @@ const uint8_t INA219_ADDR = 0x40;
 const uint8_t INA219_REG_CONFIG = 0x00;
 const uint8_t INA219_REG_SHUNT = 0x01;
 const uint8_t INA219_REG_BUS = 0x02;
-// 32 v range, shunt gain /8 for +-320 mv, 12 bit, shunt and bus measured all the time.
-// that is the power on default, we write it anyway because the chip keeps an older
-// setting for as long as it has power
+// 32 v range, shunt gain /8 for up to 320 mv either way, 12 bit, shunt and bus measured
+// all the time. that is the power on default, we write it anyway because the chip
+// keeps an older setting for as long as it has power
 const uint16_t INA219_CONFIG = 0x399F;
 
 bool ina219_found = false;
@@ -288,7 +288,7 @@ void ina219_read_shunt() {
     return;
   }
   // signed, 10 uv per step. with the usual 0.1 ohm shunt on the module that is
-  // 100 ua per step, so +-32000 steps become at most +-3.2 a, a long holds that easily
+  // 100 ua per step, so 32000 steps either way are at most 3.2 a, a long holds that easily
   panel_ua = (long)(int16_t)raw * 100;
   ina219_fails = 0;
 }
@@ -313,7 +313,7 @@ void sensors_step(uint32_t now_ms) {
   }
   last_sensor_ms = now_ms;
 
-  // one transfer per step, so every value is fresh every 150 ms.
+  // one register per step, so every value is fresh every 150 ms.
   // the bh1750 makes a new value every 120 ms, that is plenty
   if (sensor_turn == 0 && bh1750_addr != 0) {
     bh1750_read();
@@ -339,7 +339,7 @@ uint8_t caps() {
   return bits;
 }
 
-// ---------------------------------------------------------------------------
+// ===========================================================================
 // servos
 
 const uint8_t PAN_PIN = 9;
@@ -480,7 +480,7 @@ bool servos_slewing() {
   return servos_attached && (pan_now != pan_target || tilt_now != tilt_target);
 }
 
-// ---------------------------------------------------------------------------
+// ===========================================================================
 // sample frames
 
 const uint8_t RATE_DEFAULT = 50;
@@ -543,7 +543,7 @@ void command_rate(long hz) {
   last_sample_us = micros();
 }
 
-// ---------------------------------------------------------------------------
+// ===========================================================================
 // command lines
 
 // the longest command is M,<pan>,<tilt>
@@ -736,7 +736,7 @@ void read_serial() {
   }
 }
 
-// ---------------------------------------------------------------------------
+// ===========================================================================
 
 void setup() {
   // the servo lines stay low until the first M, a floating line can make a servo twitch
