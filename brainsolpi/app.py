@@ -21,7 +21,7 @@ from .drivers.fakeboard import FakeBoard
 from .drivers.sim import SimDriver
 from .engine import Engine
 from .hub import Hub
-from .jsonio import BackgroundWriter
+from .jsonio import BackgroundWriter, read_json
 from .server import make_app
 from .state import StateStore
 from .store import ExperimentStore
@@ -60,6 +60,34 @@ async def open_driver(args, settings: Settings) -> Driver:
         return BridgeDriver(port, initial=found, rate=rate, slew=slew)
     log.warning("no board answered within %.0f s, falling back to the sim driver", AUTO_WAIT_S)
     return SimDriver(rate=rate)
+
+
+PIN_WATCH_S = 3.0
+
+
+async def _watch_pin(settings: Settings, auth: Auth, hub: Hub, engine: Engine) -> None:
+    # brainsolpi setpin writes the settings file while the service runs, the new hash is
+    # taken over here so a later save of the settings cannot bring the old pin back
+    loop = asyncio.get_running_loop()
+    while True:
+        await asyncio.sleep(PIN_WATCH_S)
+        if settings.path is None:
+            return
+        try:
+            raw = await loop.run_in_executor(None, read_json, settings.path)
+        except Exception:
+            continue
+        pin = ((raw or {}).get("auth") or {}).get("pin")
+        if not isinstance(pin, str) or not pin or pin == settings.pin_hash:
+            continue
+        settings.data["auth"]["pin"] = pin
+        auth.pin_hash = pin
+        auth.forget_all()
+        for c in hub.clients:
+            if c.admin:
+                c.admin = False
+                hub.send(c, {"t": "auth", "ok": False, "err": "the pin changed, log in again", "wait": 0}, "auth")
+        engine.event("info", "the admin pin changed, admins have to log in again")
 
 
 def _install_signals(stop: asyncio.Event) -> None:
@@ -134,6 +162,9 @@ async def serve(args) -> int:
     )
     loop_task = asyncio.create_task(engine.run(stop))
     stop_task = asyncio.create_task(stop.wait())
+    watch_task = None
+    if not args.pin:
+        watch_task = asyncio.create_task(_watch_pin(settings, auth, hub, engine))
     try:
         await asyncio.wait({loop_task, stop_task}, return_when=asyncio.FIRST_COMPLETED)
         stop.set()
@@ -144,6 +175,8 @@ async def serve(args) -> int:
             loop_task.cancel()
     finally:
         stop_task.cancel()
+        if watch_task is not None:
+            watch_task.cancel()
         await hub.close_all()
         await runner.cleanup()
         await driver.stop()
