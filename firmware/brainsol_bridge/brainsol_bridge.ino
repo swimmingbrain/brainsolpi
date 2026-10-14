@@ -546,19 +546,19 @@ void command_rate(long hz) {
 // ---------------------------------------------------------------------------
 // command lines
 
-// the longest command is M,<pan>,<tilt>, one more slot lets us notice extra fields
-const uint8_t FIELDS_MAX = 4;
+// the longest command is M,<pan>,<tilt>
+const uint8_t FIELDS_MAX = 3;
 
-// splits a line in place at the commas, returns the number of fields,
-// or 0 when there are more than max of them
+// splits a line in place at the commas and returns the number of fields. only the first
+// max fields are kept, the count still shows when there were more. a line of 96
+// characters has at most 97 fields, so the count fits into a uint8_t
 uint8_t split_fields(char *line, char *field[], uint8_t max) {
   uint8_t count = 0;
   char *p = line;
   while (true) {
-    if (count == max) {
-      return 0;
+    if (count < max) {
+      field[count] = p;
     }
-    field[count] = p;
     count++;
     char *comma = strchr(p, ',');
     if (comma == NULL) {
@@ -618,7 +618,7 @@ void command_ping(const char *number) {
 void handle_line(char *line) {
   char *field[FIELDS_MAX];
   uint8_t count = split_fields(line, field, FIELDS_MAX);
-  if (count == 0 || strlen(field[0]) != 1) {
+  if (strlen(field[0]) != 1) {
     send_error(ERR_BAD_COMMAND, "unknown command");
     return;
   }
