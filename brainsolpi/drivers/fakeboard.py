@@ -117,6 +117,8 @@ class FakeBoard:
         self.opens = 0
         self.received: list[str] = []
         self.skip_every = 0
+        # sensors with a finger on them, by index L R U D, the doctor uses this in its demo
+        self.covered: set[int] = set()
         self._thread: threading.Thread | None = None
         self._halt = threading.Event()
         self._link: _Link | None = None
@@ -270,7 +272,7 @@ class FakeBoard:
             return
         pan, tilt = self.angles()
         luxes, e = illuminate(self.light, pan, tilt)
-        raws = [raw_value(x, self.rng) for x in luxes]
+        raws = [raw_value(x * 0.03 if k in self.covered else x, self.rng) for k, x in enumerate(luxes)]
         lux = panel_lux(e, self.light.amb, self.rng)
         lux10 = int(round(lux * 10)) if self.has_lux else 0
         mv = ua = 0
