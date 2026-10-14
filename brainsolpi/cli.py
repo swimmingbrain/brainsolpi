@@ -73,5 +73,16 @@ def main(argv: list[str] | None = None) -> int:
         from .app import run
 
         return run(args)
-    print(f"{args.command} is not ready yet", file=sys.stderr)
-    return 1
+    # the helper commands talk to people, warnings only in the log
+    logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
+    try:
+        if args.command == "doctor":
+            from .doctor import doctor
+
+            return doctor(args)
+        from . import tools
+
+        return {"flash": tools.flash, "setpin": tools.setpin, "centre": tools.centre}[args.command](args)
+    except KeyboardInterrupt:
+        print("\nstopped", file=sys.stderr)
+        return 130
