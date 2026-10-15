@@ -35,11 +35,11 @@ void flush_reply() {
   if (!reply_pending) {
     return;
   }
-  int len = strlen(reply_buf);
+  int len = (int)strlen(reply_buf);
   if (Serial.availableForWrite() < len) {
     return;
   }
-  Serial.write(reply_buf, len);
+  Serial.write(reply_buf, (size_t)len);
   reply_pending = false;
 }
 
@@ -114,7 +114,7 @@ uint8_t adc_reads = 0;
 // the result on a later pass of loop, so the loop never waits for the adc
 void adc_start(uint8_t channel) {
   // avcc as reference, the same as analogRead with the default reference
-  ADMUX = _BV(REFS0) | (channel & 0x07);
+  ADMUX = (uint8_t)(_BV(REFS0) | (channel & 0x07));
   ADCSRA |= _BV(ADSC);
 }
 
@@ -205,8 +205,8 @@ bool i2c_read_word(uint8_t addr, uint16_t *value) {
     }
     return false;
   }
-  uint8_t high = Wire.read();
-  uint8_t low = Wire.read();
+  uint8_t high = (uint8_t)Wire.read();
+  uint8_t low = (uint8_t)Wire.read();
   *value = ((uint16_t)high << 8) | low;
   return true;
 }
@@ -510,8 +510,8 @@ void send_frame() {
   unsigned tilt_out = 0;
   unsigned flags = 0;
   if (servos_attached) {
-    pan_out = pan_now;
-    tilt_out = tilt_now;
+    pan_out = (unsigned)pan_now;
+    tilt_out = (unsigned)tilt_now;
     flags |= FLAG_ATTACHED;
   }
   if (watchdog_expired) {
@@ -533,7 +533,7 @@ void send_frame() {
   if (Serial.availableForWrite() < len) {
     return;
   }
-  Serial.write(buf, len);
+  Serial.write(buf, (size_t)len);
 }
 
 void command_rate(long hz) {
@@ -599,7 +599,7 @@ bool parse_number(const char *text, long *out) {
 
 // the ping number is echoed as text, so the pi may use any counter up to 20 digits
 void command_ping(const char *number) {
-  uint8_t len = strlen(number);
+  uint8_t len = (uint8_t)strlen(number);
   if (len == 0 || len > 20) {
     send_error(ERR_BAD_COMMAND, "bad number");
     return;
@@ -712,7 +712,7 @@ void read_serial() {
   // at most one complete line per pass, the other jobs in loop keep their timing,
   // and no new line is taken while an answer still waits for room
   while (!reply_pending && Serial.available() > 0) {
-    uint8_t c = Serial.read();
+    uint8_t c = (uint8_t)Serial.read();
     if (c == '\n') {
       finish_line();
       return;
