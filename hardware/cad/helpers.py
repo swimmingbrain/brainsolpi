@@ -144,6 +144,31 @@ def teardrop(axis, r, a0, a1, c, up, flat=None):
     return extrude(pl * Polygon(*pts, align=None), hi - lo)
 
 
+def double_teardrop(axis, r, a0, a1, c, up):
+    """round bar with 45 degree points toward up and toward minus up, for parts that print
+    on either side of a split face"""
+    ax = AXES[axis]
+    upv = Vector(*up).normalized()
+    xdir = upv.cross(ax)
+    lo, hi = min(a0, a1), max(a0, a1)
+    if axis == "z":
+        origin = Vector(c[0], c[1], lo)
+    elif axis == "x":
+        origin = Vector(lo, c[0], c[1])
+    else:
+        origin = Vector(c[0], lo, c[1])
+    pl = Plane(origin=origin, x_dir=xdir, z_dir=ax)
+    pts = [(0.0, r * math.sqrt(2))]
+    for i in range(13):
+        a = math.radians(135 + 90 * i / 12)
+        pts.append((r * math.cos(a), r * math.sin(a)))
+    pts.append((0.0, -r * math.sqrt(2)))
+    for i in range(13):
+        a = math.radians(315 + 90 * i / 12)
+        pts.append((r * math.cos(a), r * math.sin(a)))
+    return extrude(pl * Polygon(*pts, align=None), hi - lo)
+
+
 def csk_hole(p, d, length, tap=False, csk=True):
     """screw hole at point p on a surface, d is the unit vector into the material
     clearance or tap hole of the given length plus a 90 degree countersink at p"""
@@ -169,6 +194,54 @@ def tap_hole(p, d, depth):
     # small entry chamfer so the screw finds the hole
     body = body + pl.location * Pos(0, 0, 0.6) * Cone(3.3 / 2, 2.65 / 2, 0.8)
     return body
+
+
+def stadium_points(cx, cy, length, width, angle=0.0, n=8):
+    """slot outline with round ends, length is the overall length"""
+    r = width / 2
+    half = max(length / 2 - r, 0.0)
+    ca, sa = math.cos(math.radians(angle)), math.sin(math.radians(angle))
+    pts = []
+    for end, a_start in ((half, -90), (-half, 90)):
+        for i in range(n + 1):
+            a = math.radians(a_start + 180 * i / n)
+            lx, ly = end + r * math.cos(a), r * math.sin(a)
+            pts.append((cx + lx * ca - ly * sa, cy + lx * sa + ly * ca))
+    return pts
+
+
+def arc_slot_points(cx, cy, r, w, a0, a1, n=48):
+    """curved slot along a circle of radius r from angle a0 to a1, degrees counterclockwise"""
+    ro, ri = r + w / 2, r - w / 2
+    pts = []
+    for i in range(n + 1):
+        a = math.radians(a0 + (a1 - a0) * i / n)
+        pts.append((cx + ro * math.cos(a), cy + ro * math.sin(a)))
+    ea = math.radians(a1)
+    ex, ey = cx + r * math.cos(ea), cy + r * math.sin(ea)
+    for i in range(1, 8):
+        t = ea + math.pi * i / 8
+        pts.append((ex + w / 2 * math.cos(t), ey + w / 2 * math.sin(t)))
+    for i in range(n + 1):
+        a = math.radians(a1 - (a1 - a0) * i / n)
+        pts.append((cx + ri * math.cos(a), cy + ri * math.sin(a)))
+    sa = math.radians(a0)
+    sx, sy = cx + r * math.cos(sa), cy + r * math.sin(sa)
+    for i in range(1, 8):
+        t = sa + math.pi + math.pi * i / 8
+        pts.append((sx + w / 2 * math.cos(t), sy + w / 2 * math.sin(t)))
+    return pts
+
+
+def union_all(shapes):
+    """fuse a list of solids in one go, faster than adding them one by one"""
+    shapes = [s for s in shapes if s is not None]
+    if not shapes:
+        return None
+    out = shapes[0]
+    if len(shapes) > 1:
+        out = out.fuse(*shapes[1:])
+    return out
 
 
 def solid_of(shape):
