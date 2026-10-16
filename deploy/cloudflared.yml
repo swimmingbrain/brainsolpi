@@ -1,0 +1,29 @@
+# cloudflare tunnel config for brainsol, a template
+#
+# the tunnel makes the pi reachable as https://solpi.swimmingbrain.dev without opening a port
+# on the router. cloudflared on the pi keeps an outgoing connection to cloudflare, and
+# cloudflare passes the requests for solpi.swimmingbrain.dev through it to the tracker
+# service on port 8080. websockets pass through as well.
+#
+# how to use it, the full walk through is in deploy/tunnel.md:
+#   1. cloudflared tunnel login
+#   2. cloudflared tunnel create brainsol
+#      this prints the tunnel id and writes ~/.cloudflared/<tunnel id>.json
+#   3. cp deploy/cloudflared.yml ~/.cloudflared/config.yml
+#   4. in that copy put the tunnel id in both places marked TUNNEL_ID and your user name
+#      where it says USER
+#   5. cloudflared tunnel ingress validate
+#   6. cloudflared tunnel route dns brainsol solpi.swimmingbrain.dev
+#   7. sudo cloudflared --config /home/USER/.cloudflared/config.yml service install
+
+# the tunnel id from step 2
+tunnel: TUNNEL_ID
+
+# the secret of the tunnel, written by step 2. the service runs as root and reads it here
+credentials-file: /home/USER/.cloudflared/TUNNEL_ID.json
+
+# requests are matched from the top, the last rule catches everything else
+ingress:
+  - hostname: solpi.swimmingbrain.dev
+    service: http://localhost:8080
+  - service: http_status:404
