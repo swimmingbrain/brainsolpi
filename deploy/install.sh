@@ -120,6 +120,11 @@ elif ask "rename this pi from $old_name to brainsol, so it answers at brainsol.l
   fi
   sudo hostnamectl set-hostname brainsol
   sudo sed -i 's/^127\.0\.1\.1.*/127.0.1.1\tbrainsol/' /etc/hosts
+  # newer images set the name with cloud-init at boot, this tells it to keep ours
+  if [ -d /etc/cloud/cloud.cfg.d ]; then
+    printf '# written by deploy/install.sh of brainsol, keeps the host name brainsol\npreserve_hostname: true\n' |
+      sudo tee /etc/cloud/cloud.cfg.d/99-brainsol-hostname.cfg >/dev/null
+  fi
   # avahi announces the .local name in the network
   if systemctl is-active --quiet avahi-daemon; then
     sudo systemctl restart avahi-daemon
