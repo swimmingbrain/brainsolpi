@@ -218,6 +218,8 @@ def modules():
 def pi_local():
     t = P.PI_T
     s = box(0, P.PI_L, 0, P.PI_W, 0, t)
+    for X, Y in P.PI_HOLES:
+        s -= cyl("z", P.PI_HOLE_D / 2, -0.1, t + 0.1, (X, Y))
     ov = P.PI_PORT_OVERHANG
     s += box(P.PI_L - 21 + ov, P.PI_L + ov, P.PI_ETH_Y - P.PI_ETH_W / 2, P.PI_ETH_Y + P.PI_ETH_W / 2, t, t + P.PI_ETH_H)
     for yc in P.PI_USB_Y:
