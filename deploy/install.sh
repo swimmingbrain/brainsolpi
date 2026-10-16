@@ -68,3 +68,41 @@ step "installing the service"
 install_unit
 sudo systemctl enable --quiet brainsolpi.service
 info "brainsolpi starts at boot"
+
+step "allowing the service to restart itself, reboot and power off without a password"
+user="$(id -un)"
+case "$user" in
+  [![:lower:]_]* | *[![:lower:][:digit:]_-]*)
+    fail "the user name $user has unusual characters, write $sudoers_file by hand"
+    ;;
+esac
+systemctl_path="$(command -v systemctl)"
+rules="$(mktemp)"
+cat >"$rules" <<RULES
+# written by deploy/install.sh of brainsol, removed by deploy/uninstall.sh
+# the admin panel may restart the tracker service, reboot or power off the pi.
+# nothing else runs without a password
+Cmnd_Alias BRAINSOLPI_CMDS = $systemctl_path reboot, $systemctl_path poweroff, $systemctl_path restart brainsolpi, $systemctl_path restart brainsolpi.service
+$user ALL=(root) NOPASSWD: BRAINSOLPI_CMDS
+RULES
+# a broken file in sudoers.d can lock sudo for everyone, so the new rules are checked
+# before they go live. the staging name has a dot in it, sudo never reads such files
+staging="$(sudo mktemp /etc/sudoers.d/.brainsolpi.XXXXXX)"
+sudo install -m 0440 -o root -g root "$rules" "$staging"
+rm -f "$rules"
+if ! sudo visudo -c -f "$staging"; then
+  sudo rm -f "$staging"
+  fail "the sudo rules did not pass visudo -c, nothing was changed"
+fi
+if sudo cmp -s "$staging" "$sudoers_file"; then
+  sudo rm -f "$staging"
+  info "the sudo rules are up to date"
+else
+  sudo mv -f "$staging" "$sudoers_file"
+  info "installed $sudoers_file"
+fi
+# the whole configuration must still be fine, else our file goes again
+if ! sudo visudo -c >/dev/null; then
+  sudo rm -f "$sudoers_file"
+  fail "sudo did not accept the new rules, $sudoers_file was removed again"
+fi
