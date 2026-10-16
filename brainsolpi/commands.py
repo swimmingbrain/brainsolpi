@@ -109,7 +109,7 @@ class Commands:
         return {"pan": round(pan, 1), "tilt": round(tilt, 1)}
 
     def op_rate(self, msg: dict) -> None:
-        # joystick packets come often, no data in the answer keeps them small
+        # joystick packets come often, an ack without data keeps them small
         pan = _num(msg, "pan", -1e6, 1e6)
         tilt = _num(msg, "tilt", -1e6, 1e6)
         self.engine.set_rate(pan, tilt)

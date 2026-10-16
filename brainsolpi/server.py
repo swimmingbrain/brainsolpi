@@ -199,9 +199,6 @@ async def _auth(hub: Hub, eng: Engine, auth: Auth, c: Client, data: dict) -> Non
 
 async def _cmd(hub: Hub, cmds: Commands, c: Client, data: dict) -> None:
     ack = await cmds.handle(data, c.admin)
-    if data.get("op") == "rate" and ack.get("ok"):
-        # a joystick sends many of these, a quiet success keeps the link free
-        return
     if not c.closed:
         hub.send(c, ack, "ack")
 
