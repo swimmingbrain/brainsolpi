@@ -112,7 +112,7 @@ old_name="$(hostname)"
 if [ "$old_name" = brainsol ]; then
   info "the pi is already called brainsol, it answers at brainsol.local"
 elif ask "rename this pi from $old_name to brainsol, so it answers at brainsol.local?" y; then
-  # both names on the local line first, so sudo can resolve the name in every moment
+  # both names on the local line first, so sudo can resolve the name at every moment
   if grep -q '^127\.0\.1\.1' /etc/hosts; then
     sudo sed -i "s/^127\.0\.1\.1.*/127.0.1.1\tbrainsol $old_name/" /etc/hosts
   else
@@ -127,4 +127,71 @@ elif ask "rename this pi from $old_name to brainsol, so it answers at brainsol.l
   info "renamed to brainsol, after the next reboot every program uses the new name"
 else
   info "keeping the name $old_name, it answers at $old_name.local"
+fi
+if ! systemctl is-active --quiet avahi-daemon; then
+  warn "avahi-daemon does not run, so .local names will not work. install it with: sudo apt install avahi-daemon"
+fi
+
+step "admin pin"
+if [ ! -t 0 ]; then
+  info "no terminal to type into, set the pin later with: $venv/bin/brainsolpi setpin"
+else
+  if [ -d "$HOME/.config/brainsolpi" ]; then
+    question="change the admin pin?"
+    default=n
+  else
+    question="set the admin pin now?"
+    default=y
+  fi
+  if ask "$question" "$default"; then
+    if ! "$venv/bin/brainsolpi" setpin; then
+      warn "the pin was not set, do it later with: $venv/bin/brainsolpi setpin"
+    fi
+  else
+    info "pin unchanged"
+  fi
+fi
+
+step "bridge firmware"
+if port="$(find_board_port)"; then
+  info "found a board on $port"
+  if ask "flash the bridge firmware to it now?" y; then
+    if in_group_now dialout; then
+      "$repo/firmware/flash.sh" "$port" || warn "flashing failed, try again later with: firmware/flash.sh"
+    else
+      # this login does not have the dialout group yet, sg lends it to one command
+      sg dialout -c "$(printf '%q ' "$repo/firmware/flash.sh" "$port")" ||
+        warn "flashing failed, try again later with: firmware/flash.sh"
+    fi
+  else
+    info "not flashed, do it later with: firmware/flash.sh"
+  fi
+else
+  info "no board plugged in. plug the uno in later and run: firmware/flash.sh"
+fi
+
+step "starting the service"
+sudo systemctl restart brainsolpi.service
+# give it a moment, a crash right at the start shows up as not active
+sleep 3
+if systemctl is-active --quiet brainsolpi.service; then
+  info "brainsolpi is running"
+else
+  warn "brainsolpi does not run, look at the log: journalctl -u brainsolpi -n 50"
+fi
+
+step "done, open one of these addresses in a browser"
+name="$(hostname)"
+info "http://$name.local:$http_port"
+for ip in $(hostname -I 2>/dev/null || true); do
+  case "$ip" in
+    *:*) ;;
+    *) info "http://$ip:$http_port" ;;
+  esac
+done
+info ""
+info "the public page https://sol.swimmingbrain.dev needs a tunnel to reach the pi, see deploy/tunnel.md"
+info "live log of the service: journalctl -u brainsolpi -f"
+if ! in_group_now dialout; then
+  info "log out and in once, then your own terminal may use the serial port too"
 fi
