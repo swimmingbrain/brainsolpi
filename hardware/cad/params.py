@@ -200,10 +200,10 @@ FOOT_FLARE_H = 6.0
 FOOT_FLOOR_T = 3.0
 PAN_BOSS_GAP = 0.4  # servo boss face above the lid top, the foot carries the weight
 PAN_HORN_PLAY = 0.4  # vertical play of the pan horn under the lid
-SLOT_R = 10.0  # radius of the cable slot in the lid around the pan axis
+SLOT_R = 10.5  # radius of the cable slot in the lid around the pan axis
 SLOT_W = 6.0
 SLOT_HALF_ANGLE = 118.0
-EXIT_W = 6.0  # cable exit in the foot floor
+EXIT_W = 5.0  # cable exit in the foot floor
 EXIT_L = 13.0
 RING_R = 8.0  # ring boss on each side wall that the ear collars around
 RING_H = 2.0
@@ -212,8 +212,8 @@ PIVOT_BOSS_R = 4.0
 # hinge ears and caps
 
 EAR_GAP = 0.5  # ear plate to neck side wall
-EAR_T = 6.0
-EAR_HUB_R = 9.0
+EAR_T = 6.5
+EAR_HUB_R = 10.25
 EAR_HUB_H = 5.0
 EAR_W = 26.0  # ear width where it meets the head
 EAR_SCREW_DEPTH = 8.0  # tap holes in the end of the ear plate

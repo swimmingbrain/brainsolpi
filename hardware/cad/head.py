@@ -16,7 +16,7 @@ from .helpers import box, cone, cyl, poly_prism, stadium_points, teardrop, union
 
 N_ARC = 10
 CABLE_U = 5.5  # cable exit in the back of the head, between the centre and the neck column
-BEZEL_SCREWS = ((-73.5, -21.0), (-73.5, 21.0), (73.5, -21.0), (73.5, 21.0),
+BEZEL_SCREWS = ((-73.5, -18.0), (-73.5, 18.0), (73.5, -18.0), (73.5, 18.0),
                 (-28.0, -49.0), (-28.0, 49.0), (28.0, -49.0), (28.0, 49.0))
 EAR_SCREWS_V = (-7.0, 7.0)
 
@@ -334,7 +334,8 @@ def ear(side):
     # tap holes in the end of the plate for the screws from inside the head, roofed for printing
     xu = side * ear_screw_u()
     for v in EAR_SCREWS_V:
-        cuts.append(teardrop("y", P.M3_TAP / 2, P.TURRET_Y + s1 - P.EAR_SCREW_DEPTH, P.TURRET_Y + s1 + 0.1, (xu, P.Z_TILT + v), (side, 0, 0)))
+        cuts.append(teardrop("y", P.M3_TAP / 2, P.TURRET_Y + s1 - P.EAR_SCREW_DEPTH, P.TURRET_Y + s1 + 0.1,
+                             (xu, P.Z_TILT + v), (side, 0, 0), flat=P.M3_TAP / 2 + 0.3))
     return body - union_all(cuts)
 
 
