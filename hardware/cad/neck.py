@@ -13,7 +13,7 @@ from build123d import Plane, Polygon, extrude, loft
 
 from . import kit
 from . import params as P
-from .helpers import box, cone, cyl, poly_prism, rrect_points, stadium_points, teardrop, union_all
+from .helpers import box, cone, cyl, double_teardrop, poly_prism, rrect_points, stadium_points, teardrop, union_all
 
 N_ARC = 10
 CABLE_X = 11.0  # the cable column and the entry in the top sit on the right of the tilt servo
@@ -40,7 +40,8 @@ def column_plan(inset=0.0, z_bottom=None, z_top=None):
     r = max(P.R_SMALL - inset, 1.0)
     zb = z0() if z_bottom is None else z_bottom
     zt = P.NECK_TOP + 1 if z_top is None else z_top
-    zf = z0() + P.FOOT_H
+    # an inset 45 degree flare moves down so the wall keeps its full thickness
+    zf = z0() + P.FOOT_H - inset * (math.sqrt(2) - 1)
     zn = zf + P.FOOT_FLARE_H
     foot = extrude(plan(w_f, d, r, zb), zf - zb)
     flare = loft([plan(w_f, d, r, zf), plan(w_n, d, r, zn)], ruled=True)
@@ -136,6 +137,25 @@ def grown_servo(frame):
     return kit.frame_map(s, o, xd, zd)
 
 
+def exit_outline():
+    """cable exit in the foot floor, round toward the front, pointed toward the back"""
+    r = P.EXIT_W / 2
+    half = P.EXIT_L / 2 - r
+    cx, cy = P.SLOT_R, ty()
+    pts = []
+    for i in range(13):
+        a = math.radians(180 * i / 12)
+        pts.append((cx + r * math.cos(a), cy + half + r * math.sin(a)))
+    for i in range(7):
+        a = math.radians(180 + 45 * i / 6)
+        pts.append((cx + r * math.cos(a), cy - half + r * math.sin(a)))
+    pts.append((cx, cy - half - r * math.sqrt(2)))
+    for i in range(7):
+        a = math.radians(315 + 45 * i / 6)
+        pts.append((cx + r * math.cos(a), cy - half + r * math.sin(a)))
+    return pts[:-1]
+
+
 def ring_boss(side):
     """ring on the side wall around the tilt axis, flats toward the print bed"""
     if side > 0:
@@ -166,26 +186,32 @@ def build():
     pan_lead_z = po[2] - P.SERVO_LEAD_Z
     far_x = P.SERVO_SHAFT_FROM_END - P.SERVO_L
     cuts.append(box(far_x - 6.0, far_x + 0.5, t - 3.0, t + 3.0, pan_lead_z - 3.0, po[2] + 6.0))
-    cuts.append(box(far_x - 6.0, 9.0, t - 3.0, t + 3.0, po[2] + 0.5, po[2] + 6.0))
+    cuts.append(box(far_x - 6.0, 10.0, t - 3.0, t + 3.0, po[2] + P.FIT_SLIDE + 2.0, po[2] + 8.0))
     to, _, _ = kit.tilt_servo_frame()
     tilt_lead_x = to[0] - P.SERVO_LEAD_Z
     tilt_far_z = P.Z_TILT - (P.SERVO_L - P.SERVO_SHAFT_FROM_END)
     cuts.append(box(tilt_lead_x - 3.0, tilt_lead_x + 3.0, t - 3.0, t + 3.0, tilt_far_z - 12.0, tilt_far_z + 0.5))
     cuts.append(box(tilt_lead_x - 3.0, 18.0, t - 3.0, t + 3.0, tilt_far_z - 12.0, tilt_far_z - 4.0))
-    # cable column on the right of both servos, top to bottom
-    cuts.append(box(8.0, P.NECK_W / 2 - P.NECK_WALL, t - 13.0, t + 13.0, z0() + P.FOOT_FLOOR_T, P.NECK_TOP - P.NECK_WALL))
+    # cable column on the right of both servos, top to bottom, it follows the inside of the wall
+    inside = cavity()
+    col_x0 = kit.tilt_servo_frame()[0][0] + P.FIT_SLIDE + 2.0
+    cuts.append(box(col_x0, P.FOOT_W / 2, t - 13.0, t + 13.0, z0() + P.FOOT_FLOOR_T, P.NECK_TOP) & inside)
     # over the tilt servo the cables come in from the top entry
-    cuts.append(box(CABLE_X - 5.0, P.NECK_W / 2 - P.NECK_WALL, t - 6.0, t + 6.0, P.Z_TILT, P.NECK_TOP - P.NECK_WALL))
+    cuts.append(box(CABLE_X - 5.0, P.FOOT_W / 2, t - 6.0, t + 6.0, P.Z_TILT, P.NECK_TOP) & inside)
     # entry slot in the top face
     cuts.append(poly_prism(stadium_points(CABLE_X, t, 12.0, 8.0, 0.0), P.NECK_TOP - P.NECK_WALL - 1, P.NECK_TOP + 1))
-    # pan boss hole and cable exit in the foot floor
-    cuts.append(cyl("z", P.SERVO_BOSS_R + 0.4, z0() - 1, z0() + P.FOOT_FLOOR_T + 1, (0.0, t)))
-    cuts.append(poly_prism(stadium_points(P.SLOT_R, t, P.EXIT_L, P.EXIT_W, 90.0), z0() - 1, z0() + P.FOOT_FLOOR_T + 1))
+    # pan boss hole and cable exit in the foot floor, roofed toward the back because the
+    # floor prints standing up with the front half
+    up = (0, -1, 0)
+    fz0, fz1 = z0() - 1, z0() + P.FOOT_FLOOR_T + 1
+    cuts.append(teardrop("z", P.SERVO_BOSS_R + 0.55, fz0, fz1, (0.0, t), up))
+    cuts.append(poly_prism(exit_outline(), fz0, fz1))
     # tilt servo boss through the left wall and ring
     cuts.append(cyl("x", P.SERVO_BOSS_R + 0.4, -P.NECK_W / 2 - P.RING_H - 1, -P.NECK_W / 2 + P.NECK_WALL + 1.5, (t, P.Z_TILT)))
     body = body - union_all(cuts)
     # pivot boss inside the right wall and a pin block, added after the cable column is cut
-    late = [cyl("x", P.PIVOT_BOSS_R, 12.5, P.NECK_W / 2 - 0.5, (t, P.Z_TILT))]
+    # the pivot boss hangs off the split face while printing, so it gets a roof on both sides
+    late = [double_teardrop("x", P.PIVOT_BOSS_R, 12.5, P.NECK_W / 2 - 0.5, (t, P.Z_TILT), (0, 1, 0))]
     late.append(box(19.0, P.FOOT_W / 2 - 1.0, t - 4.0, t + 4.0, z0() + P.FOOT_FLOOR_T - 0.01, z0() + 9.0))
     body = (body + union_all(late)) & outer()
     # bearing for the pivot screw on the right
@@ -225,7 +251,7 @@ def add_screws_and_pins(front, back):
     for sx, sy in SCREW_XY:
         x, y = sx, t + sy
         # countersunk clearance through the floor from below
-        cuts_f.append(cyl("z", P.M3_CLEAR / 2, zf - 1, zf + P.FOOT_FLOOR_T + 1, (x, y)))
+        cuts_f.append(teardrop("z", P.M3_CLEAR / 2, zf - 1, zf + P.FOOT_FLOOR_T + 1, (x, y), (0, -1, 0)))
         h = (P.M3_CSK_D - P.M3_CLEAR) / 2
         cuts_f.append(cone("z", P.M3_CSK_D / 2 + 0.01, P.M3_CLEAR / 2, zf - 0.01, zf + h, (x, y)))
         # tap hole in the back half boss, horizontal while printing so it gets a roof
