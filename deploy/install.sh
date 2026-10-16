@@ -106,3 +106,25 @@ if ! sudo visudo -c >/dev/null; then
   sudo rm -f "$sudoers_file"
   fail "sudo did not accept the new rules, $sudoers_file was removed again"
 fi
+
+step "network name"
+old_name="$(hostname)"
+if [ "$old_name" = brainsol ]; then
+  info "the pi is already called brainsol, it answers at brainsol.local"
+elif ask "rename this pi from $old_name to brainsol, so it answers at brainsol.local?" y; then
+  # both names on the local line first, so sudo can resolve the name in every moment
+  if grep -q '^127\.0\.1\.1' /etc/hosts; then
+    sudo sed -i "s/^127\.0\.1\.1.*/127.0.1.1\tbrainsol $old_name/" /etc/hosts
+  else
+    printf '127.0.1.1\tbrainsol %s\n' "$old_name" | sudo tee -a /etc/hosts >/dev/null
+  fi
+  sudo hostnamectl set-hostname brainsol
+  sudo sed -i 's/^127\.0\.1\.1.*/127.0.1.1\tbrainsol/' /etc/hosts
+  # avahi announces the .local name in the network
+  if systemctl is-active --quiet avahi-daemon; then
+    sudo systemctl restart avahi-daemon
+  fi
+  info "renamed to brainsol, after the next reboot every program uses the new name"
+else
+  info "keeping the name $old_name, it answers at $old_name.local"
+fi
