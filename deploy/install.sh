@@ -29,7 +29,7 @@ step "installing system packages"
 packages="python3 python3-venv avrdude git"
 missing=""
 for p in $packages; do
-  if ! dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q "install ok installed"; then
+  if ! dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep "install ok installed" >/dev/null; then
     missing="$missing $p"
   fi
 done
@@ -57,7 +57,7 @@ fi
 install_package
 
 step "giving $(id -un) access to the serial port"
-if id -nG "$(id -un)" | tr ' ' '\n' | grep -qx dialout; then
+if in_group_saved dialout; then
   info "already in the dialout group"
 else
   sudo usermod -aG dialout "$(id -un)"

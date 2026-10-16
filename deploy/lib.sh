@@ -59,9 +59,16 @@ find_board_port() {
   return 1
 }
 
-# true when the current shell already has the group, a fresh usermod needs a new login
+# true when the current shell already has the group, a fresh usermod needs a new login.
+# grep reads all of its input here, grep -q could stop early and with pipefail the
+# broken pipe of tr would turn a match into a failure
 in_group_now() {
-  id -nG | tr ' ' '\n' | grep -qx "$1"
+  id -nG | tr ' ' '\n' | grep -x "$1" >/dev/null
+}
+
+# true when the user is in the group in /etc/group, also right after a usermod
+in_group_saved() {
+  id -nG "$(id -un)" | tr ' ' '\n' | grep -x "$1" >/dev/null
 }
 
 # makes a value safe for the right side of a sed s|...|...| command
