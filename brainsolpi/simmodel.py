@@ -17,7 +17,8 @@ SERVO_RATE = 400.0  # degrees per second
 RAW_MAX = 8184
 RAW_NOISE = 6.0
 LUX_NOISE = 0.01
-DARK_SHARE = 0.25
+# the photoresistor falls with lux to this power
+GAMMA = 0.7
 
 
 @dataclass
@@ -65,7 +66,7 @@ def illuminate(light: Light, pan: float, tilt: float) -> tuple[list[float], floa
 
 def divider(lux: float) -> float:
     # photoresistor of 10 k at 10 lux over a 10 k resistor, brighter reads higher
-    r = 10000.0 * (max(lux, 0.05) / 10.0) ** -0.7
+    r = 10000.0 * (max(lux, 0.05) / 10.0) ** -GAMMA
     return 10000.0 / (r + 10000.0)
 
 
@@ -97,9 +98,8 @@ def sample(light: Light, pan: float, tilt: float, rng: random.Random | None) -> 
 
 
 def ideal_calibration(lux0: float, amb: float) -> tuple[list[float], list[float]]:
-    # the dividers squeeze bright light into the top few percent of the range, so the dark end
-    # sits at a quarter of the lamp instead of full shade, that keeps the lock within a few
-    # degrees and still sees a lamp up to about 75 degrees off the panel normal
-    dark = float(round(RAW_MAX * divider(amb + DARK_SHARE * lux0)))
+    # what the dark and bright steps capture in a light scene, all four covered, then all
+    # four in the full light
+    dark = float(round(RAW_MAX * divider(0.0)))
     bright = float(round(RAW_MAX * divider(lux0 + amb)))
     return [dark] * 4, [bright] * 4

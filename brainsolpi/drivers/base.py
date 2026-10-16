@@ -40,6 +40,10 @@ class Driver:
     def detach(self) -> None:
         pass
 
+    def settle_at(self, pan_us: int, tilt_us: int) -> None:
+        # where the head physically rests before the first command, only a simulation needs it
+        pass
+
     def set_rate(self, hz: int) -> None:
         pass
 

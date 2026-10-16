@@ -60,8 +60,10 @@ def test_best_cell_lands_near_the_light(sim, az, el):
 def test_after_a_scan_auto_starts_from_the_brightest_cell(sim):
     s = sim(mode="auto", pose=(0, 30), light={"az": 150, "el": 30})
     s.run(1)
-    # the light is far behind, the tracker sees nothing
-    assert s.engine.st == "lowlight"
+    # the light is far behind, the sensors only get the even ambient light and nothing moves
+    assert s.engine.st in ("locked", "lowlight")
+    d = s.driver
+    assert angle_between(frame(d.pan, d.tilt)[0], direction(150, 30)) > 90
     run_scan(s, 30, {"az": 150, "el": 30})
     assert s.run_until(lambda x: x.engine.st == "locked", 10)
     d = s.driver

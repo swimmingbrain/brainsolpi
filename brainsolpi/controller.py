@@ -3,21 +3,34 @@ from __future__ import annotations
 import math
 
 from .config import PARAM_BY_KEY
+from .derived import light_estimate, tangents
+from .kinematics import clamp, pose_toward
+from .motion import Motion
+from .simmodel import GAMMA, RAW_MAX
 
 # floor for |cos tilt| in the pan gain, keeps pan responsive at steep tilt without blowing up
 MIN_COS = 0.35
-# below this the tilt error does not say which way to leave the zenith band
-ESCAPE_EY = 0.002
-# how far past the band edge an escape goes before normal control takes over, degrees
-ESCAPE_MARGIN = 3.0
+# how long the loop may hold an error it cannot act on before it aims at the light, seconds
+STUCK_TIME = 0.5
+
+
+def linear(raw: float) -> float:
+    # undoes the photoresistor divider so the reading grows in step with the light, a plain
+    # (raw - dark) / (bright - dark) squeezes the last 20 degrees of error into a few counts
+    x = min(max(raw, 1.0), RAW_MAX - 1.0)
+    return (x / (RAW_MAX - x)) ** (1.0 / GAMMA)
 
 
 class Tracker:
-    # the closed loop of the blueprint: normalise, filter, error, hysteresis, axis speeds
+    # the closed loop of the blueprint: normalise, filter, error, hysteresis, axis speeds.
+    # the levels are made linear in light first, the same as the browser simulation does
 
     def __init__(self, params: dict | None = None):
         self.dark = [0.0, 0.0, 0.0, 0.0]
         self.bright = [8184.0, 8184.0, 8184.0, 8184.0]
+        self._lo = [0.0] * 4
+        self._span = [0.0] * 4
+        self._flip = [False] * 4
         self.sx = 1
         self.sy = 1
         self.f = [0.0, 0.0, 0.0, 0.0]
@@ -30,10 +43,12 @@ class Tracker:
         self.lowlight = True
         self.ax = False
         self.ay = False
-        self.escape = 0
+        # a sideways error bigger than the zenith band, pan cannot act on it there
+        self.blocked = False
         self._alpha_key: tuple[float, float] | None = None
         self._alpha = 0.0
         self.configure(params or {k: p.default for k, p in PARAM_BY_KEY.items()})
+        self.calibrate(self.dark, self.bright)
 
     def configure(self, params: dict) -> None:
         self.kp = float(params["kp"])
@@ -47,8 +62,23 @@ class Tracker:
     def calibrate(self, dark: list[float], bright: list[float], sx: int = 1, sy: int = 1) -> None:
         self.dark = [float(x) for x in dark]
         self.bright = [float(x) for x in bright]
+        for k in range(4):
+            # a module wired the other way round reads lower in light, it is mirrored first
+            flip = self.dark[k] > self.bright[k]
+            lo = linear(RAW_MAX - self.dark[k] if flip else self.dark[k])
+            hi = linear(RAW_MAX - self.bright[k] if flip else self.bright[k])
+            self._flip[k] = flip
+            self._lo[k] = lo
+            self._span[k] = hi - lo if self.dark[k] != self.bright[k] else 0.0
         self.sx = 1 if sx >= 0 else -1
         self.sy = 1 if sy >= 0 else -1
+
+    def level(self, k: int, raw: float) -> float:
+        span = self._span[k]
+        if span == 0.0:
+            return 0.0
+        x = (linear(RAW_MAX - raw if self._flip[k] else raw) - self._lo[k]) / span
+        return 0.0 if x < 0.0 else 1.0 if x > 1.0 else x
 
     def reset_filter(self) -> None:
         self.seeded = False
@@ -64,10 +94,7 @@ class Tracker:
         a = self._alpha_for(dt)
         f = self.f
         for k in range(4):
-            span = self.bright[k] - self.dark[k]
-            # works for either polarity, a dead sensor with no span reads as dark
-            x = (raw[k] - self.dark[k]) / span if span != 0.0 else 0.0
-            x = 0.0 if x < 0.0 else 1.0 if x > 1.0 else x
+            x = self.level(k, raw[k])
             if self.seeded:
                 f[k] += (x - f[k]) * a
             else:
@@ -83,10 +110,10 @@ class Tracker:
         self.lowlight = self.lvl < self.min_light
 
     def command(self, tilt: float) -> tuple[float, float]:
+        self.blocked = False
         if self.lowlight:
             self.ax = False
             self.ay = False
-            self.escape = 0
             return 0.0, 0.0
         ex, ey = self.ex, self.ey
         aex, aey = abs(ex), abs(ey)
@@ -100,28 +127,77 @@ class Tracker:
             self.ay = aey > self.dead_out
         vmax = self.vmax
         vx = vy = 0.0
-        dz = abs(tilt - 90.0)
-        in_band = dz < self.zenith_band
-        if self.escape and (not self.ax or dz >= self.zenith_band + ESCAPE_MARGIN):
-            self.escape = 0
-        if not self.escape and self.ax and in_band and not self.ay:
-            # pan cannot fix a sideways error at the zenith, so the panel tips out of the
-            # band first, the side is kept until it is clear of the band or it would turn back
-            if abs(ey) > ESCAPE_EY:
-                self.escape = 1 if ey > 0.0 else -1
-            else:
-                self.escape = 1 if tilt > 90.0 else -1
-        if self.ax and not in_band:
-            # behind the zenith the pan direction flips, near it pan is undefined
-            c = math.cos(math.radians(tilt))
-            gx = math.copysign(1.0, c) / max(abs(c), MIN_COS) if c != 0.0 else 0.0
-            vx = max(-vmax, min(vmax, self.kp * ex * gx))
-        if self.escape:
-            vy = self.escape * min(vmax, self.kp * abs(ex))
-        elif self.ay:
+        if self.ay:
             vy = max(-vmax, min(vmax, self.kp * ey))
+        if abs(tilt - 90.0) >= self.zenith_band:
+            if self.ax:
+                # behind the zenith the pan direction flips
+                c = math.cos(math.radians(tilt))
+                gx = math.copysign(1.0, c) / max(abs(c), MIN_COS) if c != 0.0 else 0.0
+                vx = max(-vmax, min(vmax, self.kp * ex * gx))
+        else:
+            # pan rests in the band, an x error smaller than the band does not hold off the
+            # lock, a bigger one is a light off to the side that tilt alone never finds
+            tx, _ = tangents(ex, 0.0)
+            self.blocked = math.degrees(math.atan(abs(tx))) > self.zenith_band
+            if not self.blocked:
+                self.ax = False
         return vx, vy
 
     @property
     def active(self) -> bool:
         return self.ax or self.ay
+
+
+class AutoLoop:
+    # the tracker on top of the shared motion limiter, plus one way out when the loop cannot
+    # act on its error: pan pressed against a soft limit, or a light off to the side while the
+    # panel lies in the zenith band. after half a second it aims once at where the errors say
+    # the light is, the same rule as in the browser simulation, then it tracks on from there
+
+    def __init__(self, tracker: Tracker):
+        self.tracker = tracker
+        self.stuck = 0.0
+        self.aim: tuple[float, float] | None = None
+
+    def reset(self) -> None:
+        self.stuck = 0.0
+        self.aim = None
+
+    def step(self, m: Motion, dt: float, amax: float, vmax: float, lp, lt) -> tuple[str, int]:
+        t = self.tracker
+        if self.aim is not None:
+            if m.seek(self.aim[0], self.aim[1], vmax, dt, amax, lp, lt):
+                self.aim = None
+                t.ax = t.ay = False
+                return "tracking", 0
+            return "moving", 0
+        vx, vy = t.command(m.tilt)
+        pushing = m.step(vx, vy, dt, amax, lp, lt)
+        c = math.cos(math.radians(m.tilt))
+        push = t.ex * (1.0 if c >= 0.0 else -1.0)
+        pressing = (
+            not t.lowlight
+            and abs(t.ex) > t.dead_out
+            and ((m.pan <= lp[0] and push < 0.0) or (m.pan >= lp[1] and push > 0.0))
+        )
+        self.stuck = self.stuck + dt if (pressing or t.blocked) else 0.0
+        if self.stuck >= STUCK_TIME:
+            self.stuck = 0.0
+            self.aim = aim_pose(m.pan, m.tilt, t.ex, t.ey, lp, lt)
+            t.ax = t.ay = False
+            return "moving", pushing
+        if t.lowlight:
+            return "lowlight", pushing
+        if pushing:
+            return "limit", pushing
+        if not t.active and m.still:
+            return "locked", pushing
+        return "tracking", pushing
+
+
+def aim_pose(pan: float, tilt: float, ex: float, ey: float, lp, lt) -> tuple[float, float]:
+    # the pose facing where the errors say the light is, far off the axis the shade model
+    # saturates and the guess falls short, the loop does the rest from there
+    p, t = pose_toward(light_estimate(pan, tilt, ex, ey))
+    return clamp(p, *lp), clamp(t, *lt)

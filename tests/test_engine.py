@@ -237,7 +237,7 @@ def test_history_fills_once_per_second(sim):
 
 def test_simlight_command(sim):
     s = sim()
-    s.engine.set_simlight(az=-30, el=10, on=False)
+    s.engine.set_simlight(az=-30, el=10, on=False, amb=1)
     assert s.engine.state_frame()["sim"]["az"] == -30
     s.run(1)
     assert s.engine.st == "lowlight"

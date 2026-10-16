@@ -78,6 +78,12 @@ class SimDriver(Driver):
     def detach(self) -> None:
         self.attached = False
 
+    def settle_at(self, pan_us: int, tilt_us: int) -> None:
+        # the simulated head starts where the saved pose says it was left
+        if not self.attached:
+            self.pan = self.cmd_pan = self.pan_map.to_angle(clamp_us(pan_us))
+            self.tilt = self.cmd_tilt = self.tilt_map.to_angle(clamp_us(tilt_us))
+
     def set_rate(self, hz: int) -> None:
         self.rate = max(1, min(100, int(hz)))
 

@@ -136,17 +136,13 @@ def calib_schema(dark: list[float], bright: list[float]) -> dict:
     }
 
 
-GENERIC_DARK = [0.0, 0.0, 0.0, 0.0]
-GENERIC_BRIGHT = [8184.0, 8184.0, 8184.0, 8184.0]
 PROFILES = ("sim", "bridge")
 
 
 def calib_defaults_for(profile: str) -> tuple[list[float], list[float]]:
-    if profile == "sim":
-        # the simulated sensors start out calibrated for the phone light scene,
-        # as if dark had been taken in full shade and bright facing the lamp
-        return ideal_calibration(*PHONE_SCENE)
-    return list(GENERIC_DARK), list(GENERIC_BRIGHT)
+    # both profiles start as if dark and bright had been taken under a phone light, that fits
+    # a typical module well enough until the real steps run on the day the hardware arrives
+    return ideal_calibration(*PHONE_SCENE)
 
 
 def build_schema() -> dict:

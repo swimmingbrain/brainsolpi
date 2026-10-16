@@ -69,7 +69,7 @@ def test_step_reports_settle_time_and_overshoot(sim):
 
 
 def test_experiments_fail_cleanly_without_light(sim):
-    s = sim(light={"az": 10, "el": 35, "on": False})
+    s = sim(light={"az": 10, "el": 35, "on": False, "amb": 1})
     act = run_exp(s, "cosine", timeout=30)
     assert not act.ok
     assert "light" in act.error

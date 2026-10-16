@@ -11,7 +11,7 @@ from pathlib import Path
 from . import PROTO, __version__
 from .activities import Activity
 from .config import Settings
-from .controller import Tracker
+from .controller import AutoLoop, Tracker
 from .derived import gain, light_estimate, measured_mw, offset_deg, panel_mw
 from .drivers.base import Driver
 from .drivers.protocol import CAP_LUX, CAP_PV, FLAG_ATTACHED, FLAG_WATCHDOG
@@ -117,6 +117,7 @@ class Engine:
         self.store = store or ExperimentStore(None)
         self.params = settings.params
         self.tracker = Tracker(self.params)
+        self.loop = AutoLoop(self.tracker)
         self.profile = driver.profile
         self.calib = settings.calib(self.profile)
         self.calib_saved = True
@@ -136,6 +137,7 @@ class Engine:
         self.on_sys = None
         if driver.has_simlight:
             driver.set_light(**state.sim)
+        driver.settle_at(self.pan_map.to_us(self.motion.pan), self.tilt_map.to_us(self.motion.tilt))
 
         self.frame = None
         self.frame_t = -1e9
@@ -297,18 +299,12 @@ class Engine:
         m = self.motion
         kind = req[0]
         if kind == "auto":
-            vx, vy = self.tracker.command(m.tilt)
-            self.pushing = m.step(vx, vy, DT, amax, lp, lt)
-            self.tgt = None
-            if self.tracker.lowlight:
-                self.cstate = "lowlight"
-            elif self.pushing:
-                self.cstate = "limit"
-            elif not self.tracker.active and m.still:
-                self.cstate = "locked"
-            else:
-                self.cstate = "tracking"
-        elif kind == "seek":
+            self.cstate, self.pushing = self.loop.step(m, DT, amax, p["vmax"], lp, lt)
+            self.tgt = self.loop.aim
+            return
+        # any other request ends a running aim move, the next auto start looks afresh
+        self.loop.reset()
+        if kind == "seek":
             _, pan, tilt, vmax = req
             pan = clamp(pan, *lp)
             tilt = clamp(tilt, *lt)
