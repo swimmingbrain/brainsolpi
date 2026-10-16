@@ -1,0 +1,26 @@
+# systemd unit for the brainsol tracker service
+# this is a template. deploy/install.sh fills in the @...@ fields and installs the result
+# as /etc/systemd/system/brainsolpi.service, so edit this file and run the install again
+
+[Unit]
+Description=brainSOL solar tracker
+After=network.target
+# never give up restarting, the tracker is the only job of this pi
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=@USER@
+Group=@GROUP@
+# the serial port of the uno belongs to the dialout group
+SupplementaryGroups=dialout
+WorkingDirectory=@REPO@
+Environment=PYTHONUNBUFFERED=1
+ExecStart=@VENV@/bin/brainsolpi run --driver auto
+Restart=always
+# long enough for the uno to reset and for the port to come back after a crash
+RestartSec=3
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target
