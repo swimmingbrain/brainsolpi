@@ -26,7 +26,7 @@ info "user: $(id -un)"
 sudo -v
 
 step "installing system packages"
-packages="python3 python3-venv python3-pip avrdude git"
+packages="python3 python3-venv avrdude git"
 missing=""
 for p in $packages; do
   if ! dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q "install ok installed"; then
@@ -55,3 +55,16 @@ else
   info "using $venv"
 fi
 install_package
+
+step "giving $(id -un) access to the serial port"
+if id -nG "$(id -un)" | tr ' ' '\n' | grep -qx dialout; then
+  info "already in the dialout group"
+else
+  sudo usermod -aG dialout "$(id -un)"
+  info "added to the dialout group, the service has it at once, a terminal after the next login"
+fi
+
+step "installing the service"
+install_unit
+sudo systemctl enable --quiet brainsolpi.service
+info "brainsolpi starts at boot"
