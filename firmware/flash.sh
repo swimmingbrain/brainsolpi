@@ -55,7 +55,15 @@ restart_service() {
 }
 trap restart_service EXIT
 
-if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet brainsolpi 2>/dev/null; then
+# when the service itself runs this script it has let go of the port already, and stopping
+# the service would kill this script halfway through the flash
+inside_service=0
+if grep -q 'brainsolpi\.service' /proc/self/cgroup 2>/dev/null; then
+  inside_service=1
+fi
+
+if [ "$inside_service" = 0 ] && command -v systemctl >/dev/null 2>&1 &&
+  systemctl is-active --quiet brainsolpi 2>/dev/null; then
   say "stopping the brainsolpi service while flashing, sudo may ask for your password"
   sudo systemctl stop brainsolpi
   service_stopped=1
