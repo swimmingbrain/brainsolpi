@@ -6,7 +6,10 @@
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 venv="$repo/.venv"
 unit_file=/etc/systemd/system/brainsolpi.service
+# these two are used by the scripts that source this file
+# shellcheck disable=SC2034
 sudoers_file=/etc/sudoers.d/brainsolpi
+# shellcheck disable=SC2034
 http_port=8080
 
 step() {
