@@ -107,6 +107,7 @@ install_unit() {
 
 # installs the package and its dependencies into the venv, editable so a git pull is enough
 install_package() {
+  info "installing brainsolpi and its dependencies, this can take a few minutes on a pi 3"
   "$venv/bin/python" -m pip install --disable-pip-version-check --quiet -e "$repo"
   if ! "$venv/bin/brainsolpi" --help >/dev/null 2>&1; then
     fail "the brainsolpi command does not start, see: $venv/bin/brainsolpi --help"
