@@ -3,7 +3,7 @@
 # the tunnel makes the pi reachable as https://solpi.swimmingbrain.dev without opening a port
 # on the router. cloudflared on the pi keeps an outgoing connection to cloudflare, and
 # cloudflare passes the requests for solpi.swimmingbrain.dev through it to the tracker
-# service on port 8080. websockets pass through as well.
+# service on port 8080, websockets included
 #
 # how to use it, the full walk through is in deploy/tunnel.md:
 #   1. cloudflared tunnel login
