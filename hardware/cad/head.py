@@ -15,7 +15,9 @@ from . import params as P
 from .helpers import box, cone, cyl, poly_prism, stadium_points, teardrop, union_all
 
 N_ARC = 10
-CABLE_U = 5.5  # cable exit in the back of the head, between the centre and the neck column
+CABLE_U = P.HEAD_CABLE_U
+EXIT_L = 18.0  # cable exit slot in the back of the head
+EXIT_W = 8.0
 BEZEL_SCREWS = ((-73.5, -18.0), (-73.5, 18.0), (73.5, -18.0), (73.5, 18.0),
                 (-28.0, -49.0), (-28.0, 49.0), (28.0, -49.0), (28.0, 49.0))
 EAR_SCREWS_V = (-7.0, 7.0)
@@ -150,8 +152,8 @@ def back_shell():
             cuts.append(hcyl_n(P.M3_CLEAR / 2, -1.0, P.BACK_T + 1.0, u, v))
             cuts.append(hcone_n(P.M3_CLEAR / 2, P.M3_CSK_D / 2, P.BACK_T - 0.8, P.BACK_T + 0.01, u, v))
     # cable exit with soft edges
-    cuts.append(uv_prism(stadium_points(CABLE_U, 0.0, 16.0, 8.0), -1.0, P.BACK_T + 1.0))
-    cuts.append(stadium_chamfer(CABLE_U, 0.0, 16.0, 8.0, 0.0, 0.8))
+    cuts.append(uv_prism(stadium_points(CABLE_U, 0.0, EXIT_L, EXIT_W), -1.0, P.BACK_T + 1.0))
+    cuts.append(stadium_chamfer(CABLE_U, 0.0, EXIT_L, EXIT_W, 0.0, 0.8))
     return body - union_all(cuts)
 
 

@@ -211,11 +211,11 @@ def build():
     body = body - union_all(cuts)
     # pivot boss inside the right wall and a pin block, added after the cable column is cut
     # the pivot boss hangs off the split face while printing, so it gets a roof on both sides
-    late = [double_teardrop("x", P.PIVOT_BOSS_R, 12.5, P.NECK_W / 2 - 0.5, (t, P.Z_TILT), (0, 1, 0))]
+    late = [double_teardrop("x", P.PIVOT_BOSS_R, P.PIVOT_BOSS_X0, P.NECK_W / 2 - 0.5, (t, P.Z_TILT), (0, 1, 0))]
     late.append(box(19.0, P.FOOT_W / 2 - 1.0, t - 4.0, t + 4.0, z0() + P.FOOT_FLOOR_T - 0.01, z0() + 9.0))
     body = (body + union_all(late)) & outer()
     # bearing for the pivot screw on the right
-    body = body - cyl("x", P.M3_CLEAR / 2, 11.5, P.NECK_W / 2 + P.RING_H + 1, (t, P.Z_TILT))
+    body = body - cyl("x", P.M3_CLEAR / 2, P.PIVOT_BOSS_X0 - 1.0, P.NECK_W / 2 + P.RING_H + 1, (t, P.Z_TILT))
     return body
 
 

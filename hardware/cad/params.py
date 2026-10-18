@@ -182,7 +182,7 @@ TURRET_X = 0.0
 TURRET_Y = -32.0  # turret axis behind the centre so the head clears the base front edge
 PI_X0 = -18.0  # power edge of the pi, the board lies to the left of it
 PI_Y0 = -61.0  # sd card end of the pi, the usb ports face forward
-UNO_ABLOCK_DX = 6.5  # the A0 to A3 plugs sit right under the cable slot of the lid
+UNO_ABLOCK_DX = 0.0  # the A0 to A3 plugs sit right under the pan axis, so panning only twists their wires
 UNO_PLUG_TOP_GAP = 6.0  # room above the uno plugs for the wires to bend
 UNO_POST_D = 7.0
 PI_FINGER_D = 5.6
@@ -197,7 +197,7 @@ NECK_TOP_CHAMFER = 6.0
 FOOT_W = 52.0
 FOOT_H = 10.0
 FOOT_FLARE_H = 6.0
-FOOT_FLOOR_T = 3.0
+FOOT_FLOOR_T = 2.4
 PAN_BOSS_GAP = 0.4  # servo boss face above the lid top, the foot carries the weight
 PAN_HORN_PLAY = 0.4  # vertical play of the pan horn under the lid
 SLOT_R = 10.5  # radius of the cable slot in the lid around the pan axis
@@ -208,6 +208,7 @@ EXIT_L = 13.0
 RING_R = 8.0  # ring boss on each side wall that the ear collars around
 RING_H = 2.0
 PIVOT_BOSS_R = 4.0
+PIVOT_BOSS_X0 = 15.5  # inner end of the pivot boss, the cable column passes beside it
 
 # hinge ears and caps
 
@@ -226,7 +227,7 @@ CAP_T = 1.6
 BORDER_SIDE = 19.5  # wide enough for the bh1750 board next to the panel
 BORDER_TB = 14.0
 HEAD_CLEAR = 3.0  # head to lid at tilt 0 and tilt 180
-HEAD_OFFSET = 24.0  # tilt axis to the back face of the head
+HEAD_OFFSET = 22.0  # tilt axis to the back face of the head
 EYE_FROM_PANEL = 5.0  # photoresistor centre beyond the panel edge
 BEZEL_LIP = 2.0  # how far the bezel covers the panel edge
 BEZEL_FRONT_T = 1.6
@@ -238,6 +239,7 @@ HEAD_JOINT = 7.0  # parting plane of back shell and bezel, from the back face
 SHADE_K = 1.2  # target shade wall height over sensor width, blueprint section 5
 EYE_FLARE = 45.0
 BH_WINDOW_D = 3.6
+HEAD_CABLE_U = 0.0  # cable exit in the back of the head, centred between the side sensors
 
 # ranges, blueprint section 3
 
