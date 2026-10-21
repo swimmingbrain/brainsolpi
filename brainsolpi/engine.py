@@ -37,7 +37,11 @@ SAVE_EVERY_S = 10.0
 
 
 class CommandError(Exception):
-    pass
+    # code is the short word the web app turns into a sentence in its own language:
+    # admin, bad, busy, unknown or unsupported, the text says the details
+    def __init__(self, msg: str, code: str = "bad"):
+        super().__init__(msg)
+        self.code = code
 
 
 class Sink:
@@ -200,7 +204,8 @@ class Engine:
         if self.started is None:
             self.started = now
             self._next_pub = now
-            self._next_sys = now
+            # the first status waits a second so the loop rate is already measured
+            self._next_sys = now + 1.0
         self.now = now
         self.ticks += 1
         self._timing(now)
@@ -468,7 +473,7 @@ class Engine:
         lux = self.lux if self.link else None
         return {
             "t": "s",
-            "ts": int(wall * 1000),
+            "ts": round(wall, 3),
             "mode": self.mode.name,
             "st": self.st,
             "pan": r1(m.pan),
@@ -529,7 +534,7 @@ class Engine:
     def event(self, lvl: str, msg: str) -> None:
         level = {"info": logging.INFO, "warn": logging.WARNING, "error": logging.ERROR}.get(lvl, logging.INFO)
         log.log(level, "%s", msg)
-        evt = {"t": "evt", "ts": int(self.wall() * 1000), "lvl": lvl, "msg": msg}
+        evt = {"t": "evt", "ts": round(self.wall(), 3), "lvl": lvl, "msg": msg}
         self.events.append(evt)
         self.sink.publish_admins(evt)
 
@@ -607,15 +612,15 @@ class Engine:
 
     def set_simlight(self, az=None, el=None, on=None, lux=None, amb=None) -> dict:
         if not self.driver.has_simlight:
-            raise CommandError("simlight needs the sim driver")
+            raise CommandError("simlight needs the sim driver", "unsupported")
         if self.mode.name == "sun":
-            raise CommandError("the sun moves the light in sun mode, pick another mode first")
+            raise CommandError("the sun moves the light in sun mode, pick another mode first", "busy")
         self.driver.set_light(az=az, el=el, on=on, lux=lux, amb=amb)
         return self.driver.light_state()
 
     def set_rec(self, on: bool) -> dict:
         if self.recorder is None:
-            raise CommandError("recording needs a data folder")
+            raise CommandError("recording needs a data folder", "unsupported")
         if on:
             path = self.recorder.start(self.now)
             self.event("info", f"recording to {path.name}")
@@ -626,11 +631,11 @@ class Engine:
 
     def start_activity(self, act: Activity) -> Activity:
         if self.stopping:
-            raise CommandError("the tracker is shutting down")
+            raise CommandError("the tracker is shutting down", "busy")
         if self.activity is not None:
-            raise CommandError(f"a {self.activity.kind} is running, stop it first")
+            raise CommandError(f"a {self.activity.kind} is running, stop it first", "busy")
         if not self.link:
-            raise CommandError("no link to the board")
+            raise CommandError("no link to the board", "busy")
         act.start()
         self.activity = act
         return act

@@ -48,6 +48,7 @@ def test_same_second_overwrites():
 
 def test_empty_history():
     assert History().span(900) == {"t0": None, "dt": 1, "cols": list(COLS), "rows": []}
+    assert History().span(900, now=1234.5)["t0"] == 1234
 
 
 def test_recorder_writes_a_csv(tmp_path):

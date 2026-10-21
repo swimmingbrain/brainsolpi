@@ -92,23 +92,24 @@ class Auth:
             self.lock_until = self.clock() + self.lock_len
             wait = self.wait()
             self.lock_len = min(self.lock_len * 2.0, LOCK_MAX)
-            return {"t": "auth", "ok": False, "err": f"wrong pin, locked for {wait} s", "wait": wait}
+            return {"t": "auth", "ok": False, "err": "pin", "msg": f"wrong pin, locked for {wait} s", "wait": wait}
         left = MAX_TRIES - self.fails
-        return {"t": "auth", "ok": False, "err": f"wrong pin, {left} tries left", "wait": 0}
+        return {"t": "auth", "ok": False, "err": "pin", "msg": f"wrong pin, {left} tries left", "wait": 0}
 
     def _refused(self) -> dict | None:
         if not self.enabled:
-            return {"t": "auth", "ok": False, "err": NO_PIN, "wait": 0}
+            # the web app knows only pin and token, the sentence goes along in msg
+            return {"t": "auth", "ok": False, "err": "pin", "msg": NO_PIN, "wait": 0}
         wait = self.wait()
         if wait > 0:
-            return {"t": "auth", "ok": False, "err": f"too many wrong pins, try again in {wait} s", "wait": wait}
+            return {"t": "auth", "ok": False, "err": "pin", "msg": f"too many wrong pins, try again in {wait} s", "wait": wait}
         return None
 
     def _success(self) -> dict:
         self.fails = 0
         self.lock_len = LOCK_S
         token, exp = self.issue()
-        return {"t": "auth", "ok": True, "token": token, "exp": int(exp * 1000)}
+        return {"t": "auth", "ok": True, "token": token, "exp": round(exp, 3)}
 
     def check(self, pin) -> dict:
         refused = self._refused()
@@ -153,8 +154,8 @@ class Auth:
     def resume(self, token) -> dict:
         exp = self.verify_token(token)
         if exp is None:
-            return {"t": "auth", "ok": False, "err": "the token is unknown or expired, log in with the pin", "wait": 0}
-        return {"t": "auth", "ok": True, "token": token, "exp": int(exp * 1000)}
+            return {"t": "auth", "ok": False, "err": "token", "msg": "the token is unknown or expired, log in with the pin", "wait": 0}
+        return {"t": "auth", "ok": True, "token": token, "exp": round(exp, 3)}
 
     def forget_all(self) -> None:
         self.tokens.clear()

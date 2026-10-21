@@ -49,7 +49,7 @@ class History:
         for col, v in zip(self.cols, values):
             col[i] = NAN if v is None else float(v)
 
-    def span(self, seconds: float) -> dict:
+    def span(self, seconds: float, now: float | None = None) -> dict:
         n = max(0, min(int(seconds), self.count))
         rows = []
         start = (self.head - n) % self.size
@@ -60,7 +60,10 @@ class History:
                 x = col[i]
                 row.append(None if math.isnan(x) else round(x, d))
             rows.append(row)
-        t0 = None if self.last_t is None or n == 0 else self.last_t - n + 1
+        if self.last_t is None or n == 0:
+            t0 = int(now) if now is not None else None
+        else:
+            t0 = self.last_t - n + 1
         return {"t0": t0, "dt": 1, "cols": list(COLS), "rows": rows}
 
 

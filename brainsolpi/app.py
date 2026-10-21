@@ -86,7 +86,7 @@ async def _watch_pin(settings: Settings, auth: Auth, hub: Hub, engine: Engine) -
         for c in hub.clients:
             if c.admin:
                 c.admin = False
-                hub.send(c, {"t": "auth", "ok": False, "err": "the pin changed, log in again", "wait": 0}, "auth")
+                hub.send(c, {"t": "auth", "ok": False, "err": "token", "msg": "the pin changed, log in again", "wait": 0}, "auth")
         engine.event("info", "the admin pin changed, admins have to log in again")
 
 

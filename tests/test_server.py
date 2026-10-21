@@ -121,18 +121,18 @@ async def test_websocket_session(tmp_path):
         # viewers are read only but may ping
         await ws.send_json({"t": "cmd", "id": 1, "op": "mode", "mode": "hold"})
         a = await ack(ws, 1)
-        assert a["ok"] is False and "admin" in a["err"]
+        assert a["ok"] is False and a["err"] == "admin"
         await ws.send_json({"t": "cmd", "id": "p", "op": "ping"})
         a = await ack(ws, "p")
-        assert a["ok"] and abs(a["data"]["ts"] - time.time() * 1000) < 5000
+        assert a["ok"] and abs(a["data"]["ts"] - time.time()) < 5
 
         # wrong pin, then the right one
         await ws.send_json({"t": "auth", "pin": "1111"})
         out = await recv(ws, "auth")
-        assert out["ok"] is False and out["wait"] == 0
+        assert out["ok"] is False and out["wait"] == 0 and out["err"] == "pin"
         await ws.send_json({"t": "auth", "pin": "2468"})
         out = await recv(ws, "auth")
-        assert out["ok"] is True and out["exp"] > time.time() * 1000
+        assert out["ok"] is True and out["exp"] > time.time() + 11 * 3600
         token = out["token"]
 
         await ws.send_json({"t": "cmd", "id": 2, "op": "mode", "mode": "hold"})
@@ -144,12 +144,12 @@ async def test_websocket_session(tmp_path):
         assert a["ok"] and a["data"] == {"pan": 20.0, "tilt": 70.0}
         await ws.send_json({"t": "cmd", "id": 4, "op": "set", "key": "kp", "value": 999})
         a = await ack(ws, 4)
-        assert not a["ok"] and "kp" in a["err"]
+        assert not a["ok"] and a["err"] == "bad" and "kp" in a["msg"]
         await ws.send_json({"t": "cmd", "id": 5, "op": "simlight", "az": 400, "el": 30, "on": True})
         a = await ack(ws, 5)
         assert a["ok"] and a["data"]["az"] == 40
         await ws.send_json({"t": "cmd", "id": 6, "op": "dance"})
-        assert "unknown" in (await ack(ws, 6))["err"]
+        assert (await ack(ws, 6))["err"] == "unknown"
         await ws.send_json({"t": "cmd", "id": 7, "op": "sys", "action": "restart"})
         assert (await ack(ws, 7))["ok"] and s.sys_calls == ["restart"]
 
@@ -195,7 +195,7 @@ async def test_scan_and_experiment_over_the_websocket(tmp_path):
         assert msg["id"] == a["data"]["id"] and len(msg["v"]) == 4 and len(msg["v"][0]) == 5
         await ws.send_json({"t": "cmd", "id": 2, "op": "exp", "kind": "step"})
         a = await ack(ws, 2)
-        assert not a["ok"] and "scan" in a["err"]
+        assert not a["ok"] and a["err"] == "busy" and "scan" in a["msg"]
         await ws.send_json({"t": "cmd", "id": 3, "op": "stop"})
         assert (await ack(ws, 3))["data"] == {"stopped": True}
         # the closing scan frame went out before the ack

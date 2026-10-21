@@ -41,14 +41,14 @@ def test_pin_rules():
 def test_no_pin_means_no_admin():
     auth = Auth("")
     assert not auth.enabled
-    assert auth.check("2468") == {"t": "auth", "ok": False, "err": NO_PIN, "wait": 0}
+    assert auth.check("2468") == {"t": "auth", "ok": False, "err": "pin", "msg": NO_PIN, "wait": 0}
 
 
 def test_good_pin_gives_a_twelve_hour_token():
     auth, clock = make()
     out = auth.check("2468")
     assert out["ok"] and out["token"]
-    assert out["exp"] == int((clock.t + 12 * 3600) * 1000)
+    assert out["exp"] == clock.t + 12 * 3600
     assert auth.verify_token(out["token"]) == clock.t + 12 * 3600
 
 

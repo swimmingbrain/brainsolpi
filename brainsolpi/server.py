@@ -84,7 +84,7 @@ async def history(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason="span must be a number of seconds")
     span = max(1, min(MAX_SPAN, int(span)))
     # six hours of rows is a big json, build it off the loop
-    text = await asyncio.get_running_loop().run_in_executor(None, lambda: dumps(eng.history.span(span)))
+    text = await asyncio.get_running_loop().run_in_executor(None, lambda: dumps(eng.history.span(span, time.time())))
     return web.Response(text=text, content_type="application/json")
 
 
@@ -170,7 +170,7 @@ async def ws_handler(request: web.Request) -> web.WebSocketResponse:
             elif kind == "cmd":
                 if not _allow(c):
                     if data.get("op") != "rate":
-                        hub.send(c, {"t": "ack", "id": data.get("id"), "ok": False, "err": "too many commands, slow down"}, "ack")
+                        hub.send(c, {"t": "ack", "id": data.get("id"), "ok": False, "err": "busy", "msg": "too many commands, slow down"}, "ack")
                     continue
                 task = asyncio.create_task(_cmd(hub, cmds, c, data))
             else:

@@ -70,19 +70,19 @@ class Commands:
             if not isinstance(op, str):
                 raise CommandError("op is missing")
             if op not in OPEN_OPS and op not in ADMIN_OPS:
-                raise CommandError(f"unknown op {op}")
+                raise CommandError(f"unknown op {op}", "unknown")
             if op in ADMIN_OPS and not admin:
-                raise CommandError("admin only, unlock with the pin first")
+                raise CommandError("admin only, unlock with the pin first", "admin")
             data = getattr(self, f"op_{op}")(msg)
             if asyncio.iscoroutine(data):
                 data = await data
         except CommandError as e:
-            return {"t": "ack", "id": cid, "ok": False, "err": str(e)}
+            return {"t": "ack", "id": cid, "ok": False, "err": e.code, "msg": str(e)}
         except ValueError as e:
-            return {"t": "ack", "id": cid, "ok": False, "err": str(e)}
+            return {"t": "ack", "id": cid, "ok": False, "err": "bad", "msg": str(e)}
         except Exception:
             log.exception("command %s failed", op)
-            return {"t": "ack", "id": cid, "ok": False, "err": "internal error, see the log"}
+            return {"t": "ack", "id": cid, "ok": False, "err": "bad", "msg": "internal error, see the log"}
         out = {"t": "ack", "id": cid, "ok": True}
         if data is not None:
             out["data"] = data
@@ -91,7 +91,7 @@ class Commands:
     # open to everyone
 
     def op_ping(self, msg: dict) -> dict:
-        return {"ts": int(self.engine.wall() * 1000)}
+        return {"ts": round(self.engine.wall(), 3)}
 
     # admin only
 
@@ -139,7 +139,7 @@ class Commands:
             except ValueError:
                 raise CommandError("date must be an iso date like 2026-06-21 or 2026-06-21T06:00") from None
         self.engine.set_sun(speed, start)
-        return {"speed": speed, "t": int(self.engine.sun_clock.now_ts() * 1000)}
+        return {"speed": speed, "t": round(self.engine.sun_clock.now_ts(), 3)}
 
     def op_scan(self, msg: dict) -> dict:
         step = _num(msg, "step", 5, 45, 15.0)
@@ -161,17 +161,23 @@ class Commands:
         eng = self.engine
         if step not in calibration.STEPS:
             raise CommandError(f"step must be one of {', '.join(calibration.STEPS)}")
+        values = msg.get("values")
         if step in ("dark", "bright"):
-            if msg.get("values") is not None:
-                return calibration.set_values(eng, step, msg["values"])
+            if values is not None:
+                if isinstance(values, dict):
+                    # a map by sensor name works as well as a list in the order L R U D
+                    low = {str(k).lower(): v for k, v in values.items()}
+                    values = [low.get(n) for n in ("l", "r", "u", "d")]
+                return calibration.set_values(eng, step, values)
             return self._wait_for(eng.start_activity(calibration.Capture(eng, step)))
         if step == "polarity":
             return self._wait_for(eng.start_activity(calibration.Polarity(eng)))
         if eng.activity is not None:
-            raise CommandError(f"a {eng.activity.kind} is running, stop it first")
+            raise CommandError(f"a {eng.activity.kind} is running, stop it first", "busy")
         if step == "zero":
-            pan_us = _num(msg, "pan_us", 500, 2500, None)
-            tilt_us = _num(msg, "tilt_us", 500, 2500, None)
+            src = values if isinstance(values, dict) else msg
+            pan_us = _num(src, "pan_us", 500, 2500, None)
+            tilt_us = _num(src, "tilt_us", 500, 2500, None)
             return calibration.zero(eng, pan_us, tilt_us)
         if step == "save":
             return calibration.save(eng)
@@ -188,7 +194,7 @@ class Commands:
         try:
             a = await asyncio.wait_for(fut, CALIB_WAIT_S)
         except asyncio.TimeoutError:
-            raise CommandError("the calibration step took too long") from None
+            raise CommandError("the calibration step took too long", "busy") from None
         if not a.ok:
             raise CommandError(a.error or "calibration failed")
         return a.result
@@ -211,8 +217,8 @@ class Commands:
         if action not in ("restart", "reboot", "shutdown"):
             raise CommandError("action must be restart, reboot or shutdown")
         if self.on_sys is None:
-            raise CommandError("not available here")
+            raise CommandError("not available here", "unsupported")
         result = self.on_sys(action)
         if isinstance(result, str):
-            raise CommandError(result)
+            raise CommandError(result, "unsupported")
         return {"action": action}

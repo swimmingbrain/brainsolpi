@@ -104,7 +104,7 @@ class Sun(Mode):
         caz, el = position(site["lat"], site["lon"], when)
         self.az = relative_az(caz, site["heading"])
         self.el = el
-        eng.sun = {"az": self.az, "el": el, "caz": caz, "t": int(when.timestamp() * 1000)}
+        eng.sun = {"az": self.az, "el": el, "caz": caz, "t": round(when.timestamp(), 3)}
         if eng.driver.has_simlight:
             lux, amb = sun_light(el)
             eng.driver.set_light(az=self.az, el=min(max(el, 0.0), 90.0), on=el > 0.0, lux=lux, amb=amb)
