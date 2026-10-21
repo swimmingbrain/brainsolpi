@@ -215,6 +215,9 @@ def _static(root: Path | None):
                 content_type="text/plain",
             )
         rel = request.match_info.get("path", "")
+        if rel == "config.json":
+            # a page loaded from the pi talks to the pi it came from, whatever the build says
+            return web.json_response({"pi": "self"}, headers={"Cache-Control": "no-cache"})
         target = index
         if rel:
             try:

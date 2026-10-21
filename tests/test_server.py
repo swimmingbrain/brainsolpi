@@ -216,6 +216,7 @@ def web_dir(tmp_path):
     (d / "index.html").write_text("<!doctype html><title>brainSOL</title>", encoding="utf-8")
     (d / "_app" / "immutable" / "a.js").write_text("console.log(1)", encoding="utf-8")
     (d / "favicon.svg").write_text("<svg/>", encoding="utf-8")
+    (d / "config.json").write_text('{"pi": ""}', encoding="utf-8")
     return d
 
 
@@ -229,6 +230,8 @@ async def test_static_files_with_index_fallback(tmp_path, web_dir):
         r = await c.get("/_app/immutable/a.js")
         assert r.status == 200 and "immutable" in r.headers["Cache-Control"]
         assert (await c.get("/favicon.svg")).status == 200
+        r = await c.get("/config.json")
+        assert await r.json() == {"pi": "self"}
         assert (await c.get("/missing.js")).status == 404
         assert (await c.get("/../secret.txt")).status in (404, 403, 400)
         r = await c.get("/%2e%2e/%2e%2e/etc/passwd")
