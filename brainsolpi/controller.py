@@ -175,7 +175,7 @@ class AutoLoop:
         vx, vy = t.command(m.tilt)
         pushing = m.step(vx, vy, dt, amax, lp, lt)
         c = math.cos(math.radians(m.tilt))
-        push = t.ex * (1.0 if c >= 0.0 else -1.0)
+        push = t.ex * (0.0 if c == 0.0 else 1.0 if c > 0.0 else -1.0)
         pressing = (
             not t.lowlight
             and abs(t.ex) > t.dead_out
