@@ -54,7 +54,7 @@ def test_out_of_range_values_fall_back_to_defaults():
     assert s.param("vmax") == 60
     assert s.pan_limits == (-88, 88)
     assert s.tilt_limits == (0, 180)
-    assert s.site["lat"] == 48.14
+    assert s.site["lat"] == 48.21
     assert len(s.problems) == 5
 
 

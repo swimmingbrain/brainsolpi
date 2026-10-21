@@ -159,8 +159,9 @@ def build_schema() -> dict:
         },
         "park": {"pan": Num(0.0, -90.0, 90.0), "tilt": Num(90.0, 0.0, 180.0)},
         "site": {
-            "lat": Num(48.14, -90.0, 90.0),
-            "lon": Num(11.58, -180.0, 180.0),
+            # vienna with the front facing south, the same as the browser simulation
+            "lat": Num(48.21, -90.0, 90.0),
+            "lon": Num(16.37, -180.0, 180.0),
             "heading": Num(180.0, 0.0, 360.0),
         },
         "panel": {"w": Num(125.0, 10.0, 1000.0), "h": Num(85.0, 10.0, 1000.0), "eff": Num(0.15, 0.01, 0.5)},
