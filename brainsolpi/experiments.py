@@ -5,7 +5,6 @@ import statistics
 from typing import TYPE_CHECKING, Generator
 
 from .activities import DT, Activity, ActivityError
-from .derived import offset_deg
 from .jsonio import r1, r2, r3
 from .modes import AUTO
 
@@ -62,7 +61,7 @@ class Experiment(Activity):
         self.id = eng.store.new_id(self.exp, eng.wall())
         self.phase = "start"
         self.progress = 0.0
-        self.ts = int(eng.wall() * 1000)
+        self.ts = round(eng.wall(), 3)
 
     def report(self, phase: str, progress: float, result: dict | None = None, extra: dict | None = None) -> None:
         self.phase = phase
@@ -86,12 +85,16 @@ class Experiment(Activity):
         if self.eng.lux is None:
             raise ActivityError("this experiment needs the BH1750 light sensor")
 
-    def base(self) -> dict:
-        return {"id": self.id, "kind": self.exp, "ts": self.ts}
+    def summary(self, result: dict) -> dict:
+        return {}
+
+    def record(self, result: dict) -> dict:
+        # what the store keeps and /api/experiments/<id> gives back
+        return {"id": self.id, "kind": self.exp, "ts": self.ts, "summary": self.summary(result), "result": result}
 
     def finished(self) -> None:
         if self.ok and self.result is not None:
-            self.eng.store.save(self.result)
+            self.eng.store.save(self.record(self.result))
             self.report("done", 1.0, self.result)
             self.eng.event("info", f"{self.exp} experiment done")
         else:
@@ -122,21 +125,23 @@ class Cosine(Experiment):
         self.report("fit", 0.95)
         fit = fit_cosine(points)
         yield from self.seek(pan, tilt)
-        rows = []
-        for d, y in points:
+        curve = []
+        for d, _ in points:
             model = fit["amb"] + fit["peak"] * max(0.0, math.cos(math.radians(d - fit["offset"])))
-            rows.append([d, r1(y), r1(model)])
-        res = self.base()
-        res.update(
-            {
-                "lock": {"pan": r1(pan), "tilt": r1(tilt)},
-                "fit": {"amb": r1(fit["amb"]), "peak": r1(fit["peak"]), "offset": r2(fit["offset"]), "r2": r3(fit["r2"])},
-                "summary": {"r2": r3(fit["r2"]), "peak": r1(fit["peak"]), "amb": r1(fit["amb"])},
-                "cols": ["delta", "lux", "fit"],
-                "rows": rows,
-            }
-        )
-        return res
+            curve.append([d, r1(model)])
+        return {
+            "peak": r1(fit["peak"]),
+            "amb": r1(fit["amb"]),
+            "r2": r3(fit["r2"]),
+            "points": [[d, r1(y)] for d, y in points],
+            # the fitted curve at the same angles and the pointing error the fit took out
+            "fit": curve,
+            "offset": r2(fit["offset"]),
+            "lock": {"pan": r1(pan), "tilt": r1(tilt)},
+        }
+
+    def summary(self, result: dict) -> dict:
+        return {"r2": result["r2"], "peak": result["peak"], "amb": result["amb"]}
 
 
 class Compare(Experiment):
@@ -159,22 +164,19 @@ class Compare(Experiment):
                 yield from self.seek(*last_lock)
             last_lock = yield from self.lock()
             tracked = yield from self.average(0.5, self.lux)
-            rounds.append([i + 1, r1(ref), r1(tracked), r3(tracked / max(ref, 0.1))])
-        gains = [r[3] for r in rounds]
+            rounds.append({"fixed": r1(ref), "tracked": r1(tracked), "gain": r3(tracked / max(ref, 0.1))})
+        gains = [r["gain"] for r in rounds]
         mean = sum(gains) / len(gains)
-        res = self.base()
-        res.update(
-            {
-                "gain": r3(mean),
-                "spread": r3(max(gains) - min(gains)),
-                "sd": r3(statistics.pstdev(gains)),
-                "ref": {"pan": p["ref_pan"], "tilt": p["ref_tilt"]},
-                "summary": {"gain": r3(mean), "spread": r3(max(gains) - min(gains))},
-                "cols": ["round", "ref", "track", "gain"],
-                "rows": rounds,
-            }
-        )
-        return res
+        return {
+            "gain": r3(mean),
+            "spread": r3(max(gains) - min(gains)),
+            "rounds": rounds,
+            "sd": r3(statistics.pstdev(gains)),
+            "ref": {"pan": p["ref_pan"], "tilt": p["ref_tilt"]},
+        }
+
+    def summary(self, result: dict) -> dict:
+        return {"gain": result["gain"], "spread": result["spread"]}
 
 
 class Step(Experiment):
@@ -201,8 +203,7 @@ class Step(Experiment):
         while elapsed < self.MAX_S:
             yield
             elapsed += DT
-            off = None if t.lowlight else offset_deg(t.ex, t.ey)
-            rows.append([round(elapsed, 2), r2(m.pan), r2(m.tilt), r3(t.ex), r3(t.ey), r2(off)])
+            rows.append([round(elapsed, 2), r3(t.ex), r3(t.ey), r2(m.pan), r2(m.tilt)])
             if self.eng.cstate == "locked":
                 settle = elapsed
                 break
@@ -211,23 +212,21 @@ class Step(Experiment):
         final = m.pan
         travel = start - final
         sign = 1.0 if travel > 0 else -1.0
-        past = max(sign * (final - r[1]) for r in rows) if rows else 0.0
+        past = max(sign * (final - r[3]) for r in rows) if rows else 0.0
         overshoot = max(0.0, past)
-        res = self.base()
-        res.update(
-            {
-                "settle": r2(settle),
-                "overshoot": r2(overshoot),
-                "overshoot_pct": r1(100.0 * overshoot / abs(travel)) if abs(travel) > 0.5 else None,
-                "offset": offset,
-                "lock": {"pan": r1(pan), "tilt": r1(tilt)},
-                "final": {"pan": r1(final), "tilt": r1(m.tilt)},
-                "summary": {"settle": r2(settle), "overshoot": r2(overshoot)},
-                "cols": ["t", "pan", "tilt", "ex", "ey", "off"],
-                "rows": rows,
-            }
-        )
-        return res
+        return {
+            "settle": r2(settle),
+            "overshoot": r2(overshoot),
+            # seconds since the release, ex, ey, pan, tilt at 50 Hz
+            "samples": rows,
+            "overshoot_pct": r1(100.0 * overshoot / abs(travel)) if abs(travel) > 0.5 else None,
+            "offset": offset,
+            "lock": {"pan": r1(pan), "tilt": r1(tilt)},
+            "final": {"pan": r1(final), "tilt": r1(m.tilt)},
+        }
+
+    def summary(self, result: dict) -> dict:
+        return {"settle": result["settle"], "overshoot": result["overshoot"]}
 
 
 KINDS = {c.exp: c for c in (Cosine, Compare, Step)}

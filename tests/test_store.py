@@ -7,8 +7,8 @@ def result(eid, ts):
         "kind": "cosine",
         "ts": ts,
         "summary": {"r2": 0.99},
-        "cols": ["delta", "lux"],
-        "rows": [[-5, 900.5], [0, 960.0], [5, None]],
+        "result": {"peak": 900, "amb": 60, "r2": 0.99, "points": [[-5, 900.5], [0, 960.0], [5, None]],
+                   "fit": [[-5, 900.0], [0, 960.0], [5, 901.0]]},
     }
 
 
@@ -19,7 +19,7 @@ def test_store_saves_lists_and_exports(tmp_path):
     s.save(result("cosine-b", 2000))
     assert [e["id"] for e in s.list()] == ["cosine-b", eid]
     assert s.get(eid)["summary"] == {"r2": 0.99}
-    assert s.csv(eid) == "delta,lux\n-5,900.5\n0,960\n5,\n"
+    assert s.csv(eid) == "delta,lux,fit\n-5,900.5,900\n0,960,960\n5,,901\n"
     # a fresh store finds the files again
     again = ExperimentStore(tmp_path)
     assert {e["id"] for e in again.list()} == {eid, "cosine-b"}

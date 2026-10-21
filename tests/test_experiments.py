@@ -31,18 +31,20 @@ def test_cosine_law_in_the_sim(sim, az, el, pose):
     act = run_exp(s, "cosine")
     assert act.ok, act.error
     res = act.result
-    assert res["fit"]["r2"] > 0.98
-    assert res["fit"]["peak"] == pytest.approx(900, rel=0.08)
-    assert res["fit"]["amb"] == pytest.approx(60, abs=40)
-    assert len(res["rows"]) >= 15
+    assert res["r2"] > 0.98
+    assert res["peak"] == pytest.approx(900, rel=0.08)
+    assert res["amb"] == pytest.approx(60, abs=40)
+    assert len(res["points"]) >= 15 and len(res["points"][0]) == 2
     msgs = s.sink.of("exp")
     assert msgs[0]["phase"] == "lock"
-    assert msgs[-1]["phase"] == "done" and msgs[-1]["result"]["id"] == res["id"]
+    assert msgs[-1]["phase"] == "done" and msgs[-1]["result"] == res and msgs[-1]["id"] == act.id
     # the head is handed back to auto and locks again
     assert s.run_until(lambda x: x.engine.st == "locked", 10)
-    assert s.engine.store.get(res["id"])["kind"] == "cosine"
-    csv = s.engine.store.csv(res["id"])
+    rec = s.engine.store.get(act.id)
+    assert rec["kind"] == "cosine" and rec["result"] == res and rec["summary"]["r2"] == res["r2"]
+    csv = s.engine.store.csv(act.id)
     assert csv.splitlines()[0] == "delta,lux,fit"
+    assert len(csv.splitlines()) == len(res["points"]) + 1
 
 
 def test_compare_shows_a_gain_for_a_low_light(sim):
@@ -52,7 +54,7 @@ def test_compare_shows_a_gain_for_a_low_light(sim):
     res = act.result
     # a flat panel sees a light 20 degrees over the horizon at about cos 70, about 2.6 times less
     assert res["gain"] > 1.5
-    assert len(res["rows"]) == 3
+    assert len(res["rounds"]) == 3 and set(res["rounds"][0]) >= {"fixed", "tracked"}
     assert res["spread"] < 0.3
 
 
@@ -64,8 +66,8 @@ def test_step_reports_settle_time_and_overshoot(sim):
     assert res["settle"] is not None and 0.1 < res["settle"] < 8
     assert res["overshoot"] >= 0
     assert res["offset"] in (20, -20)
-    assert res["rows"][0][0] == 0.02
-    assert res["summary"] == {"settle": res["settle"], "overshoot": res["overshoot"]}
+    assert res["samples"][0][0] == 0.02 and len(res["samples"][0]) == 5
+    assert s.engine.store.get(act.id)["summary"] == {"settle": res["settle"], "overshoot": res["overshoot"]}
 
 
 def test_experiments_fail_cleanly_without_light(sim):

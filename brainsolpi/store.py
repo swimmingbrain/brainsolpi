@@ -87,10 +87,26 @@ class ExperimentStore:
         data = self.get(eid)
         if data is None:
             return None
-        cols = data.get("cols") or []
-        rows = data.get("rows") or []
+        cols, rows = table(data)
         out = io.StringIO()
         out.write(",".join(cols) + "\n")
         for row in rows:
             out.write(",".join(_csv_cell(v) for v in row) + "\n")
         return out.getvalue()
+
+
+def table(record: dict) -> tuple[list[str], list[list]]:
+    # the rows of a result as a flat table, one layout per kind of experiment
+    r = record.get("result") or {}
+    kind = record.get("kind")
+    if kind == "cosine":
+        fit = {d: v for d, v in r.get("fit") or []}
+        return ["delta", "lux", "fit"], [[d, lux, fit.get(d)] for d, lux in r.get("points") or []]
+    if kind == "compare":
+        rounds = r.get("rounds") or []
+        return ["round", "fixed", "tracked", "gain"], [
+            [i + 1, x.get("fixed"), x.get("tracked"), x.get("gain")] for i, x in enumerate(rounds)
+        ]
+    if kind == "step":
+        return ["t", "ex", "ey", "pan", "tilt"], r.get("samples") or []
+    return [], []
