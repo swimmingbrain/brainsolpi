@@ -101,6 +101,28 @@ def loop_max(tilts):
     return best, pose
 
 
+def route_points(name, pan, tilt):
+    """polyline of one photoresistor or the bh1750 cable at a pose, for the renders"""
+    idx = {"L": 0, "R": 1, "U": 2, "D": 3}
+    if name == "lux":
+        top = uno_pin_top(P.UNO_I2C_U, sum(P.UNO_I2C_W) / 4)
+    else:
+        top = uno_pin_top(P.UNO_A0_U + idx[name] * P.PITCH, sum(P.UNO_GVS_W) / 3)
+    m_neck = group_matrix("neck", pan, tilt)
+    m_head = group_matrix("head", pan, tilt)
+    below, _ = exit_points()
+    pts = [top, (top[0], top[1], top[2] + 3.0)]
+    pts.append(tuple(apply_point(m_neck, below)))
+    pts += [tuple(apply_point(m_neck, p)) for p in neck_path()]
+    entry = np.asarray(pts[-1])
+    hx = apply_point(m_head, head_exit())
+    # a soft arc for the service loop, lifted a little above the straight line
+    mid = (entry + hx) / 2 + np.array([0.0, 0.0, 6.0])
+    pts.append(tuple(mid))
+    pts += [tuple(apply_point(m_head, p)) for p in head_path(name)[::-1]]
+    return pts
+
+
 def budget():
     pans = np.arange(P.PAN_RANGE[0], P.PAN_RANGE[1] + 1e-6, 5.0)
     tilts = np.arange(P.TILT_RANGE[0], P.TILT_RANGE[1] + 1e-6, 5.0)
