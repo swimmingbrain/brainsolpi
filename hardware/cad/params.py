@@ -189,14 +189,14 @@ PI_FINGER_D = 5.6
 
 # neck and turret
 
-NECK_W = 40.0
+NECK_W = 44.0  # room for the pan servo lead to bend up at the far end of the case
 NECK_D = 30.0
 NECK_WALL = 2.0
 NECK_TOP_ABOVE_AXIS = 13.5
 NECK_TOP_CHAMFER = 6.0
 FOOT_W = 52.0
 FOOT_H = 10.0
-FOOT_FLARE_H = 6.0
+FOOT_FLARE_H = 4.0
 FOOT_FLOOR_T = 2.4
 PAN_BOSS_GAP = 0.4  # servo boss face above the lid top, the foot carries the weight
 PAN_HORN_PLAY = 0.4  # vertical play of the pan horn under the lid

@@ -30,7 +30,7 @@ def servo_local():
     s += cyl("z", P.SERVO_BOSS_R, P.SERVO_H - 0.01, P.SERVO_BOSS_TOP)
     s += cyl("z", P.SERVO_SPLINE_D / 2, P.SERVO_BOSS_TOP - 0.01, P.SERVO_BOSS_TOP + P.SERVO_SPLINE_LEN)
     # where the lead leaves the far end, the first few millimetres are stiff
-    s += box(far - 4.0, far + 0.01, -P.SERVO_LEAD_W / 2, P.SERVO_LEAD_W / 2,
+    s += box(far - 2.5, far + 0.01, -P.SERVO_LEAD_W / 2, P.SERVO_LEAD_W / 2,
              P.SERVO_LEAD_Z - P.SERVO_LEAD_T / 2 - 0.4, P.SERVO_LEAD_Z + P.SERVO_LEAD_T / 2 + 0.4)
     return s
 

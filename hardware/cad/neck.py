@@ -109,9 +109,16 @@ def cavity():
     return inner & box(-40, 40, ty() - 20, ty() + 20, z0() + P.FOOT_FLOOR_T, P.NECK_TOP - w)
 
 
+def column_x0():
+    """left edge of the cable column, a full wall away from both servo pockets"""
+    tilt_end = kit.tilt_servo_frame()[0][0]
+    pan_end = P.SERVO_SHAFT_FROM_END
+    return max(tilt_end, pan_end) + P.FIT_SLIDE + P.NECK_WALL
+
+
 def pan_holder():
     """solid block around the pan servo, the servo shape is cut out later"""
-    hb = box(-P.FOOT_W / 2 + 1, 7.9, ty() - 14, ty() + 14, z0() + P.FOOT_FLOOR_T - 0.01,
+    hb = box(-P.FOOT_W / 2 + 1, column_x0(), ty() - 14, ty() + 14, z0() + P.FOOT_FLOOR_T - 0.01,
              z0() + P.PAN_BOSS_GAP + P.SERVO_BOSS_TOP + P.FIT_SLIDE + 2.0)
     return hb
 
@@ -185,19 +192,24 @@ def build():
     po, _, _ = kit.pan_servo_frame()
     pan_lead_z = po[2] - P.SERVO_LEAD_Z
     far_x = P.SERVO_SHAFT_FROM_END - P.SERVO_L
-    cuts.append(box(far_x - 6.0, far_x + 0.5, t - 3.0, t + 3.0, pan_lead_z - 3.0, po[2] + 6.0))
-    cuts.append(box(far_x - 6.0, 10.0, t - 3.0, t + 3.0, po[2] + P.FIT_SLIDE + 2.0, po[2] + 8.0))
+    inside = cavity()
+    cuts.append(box(far_x - 6.0, far_x + 0.5, t - 3.0, t + 3.0, pan_lead_z - 3.0, po[2] + 6.0) & inside)
+    cuts.append(box(far_x - 6.0, 10.0, t - 3.0, t + 3.0, po[2] + P.FIT_SLIDE + 2.0, po[2] + 8.0) & inside)
     to, _, _ = kit.tilt_servo_frame()
     tilt_lead_x = to[0] - P.SERVO_LEAD_Z
     tilt_far_z = P.Z_TILT - (P.SERVO_L - P.SERVO_SHAFT_FROM_END)
-    cuts.append(box(tilt_lead_x - 3.0, tilt_lead_x + 3.0, t - 3.0, t + 3.0, tilt_far_z - 12.0, tilt_far_z + 0.5))
-    cuts.append(box(tilt_lead_x - 3.0, 18.0, t - 3.0, t + 3.0, tilt_far_z - 12.0, tilt_far_z - 4.0))
+    cuts.append(box(tilt_lead_x - 3.0, tilt_lead_x + 3.0, t - 3.0, t + 3.0, tilt_far_z - 12.0, tilt_far_z + 0.5) & inside)
+    cuts.append(box(tilt_lead_x - 3.0, 18.0, t - 3.0, t + 3.0, tilt_far_z - 12.0, tilt_far_z - 4.0) & inside)
     # cable column on the right of both servos, top to bottom, it follows the inside of the wall
-    inside = cavity()
-    col_x0 = kit.tilt_servo_frame()[0][0] + P.FIT_SLIDE + 2.0
+    col_x0 = column_x0()
     cuts.append(box(col_x0, P.FOOT_W / 2, t - 13.0, t + 13.0, z0() + P.FOOT_FLOOR_T, P.NECK_TOP) & inside)
     # over the tilt servo the cables come in from the top entry
-    cuts.append(box(CABLE_X - 5.0, P.FOOT_W / 2, t - 6.0, t + 6.0, P.Z_TILT, P.NECK_TOP) & inside)
+    cuts.append(box(col_x0, P.FOOT_W / 2, t - 6.0, t + 6.0, P.Z_TILT, P.NECK_TOP) & inside)
+    # the pan servo case rests on the foot floor, no thin plate under it
+    near, far = P.SERVO_SHAFT_FROM_END, P.SERVO_SHAFT_FROM_END - P.SERVO_L
+    case_top = po[2] - P.SERVO_H + P.FIT_SLIDE
+    cuts.append(box(far - P.FIT_SLIDE, near + P.FIT_SLIDE, t - P.SERVO_W / 2 - P.FIT_SLIDE, t + P.SERVO_W / 2 + P.FIT_SLIDE,
+                    z0() + P.FOOT_FLOOR_T - 0.01, case_top))
     # entry slot in the top face
     cuts.append(poly_prism(stadium_points(CABLE_X, t, 12.0, 8.0, 0.0), P.NECK_TOP - P.NECK_WALL - 1, P.NECK_TOP + 1))
     # pan boss hole and cable exit in the foot floor, roofed toward the back because the
