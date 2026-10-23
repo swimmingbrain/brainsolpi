@@ -210,7 +210,7 @@ def bezel():
     cuts = []
     # pocket for the panel and the window in front of it
     f = P.PANEL_FIT
-    cuts.append(uv_prism(rr_uv(P.PANEL_W + 2 * f, P.PANEL_H + 2 * f, 1.0), P.PANEL_BACK_N - 1.0, P.PANEL_FRONT_N))
+    cuts.append(uv_prism(rr_uv(P.PANEL_W + 2 * f, P.PANEL_H + 2 * f, 0.6), P.PANEL_BACK_N - 1.0, P.PANEL_FRONT_N))
     ww, wh = P.PANEL_W - 2 * P.BEZEL_LIP, P.PANEL_H - 2 * P.BEZEL_LIP
     cuts.append(uv_prism(rr_uv(ww, wh, 2.0), P.PANEL_FRONT_N - 0.01, T + 1.0))
     c = 0.8

@@ -79,6 +79,11 @@ def build_parts():
     return parts
 
 
+def fit_test_part():
+    from . import fittest
+    return Part("fit_test", fittest.fit_plate(), "test", "body", note="plate on the bed, print first")
+
+
 def electronics():
     """keep out solids per group, as meshes"""
     out = {"base": {}, "neck": {}, "head": {}}
