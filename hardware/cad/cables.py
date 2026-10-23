@@ -123,6 +123,21 @@ def route_points(name, pan, tilt):
     return pts
 
 
+def loop_points(pan, tilt):
+    """the service loop between the neck top and the back of the head, for the renders"""
+    m_neck = group_matrix("neck", pan, tilt)
+    m_head = group_matrix("head", pan, tilt)
+    top = neck_path()[-1]
+    e0 = apply_point(m_neck, (top[0], top[1], top[2] - 3.0))
+    e1 = apply_point(m_neck, (top[0], top[1], top[2] + 2.5))
+    h1 = apply_point(m_head, head_exit())
+    h0 = apply_point(m_head, kit.head_xyz(P.HEAD_CABLE_U, 0.0, -2.5))
+    mid = (e1 + h0) / 2
+    up = apply_point(m_neck, (P.TURRET_X, P.TURRET_Y, 1.0)) - apply_point(m_neck, (P.TURRET_X, P.TURRET_Y, 0.0))
+    mid = mid + up * 2.0
+    return [tuple(e0), tuple(e1), tuple(mid), tuple(h0), tuple(h1)]
+
+
 def budget():
     pans = np.arange(P.PAN_RANGE[0], P.PAN_RANGE[1] + 1e-6, 5.0)
     tilts = np.arange(P.TILT_RANGE[0], P.TILT_RANGE[1] + 1e-6, 5.0)

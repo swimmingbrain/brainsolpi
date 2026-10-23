@@ -205,6 +205,21 @@ def sensor_layout():
     return lay
 
 
+def sensor_faces():
+    """thin discs on the photoresistors and the bh1750 window, only for the renders"""
+    out = {}
+    for name, ((su, sv), _) in sensor_layout().items():
+        if name == "lux":
+            n0 = P.PCB_TOP_N + P.BH_CHIP_TOP - 0.2
+            r = 1.2
+        else:
+            n0 = P.LDR_FACE_N - 0.2
+            r = P.LDR_D / 2 - 0.2
+        x, y, z = head_xyz(su, sv, n0)
+        out["face_" + name] = cyl("y", r, y, y + 0.3, (x, z))
+    return out
+
+
 def modules():
     out = {}
     for name, (s, i) in sensor_layout().items():

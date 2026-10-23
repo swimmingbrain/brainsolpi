@@ -16,6 +16,8 @@ TARGET = (0.0, -12.0, 78.0)
 
 
 def kit_color(name):
+    if name.startswith("face_"):
+        return "#c8a46e" if name != "face_lux" else "#8a7a5a"
     return MODULE_COLOR if name.startswith("module") else KIT_COLORS.get(name, "#555560")
 
 
@@ -34,69 +36,101 @@ def scene_items(parts, pan, tilt, elec=None, ghost=None, skip=()):
     return out
 
 
-def product_views(parts, out):
+def visible_kit(elec):
+    """kit parts that show from outside, the sensors in their eyes"""
+    from . import kit
+    from .mesh import to_trimesh
+    head = {k: m for k, m in elec["head"].items() if k.startswith("module")}
+    for k, s in kit.sensor_faces().items():
+        head[k] = to_trimesh(s)
+    return {"base": {}, "neck": {}, "head": head}
+
+
+def product_views(parts, elec, out):
     shots = [
         ("front_three_quarter", 15, 35, camera(TARGET, 38, 20, 470)),
         ("rear_three_quarter", -20, 55, camera(TARGET, 215, 24, 470)),
         ("side", 0, 45, camera(TARGET, 90, 2, 520)),
-        ("top", 25, 30, camera((0, -5, 60), 0, 89.5, 520, up=(0, 1, 0))),
+        ("top", 0, 10, camera((0, -5, 60), 0, 89.5, 520, up=(0, 1, 0))),
         ("head_flat", 0, 90, camera(TARGET, 32, 22, 470)),
-        ("head_over_the_top", 30, 155, camera(TARGET, 40, 20, 480)),
+        ("head_over_the_top", 30, 155, camera(TARGET, 150, 22, 480)),
     ]
     written = []
+    kit_vis = visible_kit(elec)
     for name, pan, tilt, cam in shots:
         path = Path(out) / f"{name}.png"
         par = name in ("side", "top")
-        render(scene_items(parts, pan, tilt), path, cam, panels=[A.panel_corners(pan, tilt)], parallel=par,
-               zoom=1.0 if not par else 1.15)
+        loop = [(cables.loop_points(pan, tilt), "#1e1e22", 2.6)]
+        render(scene_items(parts, pan, tilt, kit_vis), path, cam, panels=[A.panel_corners(pan, tilt)], parallel=par,
+               zoom=1.0 if not par else 1.15, lines=loop)
         written.append(path)
     return written
 
 
 def exploded(parts, elec, out):
-    offs = {
-        "foot": (0, 0, -28), "tray": (0, 0, 0), "lid": (0, 0, 70),
-        "neck_front": (0, 34, 130), "neck_back": (0, -34, 130),
-        "head_back": (0, 30, 205), "head_bezel": (0, 95, 205),
-        "ear_horn": (-40, 0, 205), "ear_pivot": (40, 0, 205), "cap": (-62, 0, 205),
-        "pi": (0, 0, 0), "uno": (0, 0, 70), "pan_horn": (0, 0, 50), "pan_servo": (0, 0, 130),
-        "tilt_servo": (0, 0, 130), "tilt_horn": (-40, 0, 205), "panel": (0, 62, 205),
+    """head laid flat on top, everything lifted along z in assembly order"""
+    lift = {
+        "foot": -34, "tray": 0, "pi": 0, "lid": 62, "uno": 62, "pan_horn": 48,
+        "neck_front": 128, "neck_back": 128, "pan_servo": 128, "tilt_servo": 128,
+        "ear_horn": 168, "ear_pivot": 168, "tilt_horn": 168, "cap": 168,
+        "head_back": 196, "module": 222, "panel": 248, "head_bezel": 276,
     }
+    side = {"neck_front": (0, 30, 0), "neck_back": (0, -30, 0), "ear_horn": (-26, 0, 0), "ear_pivot": (26, 0, 0),
+            "tilt_horn": (-26, 0, 0), "cap": (-48, 0, 0), "cap_2": (48, 0, 0)}
     items = []
-    for name, group, role, mesh in A.posed(parts, 0, 0, elec):
-        base = name.split("_")[0] if name.startswith("foot") else name
-        key = base
-        if name.startswith("cap_"):
-            key = "cap_r"
+    for name, group, role, mesh in A.posed(parts, 0, 90, elec):
+        key = name
+        if name.startswith("foot"):
+            key = "foot"
         if name.startswith("module"):
             key = "module"
-        o = offs.get(key)
-        if key == "cap_r":
-            o = (62, 0, 205)
-        if key == "module":
-            o = (0, 46, 205)
-        if name.startswith("foot_"):
-            o = offs["foot"]
-        if o is None:
-            o = (0, 0, 0)
+        if name.startswith("cap"):
+            key = "cap"
+        dz = lift.get(key, 0)
+        dx, dy, _ = side.get(name, (0, 0, 0))
         m = mesh.copy()
-        m.apply_translation(o)
+        m.apply_translation((dx, dy, dz))
         color = ROLE[role] if role != "kit" else kit_color(name)
         items.append((m, color, 1.0, role if role != "kit" else "kit"))
     path = Path(out) / "exploded.png"
-    render(items, path, camera((0, 10, 150), 42, 16, 900), size=(1600, 1800), floor=False,
-           center=(0, 10, 150))
+    c = (0, -10, 205)
+    render(items, path, camera(c, 36, 14, 1120), size=(1400, 2000), floor=False, center=c)
     return [path]
+
+
+def usb_coil_points():
+    """the spare usb cable wound around the two posts in the front bay, for the inside render"""
+    from . import base, kit
+    (x0, y0), (x1, y1) = base.coil_posts()
+    z = P.FLOOR_TOP + 4.0
+    pts = []
+    r = 6.0 + 2.5
+    for turn in range(3):
+        zz = z + turn * 2.6
+        for k in range(13):
+            a = np.radians(90 + 180 * k / 12)
+            pts.append((x0 + r * np.cos(a), y0 + r * np.sin(a), zz))
+        for k in range(13):
+            a = np.radians(-90 + 180 * k / 12)
+            pts.append((x1 + r * np.cos(a), y1 + r * np.sin(a), zz + 1.3))
+    ax, ay = kit.pi_to_device(P.PI_L + P.PI_PORT_OVERHANG + P.USB_A_PLUG[2], P.PI_USB_Y[0])
+    bx, by = kit.uno_to_device(-P.UNO_USB_OVERHANG - P.USB_B_PLUG[2], sum(P.UNO_USB_W) / 2)
+    bz = kit.uno_origin()[2] + P.UNO_T + P.USB_B_PLUG[1] / 2
+    az = kit.pi_z0() + P.PI_T + 4.5
+    return [(ax, ay, az), (ax + 6, ay + 4, az - 2)] + pts + [(bx - 4, by + 4, bz - 6), (bx, by, bz)]
 
 
 def inside_views(parts, elec, out):
     written = []
-    ghost = {"lid": 0.12, "neck_front": 0.25, "neck_back": 0.25}
-    items = scene_items(parts, 0, 90, elec, ghost=ghost,
-                        skip=("head_back", "head_bezel", "ear_horn", "ear_pivot", "cap", "cap_2",
-                              "tilt_horn") + tuple(n for n in elec["head"]))
+    ghost = {"lid": 0.14}
+    skip = ("head_back", "head_bezel", "ear_horn", "ear_pivot", "cap", "cap_2", "neck_front", "neck_back",
+            "pan_servo", "tilt_servo") + tuple(n for n in elec["head"])
+    items = scene_items(parts, 0, 90, elec, ghost=ghost, skip=skip)
+    lines = [(usb_coil_points(), "#3a3a40", 2.0)]
+    lines += [(cables.route_points(n, 0, 90)[:4], c, 0.9) for n, c in
+              (("L", "#e0b030"), ("R", "#e07a40"), ("U", "#7cc060"), ("D", "#5b9be0"), ("lux", "#b080e0"))]
     path = Path(out) / "inside_base.png"
-    render(items, path, camera((0, -5, 25), 25, 52, 420), center=(0, 0, 30))
+    render(items, path, camera((0, -5, 25), 25, 55, 420), center=(0, 0, 30), lines=lines)
     written.append(path)
     # the back shell with its modules, seen from the front with the bezel off
     by = {p.name: p for p in parts}
@@ -156,7 +190,7 @@ def all_views(parts, elec, out):
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     w = []
-    w += product_views(parts, out)
+    w += product_views(parts, elec, out)
     w += exploded(parts, elec, out)
     w += inside_views(parts, elec, out)
     w += cable_view(parts, elec, out)
