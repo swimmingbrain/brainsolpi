@@ -29,7 +29,7 @@ def test_read_json_moves_a_broken_file_aside(tmp_path):
     assert (tmp_path / "s.json.bad").exists()
 
 
-def test_defaults_match_the_blueprint():
+def test_defaults_match_the_shared_contract():
     s = Settings()
     want = {
         "kp": 90, "vmax": 60, "amax": 240, "dead_in": 0.025, "dead_out": 0.05, "tau": 0.12,

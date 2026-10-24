@@ -99,7 +99,7 @@ def test_token_reuse_across_connections_and_expiry():
     assert token not in str(saved[-1])
     clock.t += 12 * 3600 + 1
     assert not restored.resume(token)["ok"]
-    assert not auth.resume("made-up")["ok"]
+    assert not auth.resume("madeup")["ok"]
     assert not auth.resume(None)["ok"]
 
 

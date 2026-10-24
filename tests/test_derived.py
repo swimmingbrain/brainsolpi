@@ -10,7 +10,7 @@ def test_offset_is_zero_when_balanced():
     assert offset_deg(0, 0) == 0
 
 
-def test_offset_follows_the_blueprint_formula():
+def test_offset_follows_the_shared_formula():
     ex, ey = 0.2, -0.1
     tx = 2 * ex / (1.2 * (1 + ex))
     ty = 2 * ey / (1.2 * (1 + abs(ey)))

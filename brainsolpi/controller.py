@@ -22,7 +22,7 @@ def linear(raw: float) -> float:
 
 
 class Tracker:
-    # the closed loop of the blueprint: normalise, filter, error, hysteresis, axis speeds.
+    # the closed loop: normalise, filter, error, hysteresis, axis speeds,
     # the levels are made linear in light first, the same as the browser simulation does
 
     def __init__(self, params: dict | None = None):

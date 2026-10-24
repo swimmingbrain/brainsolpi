@@ -14,7 +14,7 @@ from brainsolpi.simmodel import (
     servo_step,
 )
 
-# the expected numbers below were worked out by hand from the formulas in the blueprint
+# the expected numbers below were worked out by hand from the shared sensor formulas
 
 
 def test_light_straight_on_lights_every_sensor_fully():
