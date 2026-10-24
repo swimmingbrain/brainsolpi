@@ -151,10 +151,25 @@ def back_shell():
             u = side * ear_screw_u()
             cuts.append(hcyl_n(P.M3_CLEAR / 2, -1.0, P.BACK_T + 1.0, u, v))
             cuts.append(hcone_n(P.M3_CLEAR / 2, P.M3_CSK_D / 2, P.BACK_T - 0.8, P.BACK_T + 0.01, u, v))
+    # one to four dots next to each module, the same count as A0 to A3 plus one
+    cuts.append(sensor_dots())
     # cable exit with soft edges
     cuts.append(uv_prism(stadium_points(CABLE_U, 0.0, EXIT_L, EXIT_W), -1.0, P.BACK_T + 1.0))
     cuts.append(stadium_chamfer(CABLE_U, 0.0, EXIT_L, EXIT_W, 0.0, 0.8))
     return body - union_all(cuts)
+
+
+def sensor_dots():
+    """small dimples in the floor, L one, R two, U three, D four, so every cable finds its pin"""
+    out = []
+    for count, name in enumerate(("L", "R", "U", "D"), start=1):
+        (su, sv), (iu, iv) = kit.sensor_layout()[name]
+        lu, lv = -iv, iu
+        for k in range(count):
+            u = su + iu * (9.0 + 3.0 * k) + lu * 15.0
+            v = sv + iv * (9.0 + 3.0 * k) + lv * 15.0
+            out.append(hcyl_n(0.9, P.BACK_T - 0.4, P.BACK_T + 0.5, u, v))
+    return union_all(out)
 
 
 def cable_lane():
