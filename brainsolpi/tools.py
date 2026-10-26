@@ -84,6 +84,10 @@ def _connect(port: str | None):
     end = time.monotonic() + 3.0
     while not d.link_ok and time.monotonic() < end:
         time.sleep(0.02)
+    if not d.link_ok or d.ident is None:
+        d.stop_sync()
+        print("the board stopped answering, check the usb cable")
+        return None
     return d
 
 
