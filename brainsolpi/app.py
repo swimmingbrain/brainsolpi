@@ -16,7 +16,7 @@ from .commands import Commands
 from .config import Settings
 from .drivers.base import Driver
 from .drivers.bridge import BridgeDriver
-from .drivers.detect import find_board
+from .drivers.detect import candidates, find_board
 from .drivers.fakeboard import FakeBoard
 from .drivers.sim import SimDriver
 from .engine import Engine
@@ -51,8 +51,11 @@ async def open_driver(args, settings: Settings) -> Driver:
         finder = None if args.port else (lambda: find_board(AUTO_WAIT_S))
         return BridgeDriver(args.port, finder=finder, rate=rate, slew=slew)
     # auto: a board that answers wins, otherwise the sim keeps the demo going
-    log.info("looking for a board for up to %.0f s", AUTO_WAIT_S)
-    ports = [args.port] if args.port else None
+    ports = [args.port] if args.port else [dev for dev, _ in candidates()]
+    if not ports:
+        log.warning("no serial port found, falling back to the sim driver")
+        return SimDriver(rate=rate)
+    log.info("looking for a board on %s for up to %.0f s", ", ".join(ports), AUTO_WAIT_S)
     found = await asyncio.get_running_loop().run_in_executor(None, lambda: find_board(AUTO_WAIT_S, ports=ports))
     if found is not None:
         port, _, ident = found
