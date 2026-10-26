@@ -92,7 +92,11 @@ async def _watch_pin(settings: Settings, auth: Auth, hub: Hub, engine: Engine) -
 
 def _install_signals(stop: asyncio.Event) -> None:
     loop = asyncio.get_running_loop()
-    for sig in (signal.SIGINT, signal.SIGTERM):
+    sigs = [signal.SIGINT, signal.SIGTERM]
+    if hasattr(signal, "SIGBREAK"):
+        # ctrl break on windows, the only signal another process can send a console app there
+        sigs.append(signal.SIGBREAK)
+    for sig in sigs:
         try:
             loop.add_signal_handler(sig, stop.set)
         except (NotImplementedError, RuntimeError, ValueError):
