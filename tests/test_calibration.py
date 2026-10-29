@@ -1,6 +1,7 @@
 import pytest
 
 from brainsolpi import calibration
+from brainsolpi.engine import DT
 from brainsolpi.kinematics import angle_between, frame
 
 
@@ -30,6 +31,48 @@ def test_dark_and_bright_capture_in_the_sim(sim):
     calibration.save(s.engine)
     assert s.settings.calib("sim")["dark"] == res["dark"]
     assert s.engine.calib_saved
+
+
+def moving_head(sim, amax=50):
+    # a low acceleration makes the braking last longer than the one second capture
+    s = sim(mode="hold", pose=(-80, 60), amax=amax)
+    s.engine.set_target(80, 120)
+    s.run(1.4)
+    assert abs(s.engine.motion.vp) > 40 and abs(s.engine.motion.vt) > 10
+    return s
+
+
+def watch_accel(s, seconds, amax):
+    m = s.engine.motion
+    prev = (m.vp, m.vt)
+    for _ in range(int(round(seconds / DT))):
+        s.run(DT)
+        assert abs(m.vp - prev[0]) <= amax * DT + 1e-6
+        assert abs(m.vt - prev[1]) <= amax * DT + 1e-6
+        prev = (m.vp, m.vt)
+
+
+def test_a_capture_brakes_through_the_limiter_and_never_jolts(sim):
+    s = moving_head(sim)
+    act = calibration.Capture(s.engine, "dark")
+    s.engine.start_activity(act)
+    # the capture, its end while the head still brakes, and the way back to the target
+    watch_accel(s, 3.0, 50)
+    assert act.done and act.ok
+
+
+def test_typed_in_values_keep_the_speed(sim):
+    s = moving_head(sim)
+    before = (s.engine.motion.vp, s.engine.motion.vt)
+    calibration.set_values(s.engine, "bright", [7800, 7800, 7800, 7800])
+    assert (s.engine.motion.vp, s.engine.motion.vt) == before
+    watch_accel(s, 1.0, 50)
+
+
+def test_a_new_servo_centre_zeroes_the_speeds(sim):
+    s = moving_head(sim)
+    calibration.zero(s.engine, pan_us=1520, tilt_us=1480)
+    assert (s.engine.motion.vp, s.engine.motion.vt) == (0, 0)
 
 
 def test_values_can_be_given_directly(sim):
