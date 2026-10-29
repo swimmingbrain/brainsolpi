@@ -42,8 +42,11 @@ to one decimal.
 
 - Servo frame: the servo drops in with its spline up and the tabs sit in the notches. If it is tight, raise
   `FIT_SLIDE` or measure the case again.
-- Horn pocket: the horn presses in and does not turn. Loose means `FIT_SNUG` down by 0.05, tight means up.
-  The servo spline must reach through the hub hole into the horn while the horn lies in the pocket.
+- Horn pocket: this is the pan horn pocket of the lid, with the same thin plate. Put the horn in hub first,
+  the hub goes down through the plate. Push the servo spline up from below into the hub. The spline must go
+  fully into the hub before the servo touches the plate, and the horn must not turn in its pocket. Loose
+  means `FIT_SNUG` down by 0.05, tight means up. If the spline does not reach, measure `HORN_TOTAL_H` and
+  `SERVO_SPLINE_LEN` again.
 - Peg pair: a module slides over both pegs and lies flat on the shoulders.
 - Tap holes: one notch is 2.6, two notches 2.65, three notches 2.7.
 - Pi pin and cap: see the table.
