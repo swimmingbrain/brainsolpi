@@ -33,7 +33,7 @@ def test_defaults_match_the_shared_contract():
     s = Settings()
     want = {
         "kp": 90, "vmax": 60, "amax": 240, "dead_in": 0.025, "dead_out": 0.05, "tau": 0.12,
-        "min_light": 0.04, "zenith_band": 6, "ref_pan": 0, "ref_tilt": 90, "rate": 20,
+        "min_light": 0.08, "zenith_band": 6, "ref_pan": 0, "ref_tilt": 90, "rate": 20,
     }
     assert {p.key: s.param(p.key) for p in PARAMS} == want
     assert s.pan_limits == (-88, 88)

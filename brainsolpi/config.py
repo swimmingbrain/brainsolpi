@@ -33,7 +33,8 @@ PARAMS: tuple[Param, ...] = (
     Param("dead_in", 0.025, 0.005, 0.2, 0.005),
     Param("dead_out", 0.05, 0.01, 0.3, 0.005),
     Param("tau", 0.12, 0.02, 1.0, 0.01),
-    Param("min_light", 0.04, 0.0, 0.5, 0.01),
+    # the ambient light of a lit room alone gives a mean level of about 0.06, that counts as dark
+    Param("min_light", 0.08, 0.0, 0.5, 0.01),
     Param("zenith_band", 6.0, 0.0, 20.0, 0.5),
     Param("ref_pan", 0.0, -90.0, 90.0, 1.0),
     Param("ref_tilt", 90.0, 0.0, 180.0, 1.0),
