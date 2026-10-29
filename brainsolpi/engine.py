@@ -656,11 +656,16 @@ class Engine:
         self._cfg_dirty = True
 
     def set_calibration(self, calib: dict, saved: bool) -> None:
-        # a new servo mapping must not move the head, so the pose follows the pulses
-        pulses = (self.pan_map.to_us(self.motion.pan), self.tilt_map.to_us(self.motion.tilt))
+        old_pan, old_tilt = self.pan_map, self.tilt_map
+        pulses = (old_pan.to_us(self.motion.pan), old_tilt.to_us(self.motion.tilt))
         self.calib = calib
         self.calib_saved = saved
         self._apply_calib()
+        if self.pan_map == old_pan and self.tilt_map == old_tilt:
+            # only the sensor side changed, the head keeps its speed and the limiter brakes it
+            return
+        # a new servo mapping must not move the head, so the pose follows the pulses, the old
+        # speeds mean nothing in the new angles
         lp, lt = self.settings.pan_limits, self.settings.tilt_limits
         self.motion.pan = clamp(self.pan_map.to_angle(pulses[0]), *lp)
         self.motion.tilt = clamp(self.tilt_map.to_angle(pulses[1]), *lt)
