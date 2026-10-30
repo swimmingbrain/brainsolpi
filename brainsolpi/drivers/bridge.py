@@ -25,6 +25,8 @@ log = logging.getLogger(__name__)
 # opening the port resets the uno, it boots and says who it is within about two seconds
 IDENT_TIMEOUT = 5.0
 QUERY_AFTER = 2.5
+# a question without an answer is asked again after this long
+REASK_S = 1.0
 # caps only show in answers to ?, so ask now and then to see a sensor plugged in later
 QUERY_EVERY = 5.0
 # no bytes at all for this long and the board is gone even if the port still looks open
@@ -49,22 +51,31 @@ def wait_ident(ser, timeout: float = IDENT_TIMEOUT, halt: threading.Event | None
     # reads until the identity line shows up, asks with ? when the board stays quiet
     reader = LineReader()
     start = time.monotonic()
-    asked = False
+    asked_at: float | None = None
     while time.monotonic() - start < timeout:
         if halt is not None and halt.is_set():
             return None
         data = ser.read(ser.in_waiting or 1)
+        now = time.monotonic()
+        ask = False
         for line in reader.feed(data):
             msg = parse_line(line)
             if isinstance(msg, Ident):
                 return msg
-            if isinstance(msg, Frame) and not asked:
+            if isinstance(msg, Frame) and asked_at is None:
                 # frames without an identity, the board did not reset on open, just ask
-                ser.write(cmd_query())
-                asked = True
-        if not asked and time.monotonic() - start > QUERY_AFTER:
+                ask = True
+            elif isinstance(msg, Notice) and asked_at is not None:
+                # our ? was glued to a half line left from an earlier session and came back
+                # as E,1, the board takes the next full line
+                ask = True
+        if asked_at is None and now - start > QUERY_AFTER:
+            ask = True
+        elif asked_at is not None and now - asked_at > REASK_S:
+            ask = True
+        if ask:
             ser.write(cmd_query())
-            asked = True
+            asked_at = now
     return None
 
 
