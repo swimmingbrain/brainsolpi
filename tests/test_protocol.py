@@ -91,10 +91,11 @@ def test_reader_drops_non_ascii():
 def test_board_side_commands():
     assert parse_command("M,1500,900") == ("M", 1500, 900)
     assert parse_command("R,50") == ("R", 50)
-    assert parse_command("R,0") is None
-    assert parse_command("L,201") is None
+    # out of range values reach the board, it clamps them
+    assert parse_command("R,0") == ("R", 0)
+    assert parse_command("L,201") == ("L", 201)
     assert parse_command("?") == ("?",)
     assert parse_command("D") == ("D",)
-    assert parse_command("P,7") == ("P", 7)
-    assert parse_command("M,1") is None
-    assert parse_command("hello") is None
+    assert parse_command("P,7") == ("P", "7")
+    assert parse_command("M,1") == ("E", 1, "wrong field count")
+    assert parse_command("hello") == ("E", 1, "unknown command")

@@ -184,25 +184,81 @@ class LineReader:
             return None
 
 
-def parse_command(line: str) -> tuple | None:
-    # the board side of the protocol, used by the fake board in tests and demos
-    parts = line.split(",")
-    kind = parts[0]
-    try:
-        if kind == "?" and len(parts) == 1:
-            return ("?",)
-        if kind == "D" and len(parts) == 1:
-            return ("D",)
-        if kind == "M" and len(parts) == 3:
-            return ("M", _int(parts[1]), _int(parts[2]))
-        if kind == "R" and len(parts) == 2:
-            hz = _int(parts[1])
-            return ("R", hz) if 1 <= hz <= 100 else None
-        if kind == "L" and len(parts) == 2:
-            us = _int(parts[1])
-            return ("L", us) if 1 <= us <= 200 else None
-        if kind == "P" and len(parts) == 2:
-            return ("P", _int(parts[1]))
-    except ValueError:
+# the board side of the protocol, for the fake board. it follows handle_line in the sketch
+# check by check, so the fake answers every line the way the real board does
+
+# fields of each command, the letter included
+FIELDS = {"?": 1, "D": 1, "P": 2, "R": 2, "L": 2, "M": 3}
+PING_DIGITS = 20
+
+
+def _board_number(text: str) -> int | None:
+    # an optional minus and 1 to 9 digits, nine digits always fit into a long on the uno
+    digits = text[1:] if text.startswith("-") else text
+    if not 1 <= len(digits) <= 9 or any(c < "0" or c > "9" for c in digits):
         return None
-    return None
+    return int(text)
+
+
+def parse_command(line: str) -> tuple:
+    # a good line gives the upper case letter and its values, a bad one ("E", 1, text).
+    # R and L come back as sent, the board clamps them. the ping number stays text
+    fields = line.split(",")
+    if len(fields[0]) != 1:
+        return ("E", 1, "unknown command")
+    # lower case letters work too, that helps someone typing into a serial monitor
+    cmd = fields[0].upper()
+    want = FIELDS.get(cmd)
+    if want is None:
+        return ("E", 1, "unknown command")
+    if len(fields) != want:
+        return ("E", 1, "wrong field count")
+    if cmd in ("R", "L"):
+        a = _board_number(fields[1])
+        return ("E", 1, "bad number") if a is None else (cmd, a)
+    if cmd == "M":
+        a, b = _board_number(fields[1]), _board_number(fields[2])
+        return ("E", 1, "bad number") if a is None or b is None else ("M", a, b)
+    if cmd == "P":
+        text = fields[1]
+        if not 1 <= len(text) <= PING_DIGITS or any(c < "0" or c > "9" for c in text):
+            return ("E", 1, "bad number")
+        return ("P", text)
+    return (cmd,)
+
+
+class CommandReader:
+    # the line buffer of the sketch: a \r is skipped wherever it sits, the 97th character makes
+    # the line too long, a byte that is not printable ascii spoils it, empty lines are ignored.
+    # feed gives the finished lines and, for spoiled ones, the error line the board sends
+
+    def __init__(self, limit: int = MAX_LINE):
+        self.limit = limit
+        self.buf = bytearray()
+        self.too_long = False
+        self.garbage = False
+
+    def feed(self, data: bytes) -> list[tuple[str, str | None]]:
+        out: list[tuple[str, str | None]] = []
+        for c in data:
+            if c == 0x0A:
+                if self.too_long:
+                    out.append(("", "E,2,line too long"))
+                elif self.garbage:
+                    out.append(("", "E,1,bad character"))
+                elif self.buf:
+                    out.append((self.buf.decode("ascii"), None))
+                self.buf.clear()
+                self.too_long = False
+                self.garbage = False
+                continue
+            if c == 0x0D or self.too_long:
+                continue
+            if len(self.buf) >= self.limit:
+                self.too_long = True
+                continue
+            if c < 32 or c > 126:
+                self.garbage = True
+                c = 0x3F
+            self.buf.append(c)
+        return out

@@ -3,6 +3,7 @@ from __future__ import annotations
 import random
 import threading
 import time
+from collections import deque
 
 import serial
 
@@ -14,10 +15,9 @@ from .protocol import (
     FLAG_ATTACHED,
     FLAG_SLEWING,
     FLAG_WATCHDOG,
-    MAX_LINE,
     US_MAX,
     US_MIN,
-    LineReader,
+    CommandReader,
     parse_command,
 )
 
@@ -106,6 +106,7 @@ class FakeBoard:
         pv: bool = False,
         light: Light | None = None,
         seed: int | None = None,
+        rest: tuple[float, float] = (0.0, 90.0),
     ):
         self.boot_s = boot_s
         self.fw = fw
@@ -115,18 +116,26 @@ class FakeBoard:
         self.rng = random.Random(seed)
         self.plugged = True
         self.opens = 0
-        self.received: list[str] = []
+        self.boots = 0
+        # the command lines it took and the lines it sent besides frames, the newest ones
+        self.received: deque[str] = deque(maxlen=2000)
+        self.sent: deque[str] = deque(maxlen=2000)
         self.skip_every = 0
         # sensors with a finger on them, by index L R U D, the doctor uses this in its demo
         self.covered: set[int] = set()
+        # where the head sits, pan and tilt. before the first pulse a real one may sit anywhere,
+        # a detached head stays where it went limp
+        self.head = rest
         self._thread: threading.Thread | None = None
         self._halt = threading.Event()
         self._link: _Link | None = None
+        self._port: PipeEnd | None = None
         self.pan_map = default_pan_map()
         self.tilt_map = default_tilt_map()
         self._reset_state()
 
     def _reset_state(self) -> None:
+        # the variables of the sketch after a reset
         self.attached = False
         self.pan_now = self.tilt_now = 0
         self.pan_target = self.tilt_target = 0
@@ -134,6 +143,9 @@ class FakeBoard:
         self.rate = 50
         self.seq = 0
         self.watchdog = False
+        self.next_frame = 0.0
+        # the first M after this boot, so a test can see what the head was sent to first
+        self.first_move: tuple[int, int] | None = None
 
     @property
     def caps(self) -> int:
@@ -145,15 +157,17 @@ class FakeBoard:
         if not self.plugged:
             raise serial.SerialException(f"could not open port {port}")
         # opening the port pulls dtr, the uno resets and boots again
-        self._stop_thread()
         host, board, link = pipe_pair()
         self._link = link
         self.opens += 1
-        self._reset_state()
-        self._halt = threading.Event()
-        self._thread = threading.Thread(target=self._run, args=(board, self._halt), daemon=True, name="fakeboard")
-        self._thread.start()
+        self._boot(board)
         return host
+
+    def reset(self) -> None:
+        # the board restarts by itself, a weak supply does that when the servos pull hard,
+        # the usb link stays open and the pi only sees a new identity line
+        if self._port is not None and self.plugged:
+            self._boot(self._port)
 
     def unplug(self) -> None:
         self.plugged = False
@@ -167,76 +181,81 @@ class FakeBoard:
     def close(self) -> None:
         self.unplug()
 
+    def _boot(self, port: PipeEnd) -> None:
+        self._stop_thread()
+        self._port = port
+        self.boots += 1
+        self._reset_state()
+        self._halt = threading.Event()
+        self._thread = threading.Thread(target=self._run, args=(port, self._halt), daemon=True, name="fakeboard")
+        self._thread.start()
+
     def _stop_thread(self) -> None:
         if self._thread is not None:
             self._halt.set()
             self._thread.join(timeout=2.0)
             self._thread = None
 
-    # the firmware side
+    # the firmware side, the same steps as setup and loop of the sketch
 
     def _send(self, port: PipeEnd, line: str) -> None:
+        if line[0] != "S":
+            self.sent.append(line)
         port.write((line + "\n").encode("ascii"))
+
+    def _identity(self, port: PipeEnd) -> None:
+        self._send(port, f"I,brainsol,{self.fw},{self.caps}")
 
     def _run(self, port: PipeEnd, halt: threading.Event) -> None:
         try:
+            # the bootloader runs first, bytes sent meanwhile are lost
             if halt.wait(self.boot_s):
                 return
-            self._send(port, f"I,brainsol,{self.fw},{self.caps}")
-            reader = LineReader(limit=10_000)
+            port.reset_input_buffer()
+            self._identity(port)
+            reader = CommandReader()
             start = time.monotonic()
-            last_move = start
-            next_slew = start
-            next_frame = start
+            self.last_move = start
+            next_slew = start + self.SLEW_TICK
+            # the first frame is due one period after setup
+            self.next_frame = start + 1.0 / self.rate
             while not halt.is_set():
                 now = time.monotonic()
                 port.timeout = 0
                 data = port.read(4096) if port.in_waiting else b""
-                for line in reader.feed(data):
-                    if self._command(port, line, now):
-                        last_move = now
-                        self.watchdog = False
-                if not self.watchdog and now - last_move >= self.WATCHDOG_S:
+                for line, error in reader.feed(data):
+                    if error is not None:
+                        self._send(port, error)
+                    else:
+                        self._command(port, line, now)
+                if not self.watchdog and now - self.last_move >= self.WATCHDOG_S:
                     self.watchdog = True
                 while now >= next_slew:
                     next_slew += self.SLEW_TICK
                     self._slew()
-                if now >= next_frame:
-                    next_frame += 1.0 / self.rate
-                    if now - next_frame > 0.5:
-                        next_frame = now
+                if now >= self.next_frame:
+                    self.next_frame += 1.0 / self.rate
+                    if now - self.next_frame > 0.5:
+                        self.next_frame = now
                     self._frame(port)
                 halt.wait(0.004)
         except serial.SerialException:
             return
 
-    def _command(self, port: PipeEnd, line: str, now: float) -> bool:
+    def _command(self, port: PipeEnd, line: str, now: float) -> None:
         self.received.append(line)
-        if len(line) > MAX_LINE:
-            self._send(port, "E,2,line too long")
-            return False
-        if not line:
-            return False
         cmd = parse_command(line)
-        if cmd is None:
-            if line[:2] in ("R,", "L,"):
-                # out of range rates and slew caps are clamped like the firmware does
-                try:
-                    v = int(line[2:])
-                except ValueError:
-                    self._send(port, "E,1,bad number")
-                    return False
-                cmd = (line[0], v)
-            else:
-                self._send(port, "E,1,unknown command")
-                return False
         kind = cmd[0]
-        if kind == "?":
-            self._send(port, f"I,brainsol,{self.fw},{self.caps}")
+        if kind == "E":
+            self._send(port, f"E,{cmd[1]},{cmd[2]}")
+        elif kind == "?":
+            self._identity(port)
         elif kind == "P":
-            self._send(port, f"P,{line[2:]}")
+            self._send(port, f"P,{cmd[1]}")
         elif kind == "R":
             self.rate = max(1, min(100, cmd[1]))
+            # the next frame comes one new period from now
+            self.next_frame = now + 1.0 / self.rate
         elif kind == "L":
             self.slew = max(1, min(200, cmd[1]))
         elif kind == "D":
@@ -244,12 +263,16 @@ class FakeBoard:
         elif kind == "M":
             self.pan_target = max(US_MIN, min(US_MAX, cmd[1]))
             self.tilt_target = max(US_MIN, min(US_MAX, cmd[2]))
+            self.last_move = now
+            self.watchdog = False
             if not self.attached:
-                # attach right at the commanded pulse, also after a detach
+                # attach right at the commanded pulse, after boot and after a detach. the servo
+                # itself gets there at its own full speed from wherever the head was
+                if self.first_move is None:
+                    self.first_move = (self.pan_target, self.tilt_target)
                 self.pan_now, self.tilt_now = self.pan_target, self.tilt_target
                 self.attached = True
-            return True
-        return False
+                self._follow()
 
     def _slew(self) -> None:
         if not self.attached:
@@ -257,12 +280,14 @@ class FakeBoard:
         cap = self.slew
         self.pan_now += max(-cap, min(cap, self.pan_target - self.pan_now))
         self.tilt_now += max(-cap, min(cap, self.tilt_target - self.tilt_now))
+        self._follow()
+
+    def _follow(self) -> None:
+        # the servos follow the pulse, the slew cap already limits their speed
+        self.head = (self.pan_map.to_angle(self.pan_now), self.tilt_map.to_angle(self.tilt_now))
 
     def angles(self) -> tuple[float, float]:
-        # the servos follow the pulse, the slew cap already limits their speed
-        if not self.pan_now:
-            return 0.0, 90.0
-        return self.pan_map.to_angle(self.pan_now), self.tilt_map.to_angle(self.tilt_now)
+        return self.head
 
     def _frame(self, port: PipeEnd) -> None:
         seq = self.seq
