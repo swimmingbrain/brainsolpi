@@ -19,6 +19,8 @@ sys.path.insert(0, str(HERE))
 from cad import assembly, cables, checks, estimate, exporting, fasteners, kit, views  # noqa: E402
 from cad import params as P  # noqa: E402
 
+LF = chr(10)  # write unix line ends on windows too, the repo keeps lf
+
 
 def log(msg, t0):
     print(f"[{time.time() - t0:6.1f} s] {msg}", flush=True)
@@ -76,6 +78,11 @@ def write_report(path, parts_rep, static_bad, sweep, cable_rows, fast_rows, web_
     L.append(f"Static pairs inside each group (printed parts against each other and against the kit keep outs): "
              f"{'no overlap above ' + str(checks.CONTACT_TOL) + ' mm3' if not static_bad else str(static_bad)}.")
     L.append("")
+    L.append("## Sensor eyes")
+    L.append("")
+    L.append(f"Shade wall height above the photoresistor face {P.SHADE_H:.1f} mm over a sensor width of {P.LDR_D:.1f} mm, "
+             f"k = {P.SHADE_K_ACTUAL:.2f}, the simulation uses {P.SHADE_K:.2f}.")
+    L.append("")
     L.append("## Cable budget")
     L.append("")
     reading = "tip to tip, so the wire between the plug housings is shorter by two housings" if P.CABLE_LEN_INCLUDES_PLUGS else "between the housings"
@@ -107,7 +114,7 @@ def write_report(path, parts_rep, static_bad, sweep, cable_rows, fast_rows, web_
     for k, (size, tris) in web_sizes.items():
         L.append(f"| {k}.glb | {size} | {tris} |")
     L.append("")
-    path.write_text("\n".join(L) + "\n", encoding="utf-8")
+    path.write_text("\n".join(L) + "\n", encoding="utf-8", newline=LF)
 
 
 def update_printing_table(path, parts_rep, est):
@@ -129,7 +136,7 @@ def update_printing_table(path, parts_rep, est):
         rows.append(f"| {name} | {r['count']} | {r['role']} | {e['layer']} | {e['infill']} % {e['pattern']} | {fmt(g)} | {fmt(m, 0)} |")
     rows.append(f"| total | | | | | {fmt(tg)} | {fmt(tm, 0)} |")
     new = text.split(a)[0] + a + "\n" + "\n".join(rows) + "\n" + b + text.split(b)[1]
-    path.write_text(new, encoding="utf-8")
+    path.write_text(new, encoding="utf-8", newline=LF)
 
 
 def main():
@@ -211,7 +218,7 @@ def main():
                "cables": cable_rows, "assembly": web_json,
                "parts": [{k: v for k, v in r.items() if k not in ("steep_worst",)} for r in parts_rep],
                "estimate": est}
-    (report_dir / "summary.json").write_text(json.dumps(summary, indent=1, default=str) + "\n", encoding="utf-8")
+    (report_dir / "summary.json").write_text(json.dumps(summary, indent=1, default=str) + "\n", encoding="utf-8", newline=LF)
     update_printing_table(HERE / "PRINTING.md", parts_rep, est)
     log("reports", t0)
 
