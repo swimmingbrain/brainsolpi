@@ -8,7 +8,7 @@ from pathlib import Path
 
 from aiohttp import WSMsgType, web
 
-from . import PROTO, __version__
+from . import PROTO, __version__, paths
 from .auth import Auth
 from .commands import Commands
 from .engine import Engine
@@ -203,6 +203,20 @@ async def _cmd(hub: Hub, cmds: Commands, c: Client, data: dict) -> None:
         hub.send(c, ack, "ack")
 
 
+def no_web_text(root: Path | None) -> str:
+    # what someone sees who opens the address the install script printed before the web app
+    # was copied over, the hosted page cannot help with a plain http address
+    where = root or (paths.repo_root() / "web" if paths.repo_root() else Path("web"))
+    return (
+        "brainSOL is running, but the web app is not installed on this Pi.\n"
+        f"Copy the built web app of the brainsol repo into {where} and reload, "
+        "or start the service with --web and the folder of the build.\n"
+        "The hosted page at https://sol.swimmingbrain.dev reaches this Pi only through a tunnel "
+        "address with https, see deploy/tunnel.md.\n"
+        "The live data is at /api/info and /ws.\n"
+    )
+
+
 def _static(root: Path | None):
     index = root / "index.html" if root is not None else None
 
@@ -210,10 +224,7 @@ def _static(root: Path | None):
         if request.match_info.get("path", "").startswith("api/"):
             raise web.HTTPNotFound(reason="no such endpoint")
         if root is None or not index.is_file():
-            return web.Response(
-                text="brainSOL is running. The web app is not installed here, open the hosted app and connect to this address.\n",
-                content_type="text/plain",
-            )
+            return web.Response(text=no_web_text(root), content_type="text/plain")
         rel = request.match_info.get("path", "")
         if rel == "config.json":
             # a page loaded from the pi talks to the pi it came from, whatever the build says
