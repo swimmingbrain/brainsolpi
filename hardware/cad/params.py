@@ -53,7 +53,7 @@ SERVO_LEAD_Z = 4.5  # the lead leaves the far short end this high above the case
 SERVO_LEAD_W = 4.0
 SERVO_LEAD_T = 1.4
 
-# servo horns from the servo bag, the tilt uses the single arm horn, the pan the double arm
+# servo horns from the servo bag, both joints use the single arm horn
 # measure: hub diameter, total height from arm underside to hub top, arm thickness and length
 
 HORN_HUB_D = 7.0
@@ -62,7 +62,6 @@ HORN_ARM_T = 1.6
 HORN_ARM_W0 = 6.0  # arm width next to the hub
 HORN_ARM_W1 = 4.0  # arm width at the tip
 HORN_SINGLE_LEN = 15.5  # hub centre to the tip of the single arm horn
-HORN_DOUBLE_LEN = 16.5  # hub centre to the tip of one arm of the double arm horn
 HORN_SCREW_HEAD_D = 4.0
 HORN_SCREW_HEAD_H = 1.4
 HORN_HUB_PLAY = 0.3  # gap between the hub end and the servo boss face
