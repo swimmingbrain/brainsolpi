@@ -44,7 +44,7 @@ of the panel, L is on your right.
 
 1. Run one M3x8 screw into every tap hole once and take it out again: the two bosses under the neck back
    half, the four lid columns, the three UNO posts, the eight bezel bosses and the two holes in the end of
-   each ear. The first pass is the hard one.
+   each ear. Do the same with the M3x14 in the hub of the right ear. The first pass is the hard one.
 2. Press the alignment pins of the back neck half into the holes of the front half once, then pull them
    apart again.
 
@@ -55,7 +55,8 @@ spline.
 
 1. Plug the USB B end of the kit cable into the UNO and the A end into the Pi. Plug the pan servo into D9 and
    the tilt servo into D10, brown on G.
-2. Power the Pi and run `brainsolpi centre`. Pan goes to 0 and tilt to 90, both at 1500 us.
+2. Power the Pi. If the UNO still runs the stock lesson code, run `brainsolpi flash` once. Then run
+   `brainsolpi centre`. Pan goes to 0 and tilt to 90, both at 1500 us.
 3. Wait until both servos stop, switch the Pi off and unplug the servos. From now on do not turn the servo
    shafts by hand.
 
