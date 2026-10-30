@@ -178,7 +178,9 @@ def print_views(parts, out):
         ext = mesh.extents
         dist = max(160.0, 2.4 * float(max(ext)))
         tgt = (0.0, 0.0, float(ext[2]) / 2)
-        items = [(bed, "#1c1c20", 1.0, "kit"), (mesh, ROLE[p.role], 1.0, p.role)]
+        # a lighter plate under the charcoal parts so their shape reads
+        bed_color = "#55555c" if p.role == "dark" else "#1c1c20"
+        items = [(bed, bed_color, 1.0, "kit"), (mesh, ROLE[p.role], 1.0, p.role)]
         path = Path(out) / "print" / f"{p.name}.png"
         path.parent.mkdir(parents=True, exist_ok=True)
         render(items, path, camera(tgt, 30, 38, dist), size=(1200, 900), floor=False, center=tgt)
