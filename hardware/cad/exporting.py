@@ -15,6 +15,7 @@ from .mesh import to_trimesh, transformed
 
 STEP_STAMP = "2026-01-01T00:00:00"  # fixed so a rebuild without changes gives the same files
 GLB_LIMIT = 400_000
+LF = chr(10)  # write unix line ends on windows too, the repo keeps lf
 
 
 def located(shape, m4):
@@ -223,12 +224,13 @@ def export_web(parts, out):
     lo = np.min([b[0] for b in bounds], axis=0)
     hi = np.max([b[1] for b in bounds], axis=0)
     data = assembly_json(lo, hi)
-    (d / "assembly.json").write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    (d / "assembly.json").write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8", newline=LF)
     return sizes, data
 
 
 def r3(v):
-    return [round(float(x), 2) for x in v]
+    # adding 0.0 turns a negative zero into a plain zero
+    return [round(float(x), 2) + 0.0 for x in v]
 
 
 def sensor_points():
