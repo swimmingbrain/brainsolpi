@@ -29,12 +29,12 @@ def fit_plate():
     # the horn lies in the pocket with its hub down through the hole, the servo spline comes from below
     hx, hy = -44.0, -16.0
     o, _, _ = kit.pan_horn_frame()
-    plate = P.BASE_TOP - (o[2] + P.PAN_HORN_PLAY)
-    top = plate + P.HORN_ARM_T + P.PAN_HORN_PLAY + 0.6
+    thin = P.BASE_TOP - (o[2] + P.PAN_HORN_PLAY)
+    top = thin + P.HORN_ARM_T + P.PAN_HORN_PLAY + 0.6
     add.append(box(hx - 10, hx + 20, hy - 6.5, hy + 6.5, 0, top))
-    arm = kit.arm_solid(1, P.HORN_SINGLE_LEN, plate, top + 0.1, grow=P.FIT_SNUG)
+    arm = kit.arm_solid(1, P.HORN_SINGLE_LEN, thin, top + 0.1, grow=P.FIT_SNUG)
     cut.append(arm.translate((hx, hy, 0)))
-    cut.append(cyl("z", P.HORN_HUB_D / 2 + P.FIT_SNUG, plate, top + 0.1, (hx, hy)))
+    cut.append(cyl("z", P.HORN_HUB_D / 2 + P.FIT_SNUG, thin, top + 0.1, (hx, hy)))
     cut.append(cyl("z", P.HORN_HUB_D / 2 + 0.3, -1, top + 0.1, (hx, hy)))
     # module peg pair, 16 apart, same shoulder and pin as in the head
     for dy in (-P.MOD_HOLE_SPACING / 2, P.MOD_HOLE_SPACING / 2):
