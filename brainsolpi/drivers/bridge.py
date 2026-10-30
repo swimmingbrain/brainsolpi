@@ -27,6 +27,8 @@ IDENT_TIMEOUT = 5.0
 QUERY_AFTER = 2.5
 # a question without an answer is asked again after this long
 REASK_S = 1.0
+# an identity line this long after our last ? was not an answer, the board restarted
+ANSWER_S = 1.0
 # caps only show in answers to ?, so ask now and then to see a sensor plugged in later
 QUERY_EVERY = 5.0
 # no bytes at all for this long and the board is gone even if the port still looks open
@@ -116,9 +118,12 @@ class BridgeDriver(Driver):
         self.dropped = 0
         self.bad = 0
         self.reconnects = 0
+        self.restarts = 0
         self.connected_at = 0.0
         self._last_seq: int | None = None
         self._last_notice = 0.0
+        self._asked = 0.0
+        self._rebooted = False
 
     # the loop side
 
@@ -235,10 +240,17 @@ class BridgeDriver(Driver):
         ser.write(cmd_rate(self.rate) + cmd_slew(self.slew))
         sent_n = -1
         last_rx = now
-        last_query = now
+        self._asked = now
+        self._rebooted = False
         self._link = True
         self.event("info", f"board on {self.port}, firmware {ident.fw}, {_caps_text(ident.caps)}")
         while not self._halt.is_set():
+            if self._rebooted:
+                # a restart forgets rate and slew cap and lets the servos go, the held pose
+                # goes out again at once so they attach right where the head is
+                self._rebooted = False
+                ser.write(cmd_rate(self.rate) + cmd_slew(self.slew))
+                sent_n = -1
             # the newest servo target first, the first one after a connect is the held pose
             n = self._move_n
             if self._move is not None and n != sent_n:
@@ -252,8 +264,8 @@ class BridgeDriver(Driver):
                 last_rx = now
                 for line in reader.feed(data):
                     self._handle(line, now)
-            if now - last_query >= QUERY_EVERY:
-                last_query = now
+            if now - self._asked >= QUERY_EVERY:
+                self._asked = now
                 ser.write(cmd_query())
             if now - last_rx > SILENT_S:
                 raise NoBoard(f"no data from the board for {SILENT_S:.0f} s")
@@ -271,6 +283,15 @@ class BridgeDriver(Driver):
             self.frames += 1
             self._latest = msg
         elif isinstance(msg, Ident):
+            if now - self._asked > ANSWER_S:
+                # nobody asked, the sketch only sends this line by itself right after a boot
+                self.restarts += 1
+                self._rebooted = True
+                self.event(
+                    "warn",
+                    "the board restarted by itself, if that happens while the servos move "
+                    "give them their own 5 V supply with a common ground",
+                )
             if self.ident is None or msg.caps != self.ident.caps:
                 self.event("info", f"board sensors changed, {_caps_text(msg.caps)}")
             self.ident = msg
