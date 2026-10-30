@@ -27,8 +27,8 @@ IDENT_TIMEOUT = 5.0
 QUERY_AFTER = 2.5
 # a question without an answer is asked again after this long
 REASK_S = 1.0
-# an identity line this long after our last ? was not an answer, the board restarted
-ANSWER_S = 1.0
+# frames that far behind the last seq mean the counter started again at 0
+SEQ_RESTART = 1000
 # caps only show in answers to ?, so ask now and then to see a sensor plugged in later
 QUERY_EVERY = 5.0
 # no bytes at all for this long and the board is gone even if the port still looks open
@@ -123,6 +123,8 @@ class BridgeDriver(Driver):
         self._last_seq: int | None = None
         self._last_notice = 0.0
         self._asked = 0.0
+        self._questions = 0
+        self._restart_t = -1e9
         self._rebooted = False
 
     # the loop side
@@ -241,6 +243,7 @@ class BridgeDriver(Driver):
         sent_n = -1
         last_rx = now
         self._asked = now
+        self._questions = 0
         self._rebooted = False
         self._link = True
         self.event("info", f"board on {self.port}, firmware {ident.fw}, {_caps_text(ident.caps)}")
@@ -266,6 +269,7 @@ class BridgeDriver(Driver):
                     self._handle(line, now)
             if now - self._asked >= QUERY_EVERY:
                 self._asked = now
+                self._questions += 1
                 ser.write(cmd_query())
             if now - last_rx > SILENT_S:
                 raise NoBoard(f"no data from the board for {SILENT_S:.0f} s")
@@ -277,21 +281,19 @@ class BridgeDriver(Driver):
             if self._last_seq is not None:
                 gap = (msg.seq - self._last_seq - 1) & 0xFFFF
                 # the firmware counts frames it had to skip, a gap is lost frames, not an error
-                if 0 < gap < 1000:
+                if 0 < gap < SEQ_RESTART:
                     self.dropped += gap
+                elif gap >= SEQ_RESTART:
+                    self._restarted(now)
             self._last_seq = msg.seq
             self.frames += 1
             self._latest = msg
         elif isinstance(msg, Ident):
-            if now - self._asked > ANSWER_S:
+            if self._questions > 0:
+                self._questions -= 1
+            elif now - self.connected_at >= GRACE_S:
                 # nobody asked, the sketch only sends this line by itself right after a boot
-                self.restarts += 1
-                self._rebooted = True
-                self.event(
-                    "warn",
-                    "the board restarted by itself, if that happens while the servos move "
-                    "give them their own 5 V supply with a common ground",
-                )
+                self._restarted(now)
             if self.ident is None or msg.caps != self.ident.caps:
                 self.event("info", f"board sensors changed, {_caps_text(msg.caps)}")
             self.ident = msg
@@ -303,6 +305,20 @@ class BridgeDriver(Driver):
                 self.event("warn", f"board says {msg.text or 'error'} (code {msg.code})")
         elif msg is None and line:
             self.bad += 1
+
+    def _restarted(self, now: float) -> None:
+        # the identity line and the seq counter both tell, the first one counts
+        if now - self._restart_t < 2.0:
+            return
+        self._restart_t = now
+        self._questions = 0
+        self.restarts += 1
+        self._rebooted = True
+        self.event(
+            "warn",
+            "the board restarted by itself, if that happens while the servos move "
+            "give them their own 5 V supply with a common ground",
+        )
 
 
 def _caps_text(caps: int) -> str:
