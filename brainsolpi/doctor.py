@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import contextlib
 import time
 from pathlib import Path
 from typing import Callable
 
-from . import paths
+from . import paths, service
 from .config import Settings
 from .drivers.bridge import BridgeDriver, open_serial, wait_ident
 from .drivers.detect import candidates, find_board
@@ -51,6 +52,8 @@ class Doctor:
         self.pace = 0.3 if quick else 1.0
         self.cfg_dir = config_dir or paths.config_dir()
         self.board: FakeBoard | None = FakeBoard(boot_s=0.5, seed=4) if fake else None
+        # the service would answer in between, so it rests while the doctor talks to the board
+        self.paused = None if fake else service.Paused("the doctor checks the board", out=self.out)
         self.drv: BridgeDriver | None = None
         self.results: list[tuple[str, bool | None, str]] = []
 
@@ -260,18 +263,24 @@ class Doctor:
         ]
         self.out("brainSOL doctor, a step by step check of the board, the sensors and the servos")
         try:
-            for i, (title, fn) in enumerate(steps, 1):
-                self.out(f"\nstep {i} of {len(steps)}, {title}")
-                ok = fn()
-                if ok is False and i <= 1:
-                    break
+            with self.paused or contextlib.nullcontext():
+                try:
+                    for i, (title, fn) in enumerate(steps, 1):
+                        self.out(f"\nstep {i} of {len(steps)}, {title}")
+                        ok = fn()
+                        if ok is False and i <= 1:
+                            break
+                finally:
+                    # the port has to be free before the service starts again
+                    if self.drv is not None:
+                        self.drv.stop_sync()
+                    if self.board is not None:
+                        self.board.close()
         except KeyboardInterrupt:
             self.out("\nstopped")
-        finally:
-            if self.drv is not None:
-                self.drv.stop_sync()
-            if self.board is not None:
-                self.board.close()
+        except service.ServiceBusy as e:
+            self.out(f"  {e}")
+            self.record("serial port", False, "the service holds the board")
         self.out("\nsummary")
         for title, ok, note in self.results:
             mark = "ok  " if ok else "skip" if ok is None else "FAIL"
