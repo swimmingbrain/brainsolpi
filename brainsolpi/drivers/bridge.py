@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import threading
 import time
 from collections import deque
@@ -9,6 +10,7 @@ from typing import Callable
 
 from .base import Driver
 from .protocol import (
+    BAUD,
     Frame,
     Ident,
     LineReader,
@@ -46,7 +48,10 @@ class NoBoard(Exception):
 def open_serial(port: str):
     import serial
 
-    return serial.Serial(port, 115200, timeout=READ_TIMEOUT, write_timeout=0.5)
+    # linux lets a second program open the same port and both would read half the lines,
+    # the lock makes the second one fail with a clear error instead. windows does that anyway
+    extra = {"exclusive": True} if os.name == "posix" else {}
+    return serial.Serial(port, BAUD, timeout=READ_TIMEOUT, write_timeout=0.5, **extra)
 
 
 def wait_ident(ser, timeout: float = IDENT_TIMEOUT, halt: threading.Event | None = None) -> Ident | None:
