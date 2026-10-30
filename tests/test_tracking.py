@@ -151,10 +151,10 @@ def test_low_light_holds_the_pose():
 
 
 def test_a_light_far_behind_the_panel_is_not_chased():
-    # only ambient light reaches the sensors, it is even on all four so nothing moves
+    # only the ambient light of the room reaches the sensors, that counts as low light
     loop = Loop(Light(az=180, el=10), (0, 30)).run(5)
     assert loop.poses[-1] == (0, 30)
-    assert loop.state in ("locked", "lowlight")
+    assert loop.state == "lowlight"
 
 
 @pytest.mark.parametrize("az", [-90, -60, 90, 120, 0, 180])

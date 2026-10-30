@@ -243,6 +243,22 @@ def test_simlight_command(sim):
     assert s.engine.st == "lowlight"
 
 
+def test_the_lamp_switched_off_in_the_lit_room_is_low_light(sim):
+    # the phone scene keeps its 60 lx of room light, the sensors still read about 0.06
+    s = sim(light={"az": 25, "el": 40}, pose=(25, 40))
+    assert s.run_until(lambda x: x.engine.st == "locked", 5)
+    s.engine.set_simlight(on=False)
+    s.run(1)
+    f = s.engine.state_frame()
+    assert f["st"] == "lowlight" and f["mode"] == "auto"
+    assert f["gain"] is None and f["off"] is None
+    assert 0.05 < f["lvl"] < 0.08
+    assert f["sim"]["amb"] == 60
+    s.engine.set_simlight(on=True)
+    assert s.run_until(lambda x: x.engine.st == "locked", 5)
+    assert s.engine.state_frame()["gain"] is not None
+
+
 def test_recording(sim, tmp_path):
     s = sim()
     out = s.engine.set_rec(True)

@@ -88,6 +88,16 @@ def test_low_light_holds_both_axes():
     assert not t.active
 
 
+def test_low_light_starts_below_a_mean_level_of_0_08():
+    # a lit room with the lamp off gives about 0.06 on every sensor
+    t = tracker()
+    feed(t, 0.0625, 0.0625, 0.0625, 0.0625)
+    assert t.lowlight
+    t.reset_filter()
+    feed(t, 0.09, 0.09, 0.09, 0.09)
+    assert not t.lowlight
+
+
 def test_hysteresis_starts_at_dead_out_and_rests_at_dead_in():
     t = tracker()
     # ex of 0.04 sits between dead_in and dead_out, an idle axis stays idle
