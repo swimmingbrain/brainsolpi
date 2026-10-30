@@ -144,6 +144,68 @@ def test_notices_and_garbage(board, drv):
     assert wait_for(lambda: "P,123456789012345" in board.received)
 
 
+def board_answers(board, host, text, timeout=1.0):
+    n = len(board.sent)
+    host.write(text)
+    wait_for(lambda: len(board.sent) > n, timeout)
+    return list(board.sent)[n:]
+
+
+def test_the_fake_board_answers_like_the_sketch(board):
+    host = board.opener("fake")
+    assert wait_for(lambda: board.sent and board.sent[-1] == "I,brainsol,1.0.0,1")
+    assert board_answers(board, host, b"p,7\r\n") == ["P,7"]
+    assert board_answers(board, host, b"M,1500\n") == ["E,1,wrong field count"]
+    assert board_answers(board, host, b"hello\n") == ["E,1,unknown command"]
+    assert board_answers(board, host, b"M,abc,1\n") == ["E,1,bad number"]
+    assert board_answers(board, host, b"x" * 120 + b"\n") == ["E,2,line too long"]
+    assert not board.attached
+    # out of range values are clamped, never refused
+    host.write(b"R,0\nL,900\n")
+    assert wait_for(lambda: board.rate == 1 and board.slew == 200)
+    host.write(b"r,500\nl,0\n")
+    assert wait_for(lambda: board.rate == 100 and board.slew == 1)
+    host.write(b"m,3000,100\n")
+    assert wait_for(lambda: board.attached)
+    assert (board.pan_now, board.tilt_now) == (2500, 500)
+    host.close()
+
+
+def test_a_question_glued_to_a_half_line_is_asked_again(board):
+    host = board.opener("fake")
+    assert bridge_mod.wait_ident(host, timeout=2) is not None
+    # a program died in the middle of a line, the board did not reset, the next one opens
+    host.write(b"M,15")
+    t0 = time.monotonic()
+    ident = bridge_mod.wait_ident(host, timeout=4)
+    assert ident is not None and ident.fw == "1.0.0"
+    assert "E,1,wrong field count" in board.sent
+    assert time.monotonic() - t0 < 2.0
+    assert not board.attached
+    host.close()
+
+
+def test_a_board_that_restarts_by_itself_gets_rate_slew_and_pose_again(board, monkeypatch):
+    monkeypatch.setattr(bridge_mod, "QUERY_EVERY", 0.3)
+    d = BridgeDriver("fake", opener=board.opener, rate=40, slew=20)
+    d.start_sync()
+    try:
+        assert ready(d)
+        d.move(1600, 1400)
+        assert wait_for(lambda: d.latest().flags & FLAG_ATTACHED)
+        # the answers to the regular ? are no restart
+        time.sleep(1.0)
+        assert d.restarts == 0
+        board.reset()
+        assert wait_for(lambda: d.restarts == 1)
+        assert wait_for(lambda: board.attached and board.rate == 40 and board.slew == 20)
+        assert board.first_move == (1600, 1400)
+        assert d.link_ok
+        assert any("restarted by itself" in m for _, m in d.drain_events())
+    finally:
+        d.stop_sync()
+
+
 def test_a_dead_port_never_blocks_poll(board):
     board.unplug()
     d = BridgeDriver("fake", opener=board.opener)
