@@ -8,7 +8,7 @@ import sys
 import time
 from pathlib import Path
 
-from . import paths
+from . import paths, service
 from .auth import hash_pin, pin_problem
 from .config import Settings
 from .kinematics import ServoMap
@@ -92,6 +92,16 @@ def _connect(port: str | None):
 
 
 def centre(args) -> int:
+    try:
+        # the state file is written before the service starts again, so it starts at this pose
+        with service.Paused("the servos are centred"):
+            return _centre(args)
+    except service.ServiceBusy as e:
+        print(e)
+        return 1
+
+
+def _centre(args) -> int:
     d = _connect(args.port)
     if d is None:
         return 1
@@ -143,7 +153,31 @@ def _flash_port(args) -> str | None:
     return dev
 
 
-def flash(args, runner=subprocess.call) -> int:
+HELLO_S = 6.0
+
+
+def _hello(port: str) -> str | None:
+    # opening the port resets the uno, after the bootloader the sketch says who it is
+    from .drivers.bridge import open_serial, wait_ident
+
+    try:
+        ser = open_serial(port)
+    except Exception:
+        return None
+    try:
+        ident = wait_ident(ser, HELLO_S)
+    except Exception:
+        ident = None
+    finally:
+        ser.close()
+    return None if ident is None else f"I,brainsol,{ident.fw},{ident.caps}"
+
+
+def _no_access(port: str) -> bool:
+    return os.name == "posix" and os.path.exists(port) and not os.access(port, os.R_OK | os.W_OK)
+
+
+def flash(args, runner=subprocess.call, hello=_hello, pause=None) -> int:
     avrdude = shutil.which("avrdude")
     if avrdude is None:
         print(INSTALL_HINT)
@@ -158,6 +192,29 @@ def flash(args, runner=subprocess.call) -> int:
     if port is None:
         print("no serial port found, plug the board in with the usb cable")
         return 1
+    if _no_access(port):
+        print(f"no access to {port}. add your user to the dialout group with: sudo usermod -aG dialout $USER")
+        print("then log out and in again")
+        return 1
+    try:
+        # the service keeps the port open and its commands would land in the bootloader
+        with pause or service.Paused("flashing"):
+            rc = _avrdude(avrdude, port, hexfile, runner)
+            if rc != 0:
+                return rc
+            print("flash done, waiting for the board to say hello")
+            line = hello(port)
+    except service.ServiceBusy as e:
+        print(e)
+        return 1
+    if line:
+        print(f"the board answers: {line}")
+    else:
+        print(f"the board did not answer within {HELLO_S:.0f} s. that can be fine, check it with: brainsolpi doctor")
+    return 0
+
+
+def _avrdude(avrdude: str, port: str, hexfile: Path, runner) -> int:
     rc = 1
     for baud in (115200, 57600):
         # avrdude reads a drive letter as a field separator, so it gets the bare file name
@@ -166,12 +223,11 @@ def flash(args, runner=subprocess.call) -> int:
         print(" ".join(cmd))
         rc = runner(cmd, cwd=str(hexfile.parent))
         if rc == 0:
-            print("firmware written, the board restarts and is ready")
             return 0
         if baud == 115200:
             print("avrdude could not sync at 115200 baud, trying once more at 57600 for an older bootloader")
     print("flashing failed")
-    print(BUSY_HINT)
+    print("check the usb cable and close every other program that uses the port, a serial monitor perhaps")
     print("if it still fails, press the reset button on the board right when avrdude starts")
     return rc
 
