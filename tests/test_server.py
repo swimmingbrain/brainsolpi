@@ -89,7 +89,10 @@ async def test_http_endpoints(tmp_path):
         assert r.status == 204 and r.headers["Access-Control-Allow-Origin"] == "*"
         assert (await c.get("/api/unknown")).status == 404
         r = await c.get("/")
-        assert "not installed" in await r.text()
+        text = await r.text()
+        assert "not installed" in text
+        # the folder it looks in and the way the hosted page gets here
+        assert "web" in text and "tunnel" in text and "/api/info" in text
 
 
 async def test_websocket_session(tmp_path):
