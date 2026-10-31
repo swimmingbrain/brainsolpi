@@ -14,8 +14,12 @@ MODES = ("auto", "manual", "sun", "hold", "park", "demo")
 DEFAULT_SIM = {"az": 25.0, "el": 40.0, "on": True, "lux": 900.0, "amb": 60.0}
 
 
+def _is_num(v: Any) -> bool:
+    return not isinstance(v, bool) and isinstance(v, (int, float)) and math.isfinite(v)
+
+
 def _num(v: Any, lo: float, hi: float, default: float) -> float:
-    if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v):
+    if not _is_num(v):
         return default
     return float(min(max(v, lo), hi))
 
@@ -27,6 +31,9 @@ class StateStore:
         self.path = path
         self.pan = 0.0
         self.tilt = 90.0
+        # true once the servos really were at this pose, the tracker or brainsolpi centre sent it.
+        # setpin also writes this file and must not make up a pose
+        self.known = False
         self.mode = "auto"
         self.sim = dict(DEFAULT_SIM)
         self.tokens: list[list] = []
@@ -41,6 +48,12 @@ class StateStore:
         if raw:
             s.pan = _num(raw.get("pan"), -90.0, 90.0, 0.0)
             s.tilt = _num(raw.get("tilt"), 0.0, 180.0, 90.0)
+            known = raw.get("known")
+            if isinstance(known, bool):
+                s.known = known
+            else:
+                # older files came from the tracker only, a pose in them was a real one
+                s.known = all(_is_num(raw.get(k)) for k in ("pan", "tilt"))
             mode = raw.get("mode")
             s.mode = mode if mode in MODES else "auto"
             sim = raw.get("sim")
@@ -67,6 +80,7 @@ class StateStore:
         return {
             "pan": round(self.pan, 2),
             "tilt": round(self.tilt, 2),
+            "known": self.known,
             "mode": self.mode,
             "sim": dict(self.sim),
             "tokens": [list(t) for t in self.tokens],

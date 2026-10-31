@@ -126,6 +126,7 @@ def _centre(args) -> int:
     st = StateStore.load(cfg / "state.json")
     st.pan = ServoMap.from_dict(cal["pan"]).to_angle(1500)
     st.tilt = ServoMap.from_dict(cal["tilt"]).to_angle(1500)
+    st.known = True
     st.save(force=True)
     print(f"done, the tracker will start at pan {st.pan:.0f} tilt {st.tilt:.0f}")
     return 0
