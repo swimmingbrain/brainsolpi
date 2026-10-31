@@ -67,12 +67,15 @@ class Hub(Sink):
                 pass
 
     async def close_all(self) -> None:
-        for c in list(self.clients):
+        # all at once, the service unit gives the whole stop 10 s however many browsers watch
+        async def close(c: Client) -> None:
             try:
                 await asyncio.wait_for(c.ws.close(code=1001, message=b"server shutting down"), 1.0)
             except Exception:
                 pass
             await self.remove(c)
+
+        await asyncio.gather(*(close(c) for c in list(self.clients)))
 
     # the sink side, called from the control loop
 
