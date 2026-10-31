@@ -189,12 +189,15 @@ async def _auth(hub: Hub, eng: Engine, auth: Auth, c: Client, data: dict) -> Non
         out = auth.resume(data.get("token"))
     else:
         out = await auth.login(data.get("pin"))
+    fresh = bool(out.get("ok")) and not c.admin
     if out.get("ok"):
-        was = c.admin
         c.admin = True
-        if not was:
+        if fresh:
             eng.event("info", f"admin unlocked from {c.addr or 'a browser'}")
     hub.send(c, out, "auth")
+    if fresh:
+        # the notes of a first start went out before anyone could read them
+        eng.remind()
 
 
 async def _cmd(hub: Hub, cmds: Commands, c: Client, data: dict) -> None:
