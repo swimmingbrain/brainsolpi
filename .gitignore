@@ -11,5 +11,8 @@ dist/
 # the built web app is copied here on the pi, it lives in the brainsol repo
 /web/
 
+# settings and data of development runs, the readme uses these folders
+/tmp/
+
 .DS_Store
 Thumbs.db
