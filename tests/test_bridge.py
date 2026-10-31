@@ -245,6 +245,8 @@ def test_engine_on_the_bridge_heals_after_a_replug(board):
     d = BridgeDriver("fake", opener=board.opener, profile="sim")
     state = StateStore(None)
     state.pan, state.tilt = 20.0, 50.0
+    # a pose the tracker drove before, so the servos attach there right away
+    state.known = True
     eng = Engine(Settings(), state, d)
     d.start_sync()
     try:

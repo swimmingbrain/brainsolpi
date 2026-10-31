@@ -130,6 +130,21 @@ class Engine:
         # the first command goes out at the saved pose so the head does not jump
         self.motion = Motion(clamp(state.pan, *lp), clamp(state.tilt, *lt))
         self.mode: Mode = make_mode(state.mode if state.mode in MODES else "auto")
+        # a real board starts gently. its calibration came from the simulated phone light and
+        # may not fit the real sensors, so without a saved one it holds, and without a pose
+        # that was really driven nobody knows where the head sits, so it holds as well
+        real = not driver.has_simlight
+        self.first_start: list[str] = []
+        if real and not self.calib["saved"]:
+            self.first_start.append("calib")
+        if real and not state.known:
+            self.first_start.append("pose")
+        # the mode to go on with once a calibration is saved
+        self.resume = self.mode.name
+        if self.first_start:
+            self.mode = make_mode("hold")
+        # no pulse goes out before the head has to move, the servos stay where they are
+        self.servos_off = real and not state.known
         self._entered = False
         self.activity: Activity | None = None
         self.sun_clock = SunClock(wall)
@@ -176,6 +191,8 @@ class Engine:
         self._hist_sec: int | None = None
         self._acc = [0, 0.0, 0, 0.0]
         self._crash_logged = 0
+        for msg in self.first_start_notes():
+            self.event("warn", msg)
 
     # setup
 
@@ -303,6 +320,8 @@ class Engine:
         amax = p["amax"]
         m = self.motion
         kind = req[0]
+        if self.servos_off and (kind != "vel" or req[1] or req[2]):
+            self._servos_on()
         if kind == "auto":
             self.cstate, self.pushing = self.loop.step(m, DT, amax, p["vmax"], lp, lt)
             self.tgt = self.loop.aim
@@ -330,12 +349,45 @@ class Engine:
                 self.cstate = "moving"
 
     def _send(self, now: float) -> None:
+        if self.servos_off:
+            return
         us = (self.pan_map.to_us(self.motion.pan), self.tilt_map.to_us(self.motion.tilt))
         if self._force_send or us != self._last_us or now - self._last_send >= KEEPALIVE_S:
             self.driver.move(*us)
             self._last_us = us
             self._last_send = now
             self._force_send = False
+            # from now on the state file holds a pose the head really had
+            self.state.known = True
+
+    def _servos_on(self) -> None:
+        # the first pulse after power up goes out at full servo speed, nothing can slew it from
+        # an unknown pose. the centre is where brainsolpi centre left the horns
+        self.servos_off = False
+        self._force_send = True
+        m = self.motion
+        pu, tu = self.pan_map.to_us(m.pan), self.tilt_map.to_us(m.tilt)
+        self.event("info", f"the servos start at pan {m.pan:.0f} tilt {m.tilt:.0f}, {pu} and {tu} us")
+
+    def first_start_notes(self) -> list[str]:
+        notes = []
+        if "calib" in self.first_start:
+            notes.append(
+                "no calibration is saved for this board yet, so the tracker holds. go through the steps "
+                "in the calibrate tab and save, or pick a mode"
+            )
+        if self.servos_off:
+            m = self.motion
+            notes.append(
+                f"no pose is saved yet, so the servos stay off until the head has to move, then they "
+                f"start at pan {m.pan:.0f} tilt {m.tilt:.0f}"
+            )
+        return notes
+
+    def remind(self) -> None:
+        # an admin who unlocks later still learns why the head holds
+        for msg in self.first_start_notes():
+            self.event("warn", msg)
 
     def _link_change(self, link: bool) -> None:
         self.link = link
@@ -542,7 +594,8 @@ class Engine:
         st = self.state
         st.pan = self.motion.pan
         st.tilt = self.motion.tilt
-        st.mode = self.mode.name
+        # the hold of a first start is no choice of anyone, the next start decides again
+        st.mode = self.resume if self.first_start else self.mode.name
         if self.driver.has_simlight and not isinstance(self.mode, MODES["sun"]):
             st.sim = self.driver.light_state()
         st.save()
@@ -566,11 +619,13 @@ class Engine:
     def set_mode(self, name: str) -> None:
         if name not in MODES:
             raise CommandError(f"unknown mode {name}")
+        self.first_start = []
         self._end_activity("stopped by a mode change")
         if name != self.mode.name or name == "manual":
             self._switch_mode(name)
 
     def _manual(self) -> Manual:
+        self.first_start = []
         self._end_activity("stopped by manual control")
         if not isinstance(self.mode, Manual):
             self._switch_mode("manual")
@@ -654,6 +709,15 @@ class Engine:
 
     def mark_cfg(self) -> None:
         self._cfg_dirty = True
+
+    def calibration_saved(self) -> None:
+        if "calib" not in self.first_start:
+            return
+        # the hold was only there for the missing calibration, the tracker goes on as it was meant to
+        self.first_start = []
+        self.event("info", f"calibration saved, the tracker goes on in {self.resume}")
+        if self.resume != self.mode.name:
+            self._switch_mode(self.resume)
 
     def set_calibration(self, calib: dict, saved: bool) -> None:
         old_pan, old_tilt = self.pan_map, self.tilt_map

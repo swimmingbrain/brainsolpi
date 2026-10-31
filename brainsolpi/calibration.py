@@ -138,6 +138,8 @@ def set_values(eng: Engine, which: str, values) -> dict:
 
 def zero(eng: Engine, pan_us=None, tilt_us=None) -> dict:
     # the pulses going out now become the centre, the head is meant to sit at pan 0 and flat
+    if eng.servos_off and (pan_us is None or tilt_us is None):
+        raise ValueError("the servos are still off, move the head to the front with the panel flat first")
     pm, tm = eng.pan_map, eng.tilt_map
     cur = (pm.to_us(eng.motion.pan), tm.to_us(eng.motion.tilt))
     pu = cur[0] if pan_us is None else pan_us
@@ -159,6 +161,7 @@ def save(eng: Engine) -> dict:
     eng.settings.save()
     eng.calib_saved = True
     eng.event("info", f"calibration saved for the {eng.profile} profile")
+    eng.calibration_saved()
     return describe(eng.calib)
 
 
