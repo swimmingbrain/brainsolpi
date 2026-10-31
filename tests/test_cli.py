@@ -1,6 +1,7 @@
 import json
 import subprocess
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 from brainsolpi import paths, tools
@@ -17,6 +18,30 @@ def test_run_defaults_match_the_service_unit():
     assert args.http_port == 8080
     args = build_parser().parse_args(["run", "--driver", "sim", "--http-port", "9000", "--pin", "2468"])
     assert (args.driver, args.http_port, args.pin) == ("sim", 9000, "2468")
+
+
+def test_demo_runs_the_sim_on_this_computer_in_a_folder_that_goes_away(monkeypatch, capsys):
+    from brainsolpi import app, cli
+
+    seen = {}
+
+    def fake_run(args):
+        seen["args"] = args
+        seen["dirs"] = (Path(args.config_dir), Path(args.data_dir))
+        assert seen["dirs"][0].parent.exists()
+        args.ready(None)
+        return 0
+
+    monkeypatch.setattr(app, "run", fake_run)
+    assert cli.main(["demo"]) == 0
+    a = seen["args"]
+    assert (a.driver, a.host, a.http_port) == ("sim", "127.0.0.1", 8080)
+    assert len(a.pin) == 4 and a.pin.isdigit()
+    assert not seen["dirs"][0].parent.exists()
+    out = capsys.readouterr().out
+    assert "https://sol.swimmingbrain.dev/?pi=ws://localhost:8080" in out
+    assert f"admin pin for this run: {a.pin}" in out
+    assert cli.build_parser().parse_args(["demo", "--http-port", "9001"]).http_port == 9001
 
 
 def test_repo_paths():
