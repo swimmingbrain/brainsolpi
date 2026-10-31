@@ -118,7 +118,8 @@ async def serve(args) -> int:
 
     pin_hash = settings.pin_hash
     if args.pin:
-        log.warning("using the pin from the command line, that is meant for development only")
+        if not getattr(args, "demo", False):
+            log.warning("using the pin from the command line, that is meant for development only")
         pin_hash = await asyncio.get_running_loop().run_in_executor(None, hash_pin, args.pin)
     elif not pin_hash:
         log.warning("no admin pin is set, admin login is refused until you run brainsolpi setpin")
@@ -167,6 +168,9 @@ async def serve(args) -> int:
         "brainsolpi on http://%s:%s with the %s driver%s",
         args.host, args.http_port, driver.name, f", web app from {web_dir}" if web_dir else "",
     )
+    if getattr(args, "ready", None) is not None:
+        # the address is only worth printing once the port really listens
+        args.ready(web_dir if web_dir is not None and (web_dir / "index.html").is_file() else None)
     loop_task = asyncio.create_task(engine.run(stop))
     stop_task = asyncio.create_task(stop.wait())
     watch_task = None

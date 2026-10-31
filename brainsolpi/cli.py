@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import argparse
 import logging
+import secrets
 import sys
+import tempfile
+from pathlib import Path
 
 from . import __version__
 
@@ -38,6 +41,7 @@ def build_parser() -> argparse.ArgumentParser:
     doc.add_argument("--port", help="serial port of the board")
     doc.add_argument("--fake", action="store_true", help="talk to a simulated board, to try the checks")
     doc.add_argument("--yes", action="store_true", help="answer yes to every question, no waiting for keys")
+    doc.add_argument("--config-dir", help="folder for settings.json and state.json")
 
     fl = sub.add_parser("flash", help="upload the bridge firmware to the board")
     fl.add_argument("--port", help="serial port of the board")
@@ -49,7 +53,31 @@ def build_parser() -> argparse.ArgumentParser:
     ce = sub.add_parser("centre", help="hold both servos at 1500 us while mounting the horns")
     ce.add_argument("--port", help="serial port of the board")
     ce.add_argument("--config-dir", help="folder for state.json")
+
+    de = sub.add_parser("demo", help="try the whole tracker simulated on this computer, nothing is kept")
+    de.add_argument("--http-port", type=int, default=8080, help="http port, default 8080")
     return p
+
+
+def demo_args(args) -> argparse.Namespace:
+    # run with the sim, only on this computer, a fresh pin and a folder that goes away at the end
+    pin = f"{secrets.randbelow(10000):04d}"
+    port = args.http_port
+
+    def ready(web_dir) -> None:
+        print("brainSOL demo, the whole tracker simulated on this computer")
+        hosted = f"https://sol.swimmingbrain.dev/?pi=ws://localhost:{port}"
+        if web_dir is not None:
+            print(f"  open http://localhost:{port} in a browser, or the hosted page {hosted}")
+        else:
+            print(f"  open the hosted page in a browser: {hosted}")
+        print(f"  admin pin for this run: {pin}")
+        print("  nothing is kept, stop it with ctrl c", flush=True)
+
+    return argparse.Namespace(
+        driver="sim", port=None, host="127.0.0.1", http_port=port, pin=pin, web=None,
+        config_dir=None, data_dir=None, verbose=False, demo=True, ready=ready,
+    )
 
 
 def setup_logging(verbose: bool) -> None:
@@ -73,6 +101,16 @@ def main(argv: list[str] | None = None) -> int:
         from .app import run
 
         return run(args)
+    if args.command == "demo":
+        # only warnings in the log, the few lines of the demo say the rest
+        logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
+        from .app import run
+
+        run_args = demo_args(args)
+        with tempfile.TemporaryDirectory(prefix="brainsolpi-demo-", ignore_cleanup_errors=True) as tmp:
+            run_args.config_dir = str(Path(tmp) / "config")
+            run_args.data_dir = str(Path(tmp) / "data")
+            return run(run_args)
     # the helper commands talk to people, warnings only in the log
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
     try:
