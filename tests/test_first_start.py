@@ -114,6 +114,18 @@ def test_a_known_pose_without_calibration_attaches_there_and_saving_goes_on_in_a
     assert eng.settings.calib("bridge")["saved"] is True
 
 
+def test_a_first_save_names_the_steps_that_did_not_run():
+    r = Rig(pose=(20.0, 60.0)).run(0.5)
+    calibration.set_values(r.engine, "dark", [200, 200, 200, 200])
+    calibration.set_values(r.engine, "bright", [7800, 7800, 7800, 7800])
+    calibration.save(r.engine)
+    msg = [m for m in r.events() if "calibration saved for" in m][-1]
+    assert "zero and polarity did not run" in msg
+    # later saves of a calibrated board say nothing of the kind
+    calibration.save(r.engine)
+    assert [m for m in r.events() if "calibration saved for" in m][-1] == "calibration saved for the bridge profile"
+
+
 def test_a_calibrated_board_without_a_pose_holds_too():
     r = Rig(calibrated=True).run(1)
     assert r.engine.mode.name == "hold" and r.engine.first_start == ["pose"]
