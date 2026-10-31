@@ -154,6 +154,7 @@ def zero(eng: Engine, pan_us=None, tilt_us=None) -> dict:
 
 
 def save(eng: Engine) -> dict:
+    eng.calib["saved"] = True
     eng.settings.set_calib(eng.profile, eng.calib)
     eng.settings.save()
     eng.calib_saved = True

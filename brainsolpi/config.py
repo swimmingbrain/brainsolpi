@@ -70,6 +70,16 @@ class Sign:
         raise ValueError("must be 1 or -1")
 
 
+class Flag:
+    def __init__(self, default: bool = False):
+        self.default = default
+
+    def check(self, v: Any) -> bool:
+        if isinstance(v, bool):
+            return v
+        raise ValueError("must be true or false")
+
+
 class Quad:
     def __init__(self, default: list[float], lo: float, hi: float):
         self.default = list(default)
@@ -134,6 +144,8 @@ def calib_schema(dark: list[float], bright: list[float]) -> dict:
         "sy": Sign(1),
         "pan": servo_schema(0.0, -90.0, 90.0),
         "tilt": servo_schema(90.0, 0.0, 180.0),
+        # true once someone saved the steps for this board, a real board without it starts in hold
+        "saved": Flag(False),
     }
 
 
