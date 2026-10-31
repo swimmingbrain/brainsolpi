@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import contextlib
+import socket
+import sys
 import time
 from pathlib import Path
 from typing import Callable
@@ -11,6 +13,7 @@ from .drivers.bridge import BridgeDriver, open_serial, wait_ident
 from .drivers.detect import candidates, find_board
 from .drivers.fakeboard import FakeBoard
 from .drivers.protocol import FLAG_ATTACHED, RAW_MAX
+from .jsonio import read_json
 from .kinematics import ServoMap
 from .state import StateStore
 from .tools import BUSY_HINT
@@ -236,7 +239,11 @@ class Doctor:
                 self.drv.move(pm.to_us(p), tm.to_us(t))
                 time.sleep(0.05)
 
-        self.out(f"  starting at the saved pose, pan {pan:.0f} tilt {tilt:.0f}")
+        if st.known:
+            self.out(f"  starting at the saved pose, pan {pan:.0f} tilt {tilt:.0f}")
+        else:
+            # the first pulse is a jump at full servo speed from wherever the head sits now
+            self.out(f"  no pose is saved yet, the servos start at pan {pan:.0f} tilt {tilt:.0f}, the head may turn there quickly")
         go(pan, tilt, 10)
         f = self.drv.latest()
         if f is None or not f.flags & FLAG_ATTACHED:
@@ -250,6 +257,10 @@ class Doctor:
         moved = self.confirm("  did both servos move a little and come back?", True)
         if not moved:
             self.out("  check the servo cables on D9 and D10, brown is ground, and the 5 V supply")
+        elif not self.fake:
+            # the head now really sits here, the tracker starts from this pose without a jump
+            st.pan, st.tilt, st.known = pan, tilt, True
+            st.save(force=True)
         return self.record("servos", moved, "")
 
     def run(self) -> int:
@@ -285,8 +296,76 @@ class Doctor:
         for title, ok, note in self.results:
             mark = "ok  " if ok else "skip" if ok is None else "FAIL"
             self.out(f"  {mark} {title}{', ' + note if note else ''}")
+        self.out("\nnext steps")
+        for i, step in enumerate(self.next_steps(), 1):
+            self.out(f"  {i}. {step}")
         return 0 if all(ok is not False for _, ok, _ in self.results) else 1
+
+    def next_steps(self) -> list[str]:
+        # what to do now, as exact as the results allow, the first failure comes first
+        ok = {title: (good, note) for title, good, note in self.results}
+        again = "then run brainsolpi doctor again"
+        if self.fake:
+            return [
+                "this was a simulated board. on the pi, plug the board in and run: brainsolpi doctor",
+                "to try the whole tracker on this computer run: brainsolpi demo",
+            ]
+        port, note = ok.get("serial port", (False, ""))
+        if not port:
+            if "service" in note:
+                return [f"stop the tracker service with: {service.STOP_HINT}", again,
+                        f"start it afterwards with: {service.START_HINT}"]
+            if note == "no port":
+                return ["plug the usb cable into the pi and into the board", again]
+            return ["flash the bridge firmware with: brainsolpi flash", again]
+        steps = []
+        if ok.get("sample frames", (True, ""))[0] is False:
+            steps.append("use a short usb cable straight into the pi, not through a hub")
+        if ok.get("light sensors", (True, ""))[0] is False:
+            steps.append("fix the sensor cables as step 4 says")
+        if ok.get("servos", (True, ""))[0] is False:
+            steps.append("check the servo cables on D9 and D10 and the 5 V supply")
+        if steps:
+            return steps + [again]
+        skipped = [t for t, (good, _) in ok.items() if good is None]
+        if skipped:
+            steps.append(f"the {' and the '.join(skipped)} were skipped, run brainsolpi doctor again to check them")
+        if ok.get("BH1750", (True, ""))[0] is False:
+            steps.append("plug in the BH1750 as step 5 says. the tracker works without it, "
+                         "but lux, the power figure and the cosine and compare experiments need it")
+        # read only, the doctor does not write the settings of the service
+        settings = Settings(None, read_json(self.cfg_dir / "settings.json"))
+        if not settings.pin_hash:
+            steps.append("set the admin pin with: brainsolpi setpin")
+        if not StateStore.load(self.cfg_dir / "state.json").known:
+            steps.append("if the servo horns are not on yet, mount them with the head facing forward and "
+                         "the panel flat while this holds the servos in the middle: brainsolpi centre")
+        # a service the doctor paused runs again by now
+        if not (self.paused is not None and self.paused.stopped):
+            if service.installed():
+                steps.append(f"start the tracker with: {service.START_HINT}")
+            else:
+                steps.append("start the tracker with: brainsolpi run")
+        steps.append(f"open {address()} in a browser and unlock the admin tools with the pin")
+        if settings.calib("bridge")["saved"]:
+            steps.append("the calibration is saved, pick a mode in the control tab")
+        else:
+            steps.append(
+                "in the calibrate tab: capture dark with all four sensors covered, capture bright with the "
+                "lamp close in front, nudge the head until it faces forward with the panel flat and store "
+                "it as centre, tilt it up, keep the lamp still and find the directions, then save the calibration"
+            )
+            steps.append("the tracker holds until the calibration is saved, then it tracks the light in auto")
+        return steps
+
+
+def address() -> str:
+    # the name the install script gives the pi, it answers as name.local
+    if sys.platform.startswith("linux"):
+        return f"http://{socket.gethostname()}.local:8080"
+    return "http://localhost:8080"
 
 
 def doctor(args) -> int:
-    return Doctor(port=args.port, fake=args.fake, yes=args.yes).run()
+    cfg = Path(args.config_dir) if getattr(args, "config_dir", None) else None
+    return Doctor(port=args.port, fake=args.fake, yes=args.yes, config_dir=cfg).run()
