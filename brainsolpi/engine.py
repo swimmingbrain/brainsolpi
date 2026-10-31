@@ -34,6 +34,8 @@ STALE_S = 0.5
 KEEPALIVE_S = 0.5
 # the pose is written at most this often, and only once the head is still
 SAVE_EVERY_S = 10.0
+# a 9 g servo needs about 0.2 s for 90 degrees to its first pulse, the limiter waits that long and more
+SERVO_START_S = 0.5
 
 
 class CommandError(Exception):
@@ -145,6 +147,7 @@ class Engine:
             self.mode = make_mode("hold")
         # no pulse goes out before the head has to move, the servos stay where they are
         self.servos_off = real and not state.known
+        self._servo_start = -1e9
         self._entered = False
         self.activity: Activity | None = None
         self.sun_clock = SunClock(wall)
@@ -322,6 +325,12 @@ class Engine:
         kind = req[0]
         if self.servos_off and (kind != "vel" or req[1] or req[2]):
             self._servos_on()
+        if self.now - self._servo_start < SERVO_START_S:
+            # the head runs to the start pose on its own, nothing else goes out meanwhile
+            self.cstate = "moving"
+            self.tgt = (m.pan, m.tilt)
+            self.pushing = 0
+            return
         if kind == "auto":
             self.cstate, self.pushing = self.loop.step(m, DT, amax, p["vmax"], lp, lt)
             self.tgt = self.loop.aim
@@ -364,10 +373,13 @@ class Engine:
         # the first pulse after power up goes out at full servo speed, nothing can slew it from
         # an unknown pose. the centre is where brainsolpi centre left the horns
         self.servos_off = False
-        self._force_send = True
         m = self.motion
         pu, tu = self.pan_map.to_us(m.pan), self.tilt_map.to_us(m.tilt)
         self.event("info", f"the servos start at pan {m.pan:.0f} tilt {m.tilt:.0f}, {pu} and {tu} us")
+        # the start pose goes out alone, the board attaches right there
+        self._force_send = True
+        self._send(self.now)
+        self._servo_start = self.now
 
     def first_start_notes(self) -> list[str]:
         notes = []
