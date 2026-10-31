@@ -11,6 +11,8 @@ if TYPE_CHECKING:
     from .engine import Engine
 
 STEPS = ("dark", "bright", "zero", "polarity", "save", "reset")
+# the steps that measure something, a first save without one of them keeps a default
+MEASURED = ("dark", "bright", "zero", "polarity")
 CAPTURE_S = 1.0
 # less than this between dark and bright and the sensor cannot tell light from shade
 MIN_SPAN = 50.0
@@ -45,6 +47,7 @@ class Capture(Activity):
         calib = copy.deepcopy(self.eng.calib)
         calib[self.which] = values
         self.eng.set_calibration(calib, saved=False)
+        self.eng.calib_done.add(self.which)
         return describe(calib) | {self.which: values}
 
     def finished(self) -> None:
@@ -99,6 +102,7 @@ class Polarity(Activity):
         calib["sx"] = sx
         calib["sy"] = sy
         eng.set_calibration(calib, saved=False)
+        eng.calib_done.add("polarity")
         return {"sx": sx, "sy": sy, "dx": round(dx, 4), "dy": round(dy, 4)}
 
     def finished(self) -> None:
@@ -133,6 +137,7 @@ def set_values(eng: Engine, which: str, values) -> dict:
     calib = copy.deepcopy(eng.calib)
     calib[which] = out
     eng.set_calibration(calib, saved=False)
+    eng.calib_done.add(which)
     return describe(calib)
 
 
@@ -151,21 +156,30 @@ def zero(eng: Engine, pan_us=None, tilt_us=None) -> dict:
     calib["pan"]["centre_us"] = float(pu)
     calib["tilt"]["centre_us"] = float(tu)
     eng.set_calibration(calib, saved=False)
+    eng.calib_done.add("zero")
     eng.event("info", f"servo centre set to {pu:.0f} and {tu:.0f} us, not saved yet")
     return {"pan_us": pu, "tilt_us": tu, "pan": round(eng.motion.pan, 1), "tilt": round(eng.motion.tilt, 1)}
 
 
 def save(eng: Engine) -> dict:
+    first = not eng.calib["saved"]
     eng.calib["saved"] = True
     eng.settings.set_calib(eng.profile, eng.calib)
     eng.settings.save()
     eng.calib_saved = True
-    eng.event("info", f"calibration saved for the {eng.profile} profile")
+    missing = [s for s in MEASURED if s not in eng.calib_done]
+    if first and missing:
+        # the defaults came from the simulated phone light, wrong signs would drive the head away
+        eng.event("warn", f"calibration saved for the {eng.profile} profile, but {' and '.join(missing)} "
+                          "did not run, those parts are still the defaults")
+    else:
+        eng.event("info", f"calibration saved for the {eng.profile} profile")
     eng.calibration_saved()
     return describe(eng.calib)
 
 
 def reset(eng: Engine) -> dict:
     eng.set_calibration(eng.settings.calib_default(eng.profile), saved=False)
+    eng.calib_done.clear()
     eng.event("info", "calibration back to the defaults, not saved yet")
     return describe(eng.calib)

@@ -127,6 +127,8 @@ class Engine:
         self.profile = driver.profile
         self.calib = settings.calib(self.profile)
         self.calib_saved = True
+        # the calibration steps that ran since the start, a save names the ones that did not
+        self.calib_done: set[str] = set()
         self._apply_calib()
         lp, lt = settings.pan_limits, settings.tilt_limits
         # the first command goes out at the saved pose so the head does not jump
