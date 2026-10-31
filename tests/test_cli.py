@@ -110,6 +110,7 @@ def test_doctor_walks_through_every_step_on_the_fake_board():
     text = "\n".join(lines)
     assert "step 6 of 6" in text
     assert [ok for _, ok, _ in doc.results] == [True] * 6
+    assert lines[-3] == "\nnext steps" and "brainsolpi demo" in lines[-1]
     for name in ("L ok", "R ok", "U ok", "D ok"):
         assert name in text
 

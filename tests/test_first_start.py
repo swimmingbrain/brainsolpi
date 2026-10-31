@@ -164,6 +164,67 @@ def test_setpin_writes_no_pose_and_older_state_files_count_as_driven(tmp_path):
     assert st.known and (st.pan, st.tilt) == (12, 70)
 
 
+ALL_OK = [("serial port", True, "/dev/ttyACM0"), ("firmware", True, "1.0.0"), ("sample frames", True, ""),
+          ("light sensors", True, ""), ("BH1750", True, "300 lux"), ("servos", True, "")]
+
+
+def doctor_steps(tmp_path, results, monkeypatch, installed=True):
+    from brainsolpi import doctor, service
+
+    monkeypatch.setattr(service, "installed", lambda: installed)
+    monkeypatch.setattr(doctor, "address", lambda: "http://brainsol.local:8080")
+    doc = doctor.Doctor(config_dir=tmp_path, out=lambda *a, **k: None, live=False)
+    doc.results = list(results)
+    return doc.next_steps()
+
+
+def test_the_doctor_ends_a_fresh_setup_with_every_step_in_order(tmp_path, monkeypatch):
+    steps = doctor_steps(tmp_path, ALL_OK, monkeypatch)
+    assert steps[0] == "set the admin pin with: brainsolpi setpin"
+    assert "brainsolpi centre" in steps[1]
+    assert steps[2] == "start the tracker with: sudo systemctl start brainsolpi"
+    assert steps[3] == "open http://brainsol.local:8080 in a browser and unlock the admin tools with the pin"
+    assert "calibrate tab" in steps[4] and "capture dark" in steps[4] and "save the calibration" in steps[4]
+    assert "holds until the calibration is saved" in steps[5]
+    # the doctor only read the folder, it wrote nothing of its own
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_the_doctor_on_a_set_up_pi_only_points_to_the_page(tmp_path, monkeypatch):
+    s = Settings(tmp_path / "settings.json")
+    s.pin_hash = "pbkdf2_sha256$1000$00$00"
+    cal = s.calib("bridge")
+    cal["saved"] = True
+    s.set_calib("bridge", cal)
+    s.save()
+    st = StateStore(tmp_path / "state.json")
+    st.known = True
+    st.save(force=True)
+    steps = doctor_steps(tmp_path, ALL_OK, monkeypatch, installed=False)
+    assert steps == [
+        "start the tracker with: brainsolpi run",
+        "open http://brainsol.local:8080 in a browser and unlock the admin tools with the pin",
+        "the calibration is saved, pick a mode in the control tab",
+    ]
+
+
+@pytest.mark.parametrize("note,first", [
+    ("no port", "plug the usb cable into the pi and into the board"),
+    ("no board answered", "flash the bridge firmware with: brainsolpi flash"),
+    ("the service holds the board", "stop the tracker service with: sudo systemctl stop brainsolpi"),
+])
+def test_the_doctor_names_the_fix_for_a_missing_board(tmp_path, monkeypatch, note, first):
+    steps = doctor_steps(tmp_path, [("serial port", False, note)], monkeypatch)
+    assert steps[0] == first
+    assert "then run brainsolpi doctor again" in steps
+
+
+def test_the_doctor_puts_broken_cables_before_everything_else(tmp_path, monkeypatch):
+    results = [r if r[0] != "light sensors" else ("light sensors", False, "") for r in ALL_OK]
+    steps = doctor_steps(tmp_path, results, monkeypatch)
+    assert steps == ["fix the sensor cables as step 4 says", "then run brainsolpi doctor again"]
+
+
 def test_a_fresh_fake_board_gets_no_pulse_until_a_mode_is_picked():
     board = FakeBoard(boot_s=0.2, seed=2, rest=(35.0, 25.0))
     d = BridgeDriver("fake", opener=board.opener, profile="bridge")
