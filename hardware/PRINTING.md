@@ -48,11 +48,11 @@ refreshed by every `uv run build.py`.
 | neck_back | 1 | dark | 0.2 | 25 % gyroid | 24.9 | 40 |
 | head_back | 1 | dark | 0.2 | 15 % gyroid | 59.5 | 89 |
 | head_bezel | 1 | dark | 0.2 | 15 % gyroid | 46.3 | 70 |
-| ear_horn | 1 | dark | 0.16 | 40 % gyroid | 5.5 | 10 |
-| ear_pivot | 1 | dark | 0.16 | 40 % gyroid | 5.5 | 10 |
+| ear_horn | 1 | dark | 0.16 | 40 % gyroid | 5.6 | 11 |
+| ear_pivot | 1 | dark | 0.16 | 40 % gyroid | 5.6 | 11 |
 | cap | 2 | accent | 0.12 | 100 % concentric | 0.4 | 1 |
-| fit_test | 1 | body | 0.2 | 15 % gyroid | 18.0 | 28 |
-| total | | | | | 446.0 | 691 |
+| fit_test | 1 | body | 0.2 | 15 % gyroid | 20.0 | 31 |
+| total | | | | | 448.2 | 694 |
 <!-- print table end -->
 
 ## Slicer settings that matter

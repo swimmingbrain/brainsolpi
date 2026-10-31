@@ -1,0 +1,554 @@
+{
+ "failures": [],
+ "sweep": {
+  "base_neck": 2.5989220456566547e-13,
+  "neck_head": 0.0,
+  "base_head": 0.0,
+  "gap_head_base": 3.0,
+  "gap_head_base_pose": [
+   -90.0,
+   0.0
+  ],
+  "gap_neck_head": 0.49999999999999645,
+  "gap_neck_head_pose": 130.0,
+  "poses": 361,
+  "pans": [
+   -90.0,
+   90.0,
+   10.0
+  ],
+  "tilts": [
+   0.0,
+   180.0,
+   10.0
+  ]
+ },
+ "cables": [
+  {
+   "cable": "photoresistor L to A0",
+   "uno": 19.751262164292815,
+   "neck": 76.60198409574099,
+   "loop": 36.0579756931964,
+   "head": 29.875751353780707,
+   "total": 162.28697330701092,
+   "available": 172.0,
+   "slack": 9.713026692989075,
+   "worst": "pan 90, tilt 0"
+  },
+  {
+   "cable": "photoresistor R to A1",
+   "uno": 17.422522099392545,
+   "neck": 76.60198409574099,
+   "loop": 36.0579756931964,
+   "head": 29.875751353780707,
+   "total": 159.95823324211065,
+   "available": 172.0,
+   "slack": 12.041766757889349,
+   "worst": "pan 90, tilt 0"
+  },
+  {
+   "cable": "photoresistor U to A2",
+   "uno": 17.422522099392545,
+   "neck": 76.60198409574099,
+   "loop": 36.0579756931964,
+   "head": 15.905054744357273,
+   "total": 145.9875366326872,
+   "available": 172.0,
+   "slack": 26.01246336731279,
+   "worst": "pan -90, tilt 0"
+  },
+  {
+   "cable": "photoresistor D to A3",
+   "uno": 19.751262164292818,
+   "neck": 76.60198409574099,
+   "loop": 36.0579756931964,
+   "head": 15.905054744357273,
+   "total": 148.31627669758748,
+   "available": 172.0,
+   "slack": 23.683723302412517,
+   "worst": "pan -90, tilt 0"
+  },
+  {
+   "cable": "bh1750 to SDA SCL",
+   "uno": 28.746837142776574,
+   "neck": 76.60198409574099,
+   "loop": 36.0579756931964,
+   "head": 51.4443637013112,
+   "total": 192.85116063302516,
+   "available": 322.0,
+   "slack": 129.14883936697484,
+   "worst": "pan -90, tilt 0"
+  },
+  {
+   "cable": "tilt servo to D10",
+   "uno": 54.51392801156294,
+   "neck": 57.50062497558785,
+   "loop": 0.0,
+   "head": 0.0,
+   "total": 118.41455298715078,
+   "available": 236.0,
+   "slack": 117.58544701284922,
+   "worst": "pan 90"
+  },
+  {
+   "cable": "pan servo to D9",
+   "uno": 52.127878892391216,
+   "neck": 74.36699795079862,
+   "loop": 0.0,
+   "head": 0.0,
+   "total": 132.89487684318985,
+   "available": 236.0,
+   "slack": 103.10512315681015,
+   "worst": "pan 90"
+  }
+ ],
+ "assembly": {
+  "units": "mm",
+  "frame": "x right, y forward, z up",
+  "parts": [
+   {
+    "id": "base",
+    "file": "base.glb",
+    "joint": null,
+    "color": "body"
+   },
+   {
+    "id": "neck",
+    "file": "neck.glb",
+    "joint": "pan",
+    "color": "dark"
+   },
+   {
+    "id": "head",
+    "file": "head.glb",
+    "joint": "tilt",
+    "color": "dark"
+   },
+   {
+    "id": "panel",
+    "file": "panel.glb",
+    "joint": "tilt",
+    "color": "panel"
+   }
+  ],
+  "joints": {
+   "pan": {
+    "origin": [
+     0.0,
+     -32.0,
+     48.0
+    ],
+    "axis": [
+     0,
+     0,
+     -1
+    ],
+    "parent": null,
+    "range": [
+     -90.0,
+     90.0
+    ]
+   },
+   "tilt": {
+    "origin": [
+     0.0,
+     -32.0,
+     107.5
+    ],
+    "axis": [
+     1,
+     0,
+     0
+    ],
+    "parent": "pan",
+    "range": [
+     0.0,
+     180.0
+    ]
+   }
+  },
+  "sensors": {
+   "L": [
+    -67.5,
+    -1.9,
+    107.5
+   ],
+   "R": [
+    67.5,
+    -1.9,
+    107.5
+   ],
+   "U": [
+    0.0,
+    -1.9,
+    155.0
+   ],
+   "D": [
+    0.0,
+    -1.9,
+    60.0
+   ],
+   "lux": [
+    66.41,
+    -3.4,
+    141.87
+   ]
+  },
+  "panel": {
+   "center": [
+    0.0,
+    2.6,
+    107.5
+   ],
+   "size": [
+    125.0,
+    85.0
+   ],
+   "normal": [
+    0,
+    1,
+    0
+   ],
+   "up": [
+    0,
+    0,
+    1
+   ]
+  },
+  "bounds": {
+   "min": [
+    -82.0,
+    -78.0,
+    -0.0
+   ],
+   "max": [
+    82.0,
+    78.0,
+    164.0
+   ]
+  }
+ },
+ "parts": [
+  {
+   "name": "tray",
+   "count": 1,
+   "valid": true,
+   "solids": 1,
+   "watertight": true,
+   "volume": 111274.20733571525,
+   "size": [
+    156.0,
+    156.0,
+    41.2
+   ],
+   "fits": true,
+   "note": "floor on the bed",
+   "steep_area": 0.0,
+   "steep_small_area": 44.5750249965503,
+   "flat_area": 0.8076497963686388,
+   "bridge_max": 0.3362854211389106,
+   "p02": 2.3925993303679913,
+   "share_thin": 0.0006854009595613434,
+   "role": "body"
+  },
+  {
+   "name": "lid",
+   "count": 1,
+   "valid": true,
+   "solids": 1,
+   "watertight": true,
+   "volume": 91065.57254243865,
+   "size": [
+    156.0,
+    156.0,
+    44.80000000000002
+   ],
+   "fits": true,
+   "note": "top face on the bed",
+   "steep_area": 0.0,
+   "steep_small_area": 0.0,
+   "flat_area": 43.647233426125574,
+   "bridge_max": 9.999999999999993,
+   "p02": 1.59506647768285,
+   "share_thin": 0.011004126547455296,
+   "role": "body"
+  },
+  {
+   "name": "foot",
+   "count": 4,
+   "valid": true,
+   "solids": 1,
+   "watertight": true,
+   "volume": 406.4776389637459,
+   "size": [
+    14.000000000000007,
+    14.000000000000007,
+    3.0000000000000018
+   ],
+   "fits": true,
+   "note": "tray side on the bed, countersink up",
+   "steep_area": 0.0,
+   "steep_small_area": 0.0,
+   "flat_area": 0.0,
+   "bridge_max": 0.0,
+   "p02": 2.129545160768885,
+   "share_thin": 0.0006666666666666666,
+   "role": "dark"
+  },
+  {
+   "name": "neck_front",
+   "count": 1,
+   "valid": true,
+   "solids": 1,
+   "watertight": true,
+   "volume": 27417.65503754491,
+   "size": [
+    52.0,
+    73.0,
+    29.999999999999996
+   ],
+   "fits": true,
+   "note": "front face on the bed",
+   "steep_area": 0.0,
+   "steep_small_area": 0.13359263064995683,
+   "flat_area": 68.80991996931667,
+   "bridge_max": 6.235312260107843,
+   "p02": 1.9938339818809592,
+   "share_thin": 0.008350730688935281,
+   "role": "dark"
+  },
+  {
+   "name": "neck_back",
+   "count": 1,
+   "valid": true,
+   "solids": 1,
+   "watertight": true,
+   "volume": 24518.442528918356,
+   "size": [
+    52.0,
+    70.6,
+    18.000000000000007
+   ],
+   "fits": true,
+   "note": "back face on the bed",
+   "steep_area": 0.0,
+   "steep_small_area": 0.0,
+   "flat_area": 50.775676759431086,
+   "bridge_max": 6.235312260107839,
+   "p02": 1.9938343980682098,
+   "share_thin": 0.0027991602519244225,
+   "role": "dark"
+  },
+  {
+   "name": "head_back",
+   "count": 1,
+   "valid": true,
+   "solids": 1,
+   "watertight": true,
+   "volume": 47239.441349511115,
+   "size": [
+    164.0,
+    113.0,
+    10.100000000000005
+   ],
+   "fits": true,
+   "note": "back face on the bed",
+   "steep_area": 0.0,
+   "steep_small_area": 0.0,
+   "flat_area": 0.6163915742658528,
+   "bridge_max": 0.19999999999999574,
+   "p02": 1.599999237060546,
+   "share_thin": 0.008091706001348618,
+   "role": "dark"
+  },
+  {
+   "name": "head_bezel",
+   "count": 1,
+   "valid": true,
+   "solids": 1,
+   "watertight": true,
+   "volume": 37050.83947206786,
+   "size": [
+    164.0,
+    113.0,
+    12.000000000000005
+   ],
+   "fits": true,
+   "note": "front face on the bed",
+   "steep_area": 0.0,
+   "steep_small_area": 0.8457631321219586,
+   "flat_area": 0.0,
+   "bridge_max": 0.0,
+   "p02": 1.475802052515151,
+   "share_thin": 0.02274247491638796,
+   "role": "dark"
+  },
+  {
+   "name": "ear_horn",
+   "count": 1,
+   "valid": true,
+   "solids": 1,
+   "watertight": true,
+   "volume": 5187.111832614288,
+   "size": [
+    26.0,
+    32.25,
+    12.0
+   ],
+   "fits": true,
+   "note": "inner face on the bed",
+   "steep_area": 0.0,
+   "steep_small_area": 0.0,
+   "flat_area": 237.4848721211319,
+   "bridge_max": 16.089725922237665,
+   "p02": 1.9946508701302939,
+   "share_thin": 0.0,
+   "role": "dark"
+  },
+  {
+   "name": "ear_pivot",
+   "count": 1,
+   "valid": true,
+   "solids": 1,
+   "watertight": true,
+   "volume": 5473.900554673458,
+   "size": [
+    26.0,
+    32.25,
+    12.0
+   ],
+   "fits": true,
+   "note": "inner face on the bed",
+   "steep_area": 0.0,
+   "steep_small_area": 0.0,
+   "flat_area": 216.0776519598992,
+   "bridge_max": 16.5,
+   "p02": 1.9972305483251425,
+   "share_thin": 0.0,
+   "role": "dark"
+  },
+  {
+   "name": "cap",
+   "count": 2,
+   "valid": true,
+   "solids": 1,
+   "watertight": true,
+   "volume": 170.819108029561,
+   "size": [
+    11.800000000000011,
+    12.14975759500281,
+    1.6000000000000014
+   ],
+   "fits": true,
+   "note": "outer face on the bed",
+   "steep_area": 0.0,
+   "steep_small_area": 0.0,
+   "flat_area": 0.5852037870310343,
+   "bridge_max": 0.3601389509350298,
+   "p02": 1.179781584004151,
+   "share_thin": 0.07466666666666667,
+   "role": "accent"
+  },
+  {
+   "name": "fit_test",
+   "count": 1,
+   "valid": true,
+   "solids": 1,
+   "watertight": true,
+   "volume": 15883.505307722551,
+   "size": [
+    104.0,
+    56.0,
+    10.0
+   ],
+   "fits": true,
+   "note": "plate on the bed, print first",
+   "steep_area": 0.0,
+   "steep_small_area": 0.0,
+   "flat_area": 0.0,
+   "bridge_max": 0.0,
+   "p02": 1.5999999999999999,
+   "share_thin": 0.0006963788300835655,
+   "role": "body"
+  }
+ ],
+ "estimate": {
+  "tray": {
+   "layer": 0.2,
+   "infill": 15,
+   "pattern": "gyroid",
+   "grams": 140.20550124300124,
+   "minutes": 212.93001358465787
+  },
+  "lid": {
+   "layer": 0.2,
+   "infill": 15,
+   "pattern": "gyroid",
+   "grams": 114.7426214034727,
+   "minutes": 176.1066158193308
+  },
+  "foot": {
+   "layer": 0.2,
+   "infill": 100,
+   "pattern": "concentric",
+   "grams": 0.5121618250943198,
+   "minutes": 1.2527363684513813
+  },
+  "neck_front": {
+   "layer": 0.2,
+   "infill": 25,
+   "pattern": "gyroid",
+   "grams": 28.834284244661927,
+   "minutes": 47.37843069468243
+  },
+  "neck_back": {
+   "layer": 0.2,
+   "infill": 25,
+   "pattern": "gyroid",
+   "grams": 24.879115752411696,
+   "minutes": 39.565425855984266
+  },
+  "head_back": {
+   "layer": 0.2,
+   "infill": 15,
+   "pattern": "gyroid",
+   "grams": 59.52169610038401,
+   "minutes": 89.18044694353911
+  },
+  "head_bezel": {
+   "layer": 0.2,
+   "infill": 15,
+   "pattern": "gyroid",
+   "grams": 46.341043412948224,
+   "minutes": 70.10852941350416
+  },
+  "ear_horn": {
+   "layer": 0.16,
+   "infill": 40,
+   "pattern": "gyroid",
+   "grams": 5.591280265695192,
+   "minutes": 10.717637074801871
+  },
+  "ear_pivot": {
+   "layer": 0.16,
+   "infill": 40,
+   "pattern": "gyroid",
+   "grams": 5.614284207396147,
+   "minutes": 10.751446512927908
+  },
+  "cap": {
+   "layer": 0.12,
+   "infill": 100,
+   "pattern": "concentric",
+   "grams": 0.21523207611724685,
+   "minutes": 0.7496650148695575
+  },
+  "fit_test": {
+   "layer": 0.2,
+   "infill": 15,
+   "pattern": "gyroid",
+   "grams": 20.013216687730413,
+   "minutes": 31.08056538467139
+  }
+ }
+}
