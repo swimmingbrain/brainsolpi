@@ -51,10 +51,15 @@ class Capture(Activity):
         return describe(calib) | {self.which: values}
 
     def finished(self) -> None:
-        if self.ok:
-            self.eng.event("info", f"calibration {self.which} captured, not saved yet")
-        else:
+        if not self.ok:
             self.eng.event("warn", f"calibration {self.which} failed, {self.error}")
+            return
+        weak = weak_names(self.result)
+        if weak:
+            self.eng.event("warn", f"calibration {self.which} captured, but {weak} hardly differ "
+                                   "between dark and bright, not saved yet")
+        else:
+            self.eng.event("info", f"calibration {self.which} captured, not saved yet")
 
 
 class Polarity(Activity):
@@ -126,6 +131,10 @@ def describe(calib: dict) -> dict:
     }
 
 
+def weak_names(report: dict) -> str:
+    return " ".join(n for n, w in zip(("L", "R", "U", "D"), report["weak"]) if w)
+
+
 def set_values(eng: Engine, which: str, values) -> dict:
     if not isinstance(values, (list, tuple)) or len(values) != 4:
         raise ValueError("values must be four numbers")
@@ -138,6 +147,7 @@ def set_values(eng: Engine, which: str, values) -> dict:
     calib[which] = out
     eng.set_calibration(calib, saved=False)
     eng.calib_done.add(which)
+    eng.event("info", f"calibration {which} set by hand, not saved yet")
     return describe(calib)
 
 
@@ -168,7 +178,8 @@ def save(eng: Engine) -> dict:
     eng.settings.save()
     eng.calib_saved = True
     missing = [s for s in MEASURED if s not in eng.calib_done]
-    if first and missing:
+    # only a real board can be off, the defaults of the sim fit it by construction
+    if first and missing and not eng.driver.has_simlight:
         # the defaults came from the simulated phone light, wrong signs would drive the head away
         eng.event("warn", f"calibration saved for the {eng.profile} profile, but {' and '.join(missing)} "
                           "did not run, those parts are still the defaults")
