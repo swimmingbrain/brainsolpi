@@ -16,8 +16,8 @@ KNOWN_VIDS = {0x2341: "Arduino", 0x2A03: "Arduino", 0x1A86: "CH340", 0x0403: "FT
 SKIP = ("/dev/ttyS", "/dev/ttyAMA", "/dev/serial", "/dev/ttyprintk")
 
 
-def candidates() -> list[tuple[str, str]]:
-    # serial ports that could be the board, likely ones first, as (device, description)
+def _scored() -> list[tuple[int, str, str]]:
+    # 0 a known usb serial chip, 1 a usb serial name like ttyACM0, 2 anything else
     try:
         from serial.tools import list_ports
     except ImportError:
@@ -33,7 +33,17 @@ def candidates() -> list[tuple[str, str]]:
         desc = KNOWN_VIDS.get(vid) or p.description or ""
         found.append((score, dev, desc))
     found.sort()
-    return [(dev, desc) for _, dev, desc in found]
+    return found
+
+
+def candidates() -> list[tuple[str, str]]:
+    # serial ports that could be the board, likely ones first, as (device, description)
+    return [(dev, desc) for _, dev, desc in _scored()]
+
+
+def likely_ports() -> list[str]:
+    # only the ports that look like a board, the watch never opens anything else
+    return [dev for score, dev, _ in _scored() if score < 2]
 
 
 def probe(port: str, opener: Callable = open_serial, timeout: float = IDENT_TIMEOUT,
@@ -93,4 +103,46 @@ def find_board(timeout: float = 6.0, opener: Callable = open_serial, ports: list
         return result[0] if result else None
 
 
-__all__ = ["Ident", "candidates", "find_board", "probe"]
+class BoardWatch:
+    # while the sim stands in for a missing board, this looks for one plugged in later. a look
+    # only reads the port list, a port is opened when it shows up and looks like a board
+
+    # a fresh port gets this many looks, the first open can come before the port is ready
+    TRIES = 2
+
+    def __init__(self, lister: Callable[[], list[str]] = likely_ports, opener: Callable = open_serial,
+                 timeout: float = IDENT_TIMEOUT + 1.0):
+        self.lister = lister
+        self.opener = opener
+        self.timeout = timeout
+        self.halt = threading.Event()
+        # ports that are done with until they go away, None before the first look
+        self.seen: set[str] | None = None
+        self.tries: dict[str, int] = {}
+
+    def check(self) -> tuple | None:
+        # one look, returns (port, serial, ident) of a board that answered, its port still open
+        ports = list(self.lister())
+        if self.seen is None:
+            # what is there at the start already had its chance when auto looked for a board
+            self.seen = set(ports)
+            return None
+        # a port that went away and comes back is a new plug
+        self.seen &= set(ports)
+        self.tries = {p: n for p, n in self.tries.items() if p in ports}
+        for port in ports:
+            if port in self.seen or self.halt.is_set():
+                continue
+            got = probe(port, self.opener, self.timeout, self.halt)
+            if got is not None:
+                return got
+            self.tries[port] = self.tries.get(port, 0) + 1
+            if self.tries[port] >= self.TRIES:
+                # another device or a board without the bridge firmware, opening it again
+                # would only reset it, so it stays alone until it is plugged in again
+                del self.tries[port]
+                self.seen.add(port)
+        return None
+
+
+__all__ = ["BoardWatch", "Ident", "candidates", "find_board", "likely_ports", "probe"]
