@@ -69,7 +69,7 @@ install_unit
 sudo systemctl enable --quiet brainsolpi.service
 info "brainsolpi starts at boot"
 
-step "allowing the service to restart itself, reboot and power off without a password"
+step "allowing restart, stop and start of the service, reboot and power off without a password"
 user="$(id -un)"
 case "$user" in
   [![:lower:]_]* | *[![:lower:][:digit:]_-]*)
@@ -81,9 +81,11 @@ rules="$(mktemp)"
 cat >"$rules" <<RULES
 # written by deploy/install.sh of brainsol, removed by deploy/uninstall.sh
 # the admin panel may restart the tracker service, reboot or power off the pi.
-# nothing else runs without a password
-Cmnd_Alias BRAINSOLPI_CMDS = $systemctl_path reboot, $systemctl_path poweroff, $systemctl_path restart brainsolpi, $systemctl_path restart brainsolpi.service
-$user ALL=(root) NOPASSWD: BRAINSOLPI_CMDS
+# brainsolpi flash, doctor and centre and firmware/flash.sh stop the service while they
+# need the board and start it again. nothing else runs without a password
+Cmnd_Alias BRAINSOLPI_POWER = $systemctl_path reboot, $systemctl_path poweroff
+Cmnd_Alias BRAINSOLPI_UNIT = $systemctl_path restart brainsolpi, $systemctl_path restart brainsolpi.service, $systemctl_path stop brainsolpi, $systemctl_path stop brainsolpi.service, $systemctl_path start brainsolpi, $systemctl_path start brainsolpi.service
+$user ALL=(root) NOPASSWD: BRAINSOLPI_POWER, BRAINSOLPI_UNIT
 RULES
 # a broken file in sudoers.d can lock sudo for everyone, so the new rules are checked
 # before they go live. the staging name has a dot in it, sudo never reads such files
