@@ -75,6 +75,21 @@ def test_a_new_servo_centre_zeroes_the_speeds(sim):
     assert (s.engine.motion.vp, s.engine.motion.vt) == (0, 0)
 
 
+def test_the_event_lines_match_the_browser_simulation(sim):
+    s = sim(mode="hold", pose=(25, 40), light={"az": 25, "el": 40})
+    s.run(0.5)
+    # with the lamp on for both captures dark and bright hardly differ
+    run_act(s, calibration.Capture(s.engine, "dark"))
+    run_act(s, calibration.Capture(s.engine, "bright"))
+    calibration.set_values(s.engine, "dark", [200, 200, 200, 200])
+    calibration.save(s.engine)
+    msgs = [m["msg"] for m in s.sink.admin_msgs]
+    assert "calibration bright captured, but L R U D hardly differ between dark and bright, not saved yet" in msgs
+    assert "calibration dark set by hand, not saved yet" in msgs
+    # the defaults of the sim fit, a first save without every step is no warning there
+    assert msgs[-1] == "calibration saved for the sim profile"
+
+
 def test_values_can_be_given_directly(sim):
     s = sim()
     s.run(0.1)
