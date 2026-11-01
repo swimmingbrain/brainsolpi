@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# brings an installed brainsol up to date: git pull, reinstall the package, restart the service
+# brings an installed brainsol up to date: git pull, reinstall the package, fetch the web app,
+# restart the service
 #
 # usage: cd ~/brainsolpi && deploy/update.sh
 set -euo pipefail
@@ -33,6 +34,9 @@ main() {
 
   step "checking the service unit"
   install_unit
+
+  step "updating the web app"
+  install_web
 
   step "restarting the service"
   sudo systemctl restart brainsolpi.service

@@ -196,6 +196,9 @@ else
   info "no board plugged in. plug the uno in later and run: firmware/flash.sh"
 fi
 
+step "web app"
+install_web
+
 step "starting the service"
 sudo systemctl restart brainsolpi.service
 # give it a moment, a crash right at the start shows up as not active
@@ -215,6 +218,9 @@ for ip in $(hostname -I 2>/dev/null || true); do
     *) info "http://$ip:$http_port" ;;
   esac
 done
+if [ ! -f "$repo/web/index.html" ]; then
+  info "without the web app these show a short text page, deploy/web.sh puts the app in place"
+fi
 info ""
 info "the public page https://sol.swimmingbrain.dev needs a tunnel to reach the pi, see deploy/tunnel.md"
 info "live log of the service: journalctl -u brainsolpi -f"

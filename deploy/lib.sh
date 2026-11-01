@@ -111,6 +111,30 @@ install_unit() {
   info "installed $unit_file"
 }
 
+# puts the built web app into web/. a failed download stops nothing, the tracker runs without it
+install_web() {
+  local rc=0
+  "$repo/deploy/web.sh" --no-restart || rc=$?
+  if [ "$rc" = 0 ]; then
+    return 0
+  fi
+  if [ "$rc" = 2 ]; then
+    warn "the web app could not be downloaded, the site may not be published yet or the pi is offline"
+  else
+    warn "the web app could not be put into $repo/web, the lines above say why"
+  fi
+  if [ -f "$repo/web/index.html" ]; then
+    info "the copy from before stays in place and is served as it was"
+    info "try again later with: deploy/web.sh"
+  else
+    info "the tracker works anyway. the hosted page https://sol.swimmingbrain.dev shows it"
+    info "through a tunnel address, see deploy/tunnel.md"
+    info "add the local copy later with: deploy/web.sh"
+    info "or copy a site.zip of the web app to the pi and run: deploy/web.sh site.zip"
+  fi
+  return 0
+}
+
 # installs the package and its dependencies into the venv, editable so a git pull is enough
 install_package() {
   info "installing brainsolpi and its dependencies, this can take a few minutes on a pi 3"
