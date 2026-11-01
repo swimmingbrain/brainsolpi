@@ -209,6 +209,9 @@ else
   warn "brainsolpi does not run, look at the log: journalctl -u brainsolpi -n 50"
 fi
 
+step "power supply"
+check_power
+
 step "done, open one of these addresses in a browser"
 name="$(hostname)"
 info "http://$name.local:$http_port"

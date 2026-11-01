@@ -47,6 +47,9 @@ main() {
     warn "brainsolpi does not run, look at the log: journalctl -u brainsolpi -n 50"
   fi
 
+  step "power supply"
+  check_power
+
   if [ "$before" != "$after" ] && ! git diff --quiet "$before" "$after" -- firmware/brainsol_bridge.hex; then
     step "the bridge firmware changed"
     info "flash it to the uno with: firmware/flash.sh"

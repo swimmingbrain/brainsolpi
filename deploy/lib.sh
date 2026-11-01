@@ -111,6 +111,25 @@ install_unit() {
   info "installed $unit_file"
 }
 
+# the pi powers the uno and both servos through usb, a weak supply shows up here first.
+# vcgencmd get_throttled sets bit 0 for low voltage right now and bit 16 for low voltage since boot
+check_power() {
+  local out
+  local bits
+  command -v vcgencmd >/dev/null 2>&1 || return 0
+  out="$(vcgencmd get_throttled 2>/dev/null || true)"
+  case "$out" in
+    throttled=0x[0-9a-fA-F]*) bits=$((${out#throttled=})) ;;
+    *) return 0 ;;
+  esac
+  if [ $((bits & 0x10001)) -ne 0 ]; then
+    warn "the pi saw low voltage since it started ($out). it powers the uno and both servos through usb,"
+    warn "so it needs the official 5.1 V 2.5 A micro usb supply or a better one, see docs/troubleshooting.md"
+  else
+    info "power: no low voltage seen since the start ($out)"
+  fi
+}
+
 # puts the built web app into web/. a failed download stops nothing, the tracker runs without it
 install_web() {
   local rc=0
