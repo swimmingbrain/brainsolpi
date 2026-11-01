@@ -1,9 +1,13 @@
 # Building the brainSOL tracker
 
-You need the printed parts (see `PRINTING.md`), the Raspberry Pi 3B+ with its power supply, and from the
-kit: the Keyestudio UNO, two servos with their horn bags, four photoresistor modules, the BH1750 module, the
-solar panel, four 3 pin cables, one 4 pin cable, the USB A to B cable, the screws and the two screwdrivers.
-No glue, no soldering, no other tools.
+You need the printed parts (see `PRINTING.md`), the Raspberry Pi 3B+ with the official 5.1 V 2.5 A micro USB
+supply or a better one, and from the kit: the Keyestudio UNO, two servos with their horn bags, four
+photoresistor modules, the BH1750 module, the solar panel, four 3 pin cables, the long 4 pin cable (350 mm),
+the USB A to B cable, the screws and the two screwdrivers. No glue, no soldering, no other tools.
+
+The Pi powers the UNO and both servos through the USB cable, so a weaker supply is the most common cause of
+trouble later, see `docs/troubleshooting.md`. The Pi should already run the tracker service, see
+`docs/setup.md`.
 
 Look at `renders/exploded.png` once before you start. It shows every part in the order you put it together.
 
@@ -54,11 +58,16 @@ The horns must go on while both servos stand in their centre position. Do this b
 spline.
 
 1. Plug the USB B end of the kit cable into the UNO and the A end into the Pi. Plug the pan servo into D9 and
-   the tilt servo into D10, brown on G.
-2. Power the Pi. If the UNO still runs the stock lesson code, run `brainsolpi flash` once. Then run
-   `brainsolpi centre`. Pan goes to 0 and tilt to 90, both at 1500 us.
-3. Wait until both servos stop, switch the Pi off and unplug the servos. From now on do not turn the servo
-   shafts by hand.
+   the tilt servo into D10, brown on G. Set the slide switch on the UNO to 5 V.
+2. Power the Pi and log in. Flash the bridge firmware once with `brainsolpi flash`, unless
+   `deploy/install.sh` already did it. `brainsolpi doctor` then checks the board, the servos and every sensor
+   you plugged in, `docs/first-start.md` shows how to test all of them on the table first. Both commands stop
+   the tracker service while they need the board and start it again at the end.
+3. Run `brainsolpi centre`. Both servos go to 1500 us, that is pan 0 and tilt 90. It asks you to mount the
+   horns now. Here they go on later, in steps 5 and 7, so wait until both servos stop and press Ctrl+C.
+   `centre` stores this pose, so the tracker later starts right there without a jump.
+4. Shut the Pi down with `sudo poweroff`, wait until the green light stops blinking, pull the power plug and
+   unplug the servos. From now on do not turn the servo shafts by hand.
 
 ### 3. Fill the tray
 
@@ -97,8 +106,8 @@ See `renders/neck_open.png`.
    pointing away from the curved slot. The pocket holds it.
 3. From above, set the neck onto the lid: spline into the horn hub, all cables and both leads through the
    curved slot. The neck has to face the front of the lid, the side with the small sun mark. The spline
-   only meshes in steps of about 15 degrees, take the step closest to straight ahead. The software zero
-   step fixes the rest.
+   only meshes in steps of about 15 degrees, take the step closest to straight ahead. The calibration step
+   "Centre the servos" fixes the rest.
 4. Hold the neck and drive the horn screw from below through the horn into the spline. The neck sits on the
    lid and turns with a light drag, it cannot lift off.
 
@@ -150,9 +159,18 @@ See `renders/head_inside.png`.
 
 ### 10. First run
 
-1. Plug the power supply into the Pi. The tracker starts in park, panel flat.
-2. In the admin mode of the web app run the calibration: dark, bright, zero, polarity, save.
-3. Turn the head by hand only when the servos are detached.
+1. Plug the power supply into the Pi. After about a minute the tracker service runs. It starts in `hold`,
+   because no calibration is saved for this board yet. `brainsolpi centre` stored the centre pose in step 2,
+   so the servos hold the head right there, panel flat and facing forward. Without that pose no pulse goes
+   out at all until a calibration step or a mode moves the head.
+2. Open `http://brainsol.local:8080`, click the lock icon in the top bar and unlock the admin tools with the
+   pin.
+3. In the Calibrate tab go through "Step by step" in order: Capture dark, Capture bright, Store as centre,
+   Find directions, Save calibration. `docs/first-start.md` explains each step.
+4. After the save the hold ends and the tracker follows the light in auto.
+
+The servos hold their last pulse as long as the UNO has power, also while the service is stopped. Turn the
+head by hand only with the power plug of the Pi pulled out.
 
 ## Taking it apart
 
