@@ -138,14 +138,24 @@ if ! systemctl is-active --quiet avahi-daemon; then
 fi
 
 step "admin pin"
-if [ ! -t 0 ]; then
-  info "no terminal to type into, set the pin later with: $venv/bin/brainsolpi setpin"
+# the package itself knows whether a pin is stored, a config folder alone says nothing
+if "$venv/bin/brainsolpi" setpin --check >/dev/null 2>&1; then
+  has_pin=1
 else
-  if [ -d "$HOME/.config/brainsolpi" ]; then
-    question="change the admin pin?"
+  has_pin=0
+fi
+if [ ! -t 0 ]; then
+  if [ "$has_pin" = 1 ]; then
+    info "an admin pin is set, change it later with: $venv/bin/brainsolpi setpin"
+  else
+    info "no terminal to type into, set the pin later with: $venv/bin/brainsolpi setpin"
+  fi
+else
+  if [ "$has_pin" = 1 ]; then
+    question="an admin pin is set. change it?"
     default=n
   else
-    question="set the admin pin now?"
+    question="no admin pin is set yet. set it now?"
     default=y
   fi
   if ask "$question" "$default"; then
