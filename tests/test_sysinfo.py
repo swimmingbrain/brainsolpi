@@ -42,3 +42,27 @@ def test_missing_files_give_none(tmp_path, monkeypatch):
     s = SysInfo()
     s._win = None
     assert s.sample() == {"cpu": None, "temp": None, "mem": None}
+
+
+def test_low_voltage_reads_the_throttled_bits_of_the_pi(monkeypatch):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(sysinfo.shutil, "which", lambda name: None)
+    assert sysinfo.low_voltage() is None
+    monkeypatch.setattr(sysinfo.shutil, "which", lambda name: "/usr/bin/vcgencmd")
+
+    def answer(text):
+        return lambda cmd, **kw: SimpleNamespace(stdout=text)
+
+    assert sysinfo.low_voltage(answer("throttled=0x0\n")) is False
+    # low voltage right now, and low voltage at some point since boot, both count
+    assert sysinfo.low_voltage(answer("throttled=0x50005\n")) is True
+    assert sysinfo.low_voltage(answer("throttled=0x50000\n")) is True
+    # only throttling from heat is no power problem
+    assert sysinfo.low_voltage(answer("throttled=0x80008\n")) is False
+    assert sysinfo.low_voltage(answer("error=2 error_msg=\"no such command\"\n")) is None
+
+    def broken(cmd, **kw):
+        raise OSError("vcgencmd failed")
+
+    assert sysinfo.low_voltage(broken) is None

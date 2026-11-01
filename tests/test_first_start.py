@@ -260,3 +260,24 @@ def test_a_fresh_fake_board_gets_no_pulse_until_a_mode_is_picked():
     finally:
         d.stop_sync()
         board.close()
+
+
+def test_the_doctor_puts_a_weak_supply_first_and_says_so_at_the_start(tmp_path, monkeypatch):
+    from brainsolpi import doctor, service
+
+    monkeypatch.setattr(service, "installed", lambda: True)
+    monkeypatch.setattr(doctor, "address", lambda: "http://brainsol.local:8080")
+    lines = []
+    doc = doctor.Doctor(config_dir=tmp_path, out=lambda *a, **k: lines.append(" ".join(map(str, a))),
+                        live=False, power=lambda: True)
+    doc.check_power()
+    assert any("low voltage" in line and "5.1 V 2.5 A" in line for line in lines)
+    doc.results = list(ALL_OK)
+    steps = doc.next_steps()
+    assert "5.1 V 2.5 A" in steps[0] and steps[1] == "set the admin pin with: brainsolpi setpin"
+    # a good supply or a computer that is no pi adds nothing
+    for answer in (False, None):
+        doc = doctor.Doctor(config_dir=tmp_path, out=lambda *a, **k: None, live=False, power=lambda: answer)
+        doc.check_power()
+        doc.results = list(ALL_OK)
+        assert doc.next_steps()[0] == "set the admin pin with: brainsolpi setpin"
