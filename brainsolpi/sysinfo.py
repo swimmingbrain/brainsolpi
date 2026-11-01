@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
+from typing import Callable
 
 THERMAL = Path("/sys/class/thermal/thermal_zone0/temp")
 PROC_STAT = Path("/proc/stat")
 MEMINFO = Path("/proc/meminfo")
+# bits of vcgencmd get_throttled: low voltage right now, and low voltage at some point since boot
+LOW_NOW = 0x1
+LOW_SINCE_BOOT = 0x10000
 
 
 def _read(path: Path) -> str | None:
@@ -13,6 +20,20 @@ def _read(path: Path) -> str | None:
         return path.read_text(encoding="utf-8")
     except OSError:
         return None
+
+
+def low_voltage(run: Callable = subprocess.run) -> bool | None:
+    # the pi itself notices when its 5 V input sags below about 4.63 V, None off a pi
+    if shutil.which("vcgencmd") is None:
+        return None
+    try:
+        out = run(["vcgencmd", "get_throttled"], capture_output=True, text=True, timeout=3).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    m = re.search(r"throttled=(0x[0-9a-fA-F]+)", out or "")
+    if m is None:
+        return None
+    return bool(int(m.group(1), 16) & (LOW_NOW | LOW_SINCE_BOOT))
 
 
 class SysInfo:
