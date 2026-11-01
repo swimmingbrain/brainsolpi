@@ -321,8 +321,8 @@ class BridgeDriver(Driver):
         self._rebooted = True
         self.event(
             "warn",
-            "the board restarted by itself, if that happens while the servos move "
-            "give them their own 5 V supply with a common ground",
+            "the board restarted by itself, if that happens while the servos move the supply of the pi "
+            "sags, it needs the official 5.1 V 2.5 A micro usb supply or a better one",
         )
 
 
