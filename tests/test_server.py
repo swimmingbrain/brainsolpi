@@ -93,6 +93,7 @@ async def test_http_endpoints(tmp_path):
         assert "not installed" in text
         # the folder it looks in and the way the hosted page gets here
         assert "web" in text and "tunnel" in text and "/api/info" in text
+        assert "deploy/web.sh" in text
 
 
 async def test_websocket_session(tmp_path):
