@@ -96,10 +96,17 @@ are plain decimal: an optional minus and 1 to 9 digits, no spaces. A line that i
 understood changes nothing.
 
 Opening the serial port resets the UNO. The Pi waits for the `I` line, up to 5 s, before it
-sends anything. If the port was already open and no `I` line comes, send `?`. A line that is
-cut in half (for example by a Pi program that died in the middle of a write) is answered with an
-`E,1` line, and the next full line works again. Sending a lone `\n` first is a cheap way to
-start clean.
+sends anything. If the port was already open and no `I` line comes, send `?`.
+
+A line can be cut in half, for example by a Pi program that died in the middle of a write. The
+half stays in the board and the next line you send is glued to it. To start clean, send `?` and
+wait for the `I` line. If a half line was waiting, the glued line is never a valid command, the
+board answers with an `E` line and changes nothing. Then send `?` once more, the `I` line comes
+and the board is clean. The bridge driver of the Pi does exactly this.
+
+Never send a lone `\n` to start clean. It finishes the half line, and a half line can be a valid
+command of its own: `M,1500,15` cut from `M,1500,1500` sends the tilt servo to the end of its
+range.
 
 ## Flash it from the Pi
 
