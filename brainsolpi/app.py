@@ -150,6 +150,8 @@ async def serve(args) -> int:
     web_dir = Path(args.web) if args.web else paths.default_web()
     if web_dir is not None and not (web_dir / "index.html").is_file():
         log.warning("no index.html in %s, the web app is not served from here", web_dir)
+    elif web_dir is None and paths.repo_root() is not None and not getattr(args, "demo", False):
+        log.info("no web app in %s, deploy/web.sh puts it there", paths.repo_root() / "web")
     app = make_app(engine, hub, auth, commands, web_dir)
     runner = web.AppRunner(app, access_log=None, handle_signals=False)
     await runner.setup()
