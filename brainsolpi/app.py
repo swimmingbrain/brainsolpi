@@ -16,7 +16,7 @@ from .commands import Commands
 from .config import Settings
 from .drivers.base import Driver
 from .drivers.bridge import BridgeDriver
-from .drivers.detect import candidates, find_board
+from .drivers.detect import BoardWatch, candidates, find_board, likely_ports
 from .drivers.fakeboard import FakeBoard
 from .drivers.sim import SimDriver
 from .engine import Engine
@@ -63,6 +63,49 @@ async def open_driver(args, settings: Settings) -> Driver:
         return BridgeDriver(port, initial=found, rate=rate, slew=slew)
     log.warning("no board answered within %.0f s, falling back to the sim driver", AUTO_WAIT_S)
     return SimDriver(rate=rate)
+
+
+BOARD_WATCH_S = 3.0
+
+
+def board_watch(args) -> BoardWatch:
+    if not args.port:
+        return BoardWatch()
+    # with a port given only that one counts, a /dev/serial/by-id link is not in the list
+    port = args.port
+    return BoardWatch(lister=lambda: [port] if port in likely_ports() or os.path.exists(port) else [])
+
+
+async def _watch_board(watch: BoardWatch, engine: Engine, stop: asyncio.Event, after: dict,
+                       can_restart: bool, every: float = BOARD_WATCH_S) -> None:
+    # auto started the sim because no board answered, a board plugged in later takes over
+    loop = asyncio.get_running_loop()
+    try:
+        while not stop.is_set():
+            await asyncio.sleep(every)
+            found = await loop.run_in_executor(None, watch.check)
+            if found is None:
+                continue
+            port, ser, ident = found
+            # the new process opens it again, nothing may hold it meanwhile
+            try:
+                ser.close()
+            except Exception:
+                pass
+            if can_restart:
+                engine.event("info", f"a board answered on {port}, firmware {ident.fw}, restarting with the bridge driver")
+                after["action"] = "restart"
+                stop.set()
+            else:
+                engine.event(
+                    "info",
+                    f"a board answered on {port}, firmware {ident.fw}. stop this run with ctrl c and start "
+                    "it again to use the board, the sim goes on until then",
+                )
+            return
+    finally:
+        # a probe still running in its thread gives up at once
+        watch.halt.set()
 
 
 PIN_WATCH_S = 3.0
@@ -178,6 +221,15 @@ async def serve(args) -> int:
     watch_task = None
     if not args.pin:
         watch_task = asyncio.create_task(_watch_pin(settings, auth, hub, engine))
+    board_task = None
+    if args.driver == "auto" and isinstance(driver, SimDriver):
+        # the in place restart only exists on linux, elsewhere the log says what to do
+        can_restart = os.name == "posix"
+        engine.event(
+            "info",
+            f"the sim runs until a board shows up, the tracker looks for one every {BOARD_WATCH_S:.0f} s",
+        )
+        board_task = asyncio.create_task(_watch_board(board_watch(args), engine, stop, after, can_restart))
     try:
         await asyncio.wait({loop_task, stop_task}, return_when=asyncio.FIRST_COMPLETED)
         stop.set()
@@ -190,6 +242,8 @@ async def serve(args) -> int:
         stop_task.cancel()
         if watch_task is not None:
             watch_task.cancel()
+        if board_task is not None:
+            board_task.cancel()
         await hub.close_all()
         await runner.cleanup()
         await driver.stop()
