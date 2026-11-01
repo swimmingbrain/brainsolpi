@@ -49,6 +49,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("setpin", help="set the admin pin")
     sp.add_argument("--config-dir", help="folder for settings.json")
+    sp.add_argument("--check", action="store_true",
+                    help="only tell whether a pin is set, exit code 0 when one is set and 1 when not")
 
     ce = sub.add_parser("centre", help="hold both servos at 1500 us while mounting the horns")
     ce.add_argument("--port", help="serial port of the board")

@@ -11,6 +11,7 @@ from pathlib import Path
 from . import paths, service
 from .auth import hash_pin, pin_problem
 from .config import Settings
+from .jsonio import read_json
 from .kinematics import ServoMap
 from .state import StateStore
 
@@ -24,8 +25,20 @@ def _cfg_dir(args) -> Path:
 # setpin
 
 
+def has_pin(cfg_dir: Path) -> bool:
+    # read only, a check must not write the default settings of a fresh pi
+    return bool(Settings(None, read_json(cfg_dir / "settings.json")).pin_hash)
+
+
 def setpin(args, ask=getpass.getpass) -> int:
     path = _cfg_dir(args) / "settings.json"
+    if getattr(args, "check", False):
+        # the install script asks by the exit code whether a pin is there
+        if has_pin(_cfg_dir(args)):
+            print(f"an admin pin is set in {path}")
+            return 0
+        print("no admin pin is set yet, set one with: brainsolpi setpin")
+        return 1
     try:
         pin = ask("new admin pin: ")
         again = ask("the same pin again: ")
