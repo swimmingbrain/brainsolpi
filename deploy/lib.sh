@@ -5,6 +5,9 @@
 # the repo root is the folder above deploy/
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 venv="$repo/.venv"
+# raspberry pi os puts ~/.local/bin on the path at login when the folder exists
+# shellcheck disable=SC2034
+command_link="$HOME/.local/bin/brainsolpi"
 unit_file=/etc/systemd/system/brainsolpi.service
 # these two are used by the scripts that source this file
 # shellcheck disable=SC2034

@@ -56,6 +56,15 @@ else
 fi
 install_package
 
+step "putting the brainsolpi command on the path"
+if [ -e "$command_link" ] && [ ! -L "$command_link" ]; then
+  warn "$command_link is a file of something else, left alone. use $venv/bin/brainsolpi instead"
+else
+  mkdir -p "$(dirname "$command_link")"
+  ln -sfn "$venv/bin/brainsolpi" "$command_link"
+  info "linked $command_link, after the next login brainsolpi works as a command"
+fi
+
 step "giving $(id -un) access to the serial port"
 if in_group_saved dialout; then
   info "already in the dialout group"
@@ -212,3 +221,7 @@ info "live log of the service: journalctl -u brainsolpi -f"
 if ! in_group_now dialout; then
   info "log out and in once, then your own terminal may use the serial port too"
 fi
+case ":$PATH:" in
+  *":$(dirname "$command_link"):"*) ;;
+  *) info "after the next login brainsolpi works as a command, until then use $venv/bin/brainsolpi" ;;
+esac

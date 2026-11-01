@@ -33,6 +33,15 @@ else
   info "none installed"
 fi
 
+step "brainsolpi command"
+# only our own link goes, a brainsolpi from somewhere else stays
+if [ -L "$command_link" ] && [ "$(readlink "$command_link")" = "$venv/bin/brainsolpi" ]; then
+  rm -f "$command_link"
+  info "removed $command_link"
+else
+  info "no link of ours in $(dirname "$command_link")"
+fi
+
 step "python environment"
 case "$venv" in
   */.venv) ;;
