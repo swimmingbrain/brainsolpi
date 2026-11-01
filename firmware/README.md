@@ -196,9 +196,13 @@ check what only real hardware shows, see the list below.
 
 ## Things to keep in mind on the real hardware
 
-- Two 9 g servos can pull close to an ampere each when they stall. Through the UNO they draw
-  from the USB port of the Pi. If the board resets when the servos move (a new `I` line shows up),
-  give the servos their own 5 V supply with a common ground.
+- The Pi powers the UNO and both servos through the USB cable, there is no second supply. That
+  needs the official 5.1 V 2.5 A micro USB supply of the Pi 3B+ or a better one. A 9 g servo draws
+  a few hundred mA while it moves and up to 850 mA when it stalls. The tracker keeps that low: the
+  Pi caps speed and acceleration, the board moves a pulse by at most 30 us every 10 ms, so a servo
+  never gets a big jump, and the soft limits stop the head 2 degrees before the ends of its range.
+  If the board still resets when the servos move (a new `I` line shows up) or the Pi reports low
+  voltage, the supply is too weak, see `docs/troubleshooting.md`.
 - While the bootloader runs after a reset (about one second) the servo pins float. Most servos
   ignore that, a 10 kilo ohm resistor from each signal line to ground makes it certain.
 - The servo pulses come from a timer interrupt. Serial and I2C interrupts can delay a pulse edge
