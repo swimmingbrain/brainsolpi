@@ -49,7 +49,7 @@ def open_serial(port: str):
     import serial
 
     # linux lets a second program open the same port and both would read half the lines,
-    # the lock makes the second one fail with a clear error instead. windows does that anyway
+    # the lock makes the second one fail with a clear error instead, windows does that anyway
     extra = {"exclusive": True} if os.name == "posix" else {}
     return serial.Serial(port, BAUD, timeout=READ_TIMEOUT, write_timeout=0.5, **extra)
 

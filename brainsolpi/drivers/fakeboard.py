@@ -123,7 +123,7 @@ class FakeBoard:
         self.skip_every = 0
         # sensors with a finger on them, by index L R U D, the doctor uses this in its demo
         self.covered: set[int] = set()
-        # where the head sits, pan and tilt. before the first pulse a real one may sit anywhere,
+        # where the head sits, pan and tilt, before the first pulse a real one may sit anywhere,
         # a detached head stays where it went limp
         self.head = rest
         self._thread: threading.Thread | None = None
@@ -266,7 +266,7 @@ class FakeBoard:
             self.last_move = now
             self.watchdog = False
             if not self.attached:
-                # attach right at the commanded pulse, after boot and after a detach. the servo
+                # attach right at the commanded pulse, after boot and after a detach, the servo
                 # itself gets there at its own full speed from wherever the head was
                 if self.first_move is None:
                     self.first_move = (self.pan_target, self.tilt_target)

@@ -31,7 +31,7 @@ class StateStore:
         self.path = path
         self.pan = 0.0
         self.tilt = 90.0
-        # true once the servos really were at this pose, the tracker or brainsolpi centre sent it.
+        # true once the servos really were at this pose, the tracker or brainsolpi centre sent it,
         # setpin also writes this file and must not make up a pose
         self.known = False
         self.mode = "auto"

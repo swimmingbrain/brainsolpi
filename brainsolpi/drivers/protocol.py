@@ -184,7 +184,7 @@ class LineReader:
             return None
 
 
-# the board side of the protocol, for the fake board. it follows handle_line in the sketch
+# the board side of the protocol, for the fake board, it follows handle_line in the sketch
 # check by check, so the fake answers every line the way the real board does
 
 # fields of each command, the letter included
@@ -201,8 +201,8 @@ def _board_number(text: str) -> int | None:
 
 
 def parse_command(line: str) -> tuple:
-    # a good line gives the upper case letter and its values, a bad one ("E", 1, text).
-    # R and L come back as sent, the board clamps them. the ping number stays text
+    # a good line gives the upper case letter and its values, a bad one ("E", 1, text),
+    # R and L come back as sent, the board clamps them, the ping number stays text
     fields = line.split(",")
     if len(fields[0]) != 1:
         return ("E", 1, "unknown command")
@@ -229,7 +229,7 @@ def parse_command(line: str) -> tuple:
 
 class CommandReader:
     # the line buffer of the sketch: a \r is skipped wherever it sits, the 97th character makes
-    # the line too long, a byte that is not printable ascii spoils it, empty lines are ignored.
+    # the line too long, a byte that is not printable ascii spoils it, empty lines are ignored,
     # feed gives the finished lines and, for spoiled ones, the error line the board sends
 
     def __init__(self, limit: int = MAX_LINE):

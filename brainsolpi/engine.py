@@ -134,7 +134,7 @@ class Engine:
         # the first command goes out at the saved pose so the head does not jump
         self.motion = Motion(clamp(state.pan, *lp), clamp(state.tilt, *lt))
         self.mode: Mode = make_mode(state.mode if state.mode in MODES else "auto")
-        # a real board starts gently. its calibration came from the simulated phone light and
+        # a real board starts gently, its calibration came from the simulated phone light and
         # may not fit the real sensors, so without a saved one it holds, and without a pose
         # that was really driven nobody knows where the head sits, so it holds as well
         real = not driver.has_simlight
@@ -373,7 +373,7 @@ class Engine:
 
     def _servos_on(self) -> None:
         # the first pulse after power up goes out at full servo speed, nothing can slew it from
-        # an unknown pose. the centre is where brainsolpi centre left the horns
+        # an unknown pose, the centre is where brainsolpi centre left the horns
         self.servos_off = False
         m = self.motion
         pu, tu = self.pan_map.to_us(m.pan), self.tilt_map.to_us(m.tilt)
