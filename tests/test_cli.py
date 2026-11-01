@@ -72,6 +72,23 @@ def test_setpin_stores_a_hash_and_ends_old_sessions(tmp_path):
     assert json.loads((tmp_path / "state.json").read_text(encoding="utf-8"))["tokens"] == []
 
 
+def test_setpin_check_answers_by_exit_code_and_writes_nothing(tmp_path, capsys):
+    from brainsolpi import cli
+
+    args = ["setpin", "--check", "--config-dir", str(tmp_path)]
+    assert cli.main(args) == 1
+    assert "no admin pin" in capsys.readouterr().out
+    # a fresh pi keeps its config folder empty until something really sets up a pin
+    assert list(tmp_path.iterdir()) == []
+    assert tools.setpin(SimpleNamespace(config_dir=str(tmp_path)), ask=answers("2468", "2468")) == 0
+    capsys.readouterr()
+    assert cli.main(args) == 0
+    assert "an admin pin is set" in capsys.readouterr().out
+    # a settings file without a pin, like the service writes it on its first start
+    (tmp_path / "settings.json").write_text(json.dumps({"name": "brainsol"}), encoding="utf-8")
+    assert cli.main(args) == 1
+
+
 def test_flash_explains_a_missing_avrdude(monkeypatch, capsys):
     monkeypatch.setattr(tools.shutil, "which", lambda name: None)
     assert tools.flash(SimpleNamespace(port="COM3", hex=None)) == 1
