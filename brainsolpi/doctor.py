@@ -16,7 +16,13 @@ from .drivers.protocol import FLAG_ATTACHED, RAW_MAX
 from .jsonio import read_json
 from .kinematics import ServoMap
 from .state import StateStore
+from .sysinfo import low_voltage
 from .tools import BUSY_HINT
+
+POWER_NOTE = ("the pi reports low voltage since it started. it powers the uno and both servos "
+              "through usb, so it needs the official 5.1 V 2.5 A micro usb supply or a better one")
+POWER_STEP = ("use the official 5.1 V 2.5 A micro usb supply or a better one with a short cable, "
+              "a phone charger or a pc port sags when the servos move, then reboot the pi")
 
 NAMES = ("L", "R", "U", "D")
 WHERE = {"L": "left", "R": "right", "U": "top", "D": "bottom"}
@@ -44,6 +50,7 @@ class Doctor:
         config_dir: Path | None = None,
         live: bool = True,
         quick: bool = False,
+        power: Callable[[], bool | None] = low_voltage,
     ):
         self.port = port
         self.fake = fake
@@ -59,6 +66,9 @@ class Doctor:
         self.paused = None if fake else service.Paused("the doctor checks the board", out=self.out)
         self.drv: BridgeDriver | None = None
         self.results: list[tuple[str, bool | None, str]] = []
+        self.power = power
+        # true when the pi saw its supply sag, None when nobody asked or it cannot tell
+        self.low_voltage: bool | None = None
 
     # helpers
 
@@ -256,7 +266,7 @@ class Doctor:
         go(pan, tilt, 5)
         moved = self.confirm("  did both servos move a little and come back?", True)
         if not moved:
-            self.out("  check the servo cables on D9 and D10, brown is ground, and the 5 V supply")
+            self.out("  check the servo cables on D9 and D10, brown on G, and that the slide switch of the board stands on 5 V")
         elif not self.fake:
             # the head now really sits here, the tracker starts from this pose without a jump
             st.pan, st.tilt, st.known = pan, tilt, True
@@ -273,6 +283,8 @@ class Doctor:
             ("servos", self.step_servos),
         ]
         self.out("brainSOL doctor, a step by step check of the board, the sensors and the servos")
+        if not self.fake:
+            self.check_power()
         try:
             with self.paused or contextlib.nullcontext():
                 try:
@@ -301,8 +313,21 @@ class Doctor:
             self.out(f"  {i}. {step}")
         return 0 if all(ok is not False for _, ok, _ in self.results) else 1
 
+    def check_power(self) -> None:
+        # the pi feeds the uno and both servos through usb, a weak supply shows here first
+        self.low_voltage = self.power()
+        if self.low_voltage:
+            self.out(f"  warning: {POWER_NOTE}")
+
     def next_steps(self) -> list[str]:
         # what to do now, as exact as the results allow, the first failure comes first
+        steps = self._next_steps()
+        if self.low_voltage and not self.fake:
+            # a sagging supply explains resets and jitter, so it goes before everything else
+            steps.insert(0, POWER_STEP)
+        return steps
+
+    def _next_steps(self) -> list[str]:
         ok = {title: (good, note) for title, good, note in self.results}
         again = "then run brainsolpi doctor again"
         if self.fake:
@@ -324,7 +349,7 @@ class Doctor:
         if ok.get("light sensors", (True, ""))[0] is False:
             steps.append("fix the sensor cables as step 4 says")
         if ok.get("servos", (True, ""))[0] is False:
-            steps.append("check the servo cables on D9 and D10 and the 5 V supply")
+            steps.append("check the servo cables on D9 and D10, brown on G, and that the slide switch stands on 5 V")
         if steps:
             return steps + [again]
         skipped = [t for t, (good, _) in ok.items() if good is None]
