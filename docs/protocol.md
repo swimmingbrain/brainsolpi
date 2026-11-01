@@ -92,7 +92,8 @@ ignored.
 - An `E,1` in the first 2 s after a connect is a half line left over from before and is ignored.
 - On Linux the port is locked while the Pi has it open, so a second program cannot read half the
   lines. `brainsolpi flash`, `doctor` and `centre` stop the `brainsolpi` service while they need the
-  board and start it again afterwards, sudo may ask for the password for that.
+  board and start it again afterwards. The sudo rules of `deploy/install.sh` allow that without a
+  password.
 
 ## Pi and browsers
 

@@ -119,9 +119,10 @@ firmware/flash.sh
 
 The script finds the port by itself (`/dev/serial/by-id`, then `/dev/ttyACM*`, then
 `/dev/ttyUSB*`). Give it a port if you have more than one board: `firmware/flash.sh /dev/ttyACM1`.
-It stops the `brainsolpi` service while it flashes and starts it again afterwards, so sudo may ask
-for your password. At the end it waits for the identity line and prints it. The Python package
-has `brainsolpi flash` for the same job.
+It stops the `brainsolpi` service while it flashes and starts it again afterwards. The sudo rules
+that `deploy/install.sh` writes allow that without a password, without them sudo asks for it. At
+the end it waits for the identity line and prints it. The Python package has `brainsolpi flash`
+for the same job.
 
 It needs `avrdude` (`sudo apt install avrdude`) and the user in the `dialout` group.
 
