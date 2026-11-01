@@ -7,9 +7,10 @@ just drop them on the plate. The STEP files in `export/step/` have the same orie
 
 ## Print the fit test first
 
-`export/stl/fit_test.stl` plus one `cap.stl` take about twenty minutes. Check them with the real parts before
-you start the big prints, see `MEASURE.md`. If something is too tight or too loose, change the value in
-`cad/params.py`, run `uv run build.py` and print the test again.
+`export/stl/fit_test.stl` plus one `cap.stl` take about half an hour by the estimate below. Check them with the
+real parts before you start the big prints, see `MEASURE.md`. If something is too tight or too loose, change
+the value in `cad/params.py`, run `uv run build.py` (`MEASURE.md` says where its environment should go) and
+print the test again.
 
 ## Colours
 

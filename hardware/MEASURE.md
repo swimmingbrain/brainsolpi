@@ -6,7 +6,7 @@ to one decimal.
 
 ## Order
 
-1. Print `export/stl/fit_test.stl` and one `cap.stl` (about twenty minutes).
+1. Print `export/stl/fit_test.stl` and one `cap.stl` (about half an hour by the estimate in `PRINTING.md`).
 2. Measure the parts below and check them against the fit test.
 3. Change `cad/params.py`, run `uv run build.py`, read `reports/checks.md`.
 4. Reprint only the parts named in the last column.
@@ -38,6 +38,19 @@ to one decimal.
 | pi pin | the Pi slides onto the printed pin without force and does not wobble | `PI_PIN_D` | 2.45 | tray |
 | cap | the cap presses in and stays, the screwdriver tip gets it out | `CAP_D` | 12.0 | both ears, or only the cap |
 
+## The panel size in the tracker
+
+The size of the solar panel is not documented by Keyestudio, 125 x 85 x 2.5 mm is an estimate from the photos.
+The tracker uses the size too: without an INA219 it estimates the panel power from the light and the panel
+area. Once you measured the panel, put the same width and height in millimetres into `panel` in
+`~/.config/brainsolpi/settings.json` on the Pi. Stop the service first, it writes that file while it runs:
+
+```
+sudo systemctl stop brainsolpi
+nano ~/.config/brainsolpi/settings.json
+sudo systemctl start brainsolpi
+```
+
 ## Things the fit test answers
 
 - Servo frame: the servo drops in with its spline up and the tabs sit in the notches. If it is tight, raise
@@ -59,8 +72,9 @@ Inside `hardware/` run `uv run build.py`. It rebuilds every part, runs the check
 renders and uses a coarser sweep, good for trying a value. The exit code is 1 when a check fails, the reason
 is at the top of `reports/checks.md`.
 
-This folder sits in a synced cloud folder. uv puts its virtual environment into `hardware/.venv`, almost a
-gigabyte of small files, and the sync client chokes on it. Keep the environment outside the synced folder:
+uv puts its virtual environment into `hardware/.venv`, almost a gigabyte of small files. When the repo sits in
+a synced cloud folder (Nextcloud, OneDrive, Dropbox), the sync client chokes on it and even git stalls. Keep
+the environment outside the synced folder, in PowerShell on Windows like this:
 
 ```
 $env:UV_PROJECT_ENVIRONMENT = "$env:LOCALAPPDATA\brainsol-hw-venv"
