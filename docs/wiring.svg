@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="640" viewBox="0 0 960 640" font-family="Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+  <title>brainSOL wiring: wall plug, Raspberry Pi, Keyestudio UNO, four photoresistors, BH1750, optional INA219 and two servos</title>
+  <defs>
+    <style>
+      .box { fill: #19191c; stroke: #2e2e33; stroke-width: 1; }
+      .opt { fill: #19191c; stroke: #85858e; stroke-width: 1; stroke-dasharray: 4 3; }
+      .name { fill: #d4d4d8; font-size: 14px; }
+      .note { fill: #a1a1aa; font-size: 12px; }
+      .muted { fill: #85858e; font-size: 11px; }
+      .mono { font-family: JetBrains Mono, ui-monospace, SFMono-Regular, Consolas, monospace; }
+      .pin { fill: #d4d4d8; font-size: 12px; }
+      .tag { fill: #85858e; font-size: 10px; }
+      .cu { fill: #d19a66; }
+      .sig { stroke: #a1a1aa; stroke-width: 1.5; fill: none; }
+      .pwr { stroke: #d19a66; stroke-width: 1.5; fill: none; }
+      .dash { stroke-dasharray: 4 3; }
+      .dot { fill: #2a2a2e; stroke: #85858e; stroke-width: 1; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="960" height="640" fill="#111113"/>
+
+  <text x="32" y="40" class="name" style="font-size: 18px">brainSOL wiring</text>
+  <text x="32" y="62" class="note">the pins of the stock kit, left and right always seen from behind the tracker</text>
+
+  <!-- power in -->
+  <rect x="32" y="96" width="176" height="64" rx="3" class="box"/>
+  <text x="48" y="122" class="name">Wall plug</text>
+  <text x="48" y="142" class="note">5.1 V 2.5 A micro USB</text>
+
+  <path d="M120 160 V232" class="pwr"/>
+  <text x="130" y="200" class="mono tag cu">micro USB, 5 V</text>
+
+  <rect x="32" y="232" width="176" height="120" rx="3" class="box"/>
+  <text x="48" y="258" class="name">Raspberry Pi 3B+</text>
+  <text x="48" y="280" class="note">control loop at 50 Hz</text>
+  <text x="48" y="298" class="note">web server on port 8080</text>
+  <text x="48" y="336" class="mono muted">USB A port</text>
+
+  <path d="M208 320 H352" class="pwr"/>
+  <text x="220" y="310" class="mono tag cu">USB A to B</text>
+  <text x="220" y="338" class="muted">power and data</text>
+
+  <!-- the board -->
+  <rect x="352" y="96" width="240" height="480" rx="3" class="box"/>
+  <text x="372" y="124" class="name">Keyestudio UNO</text>
+  <text x="372" y="144" class="note">bridge firmware, 115200 baud</text>
+
+  <rect x="344" y="306" width="16" height="28" rx="2" fill="#212124" stroke="#d19a66"/>
+  <text x="372" y="324" class="mono muted">USB B</text>
+
+  <rect x="372" y="176" width="44" height="18" rx="2" fill="#212124" stroke="#2e2e33"/>
+  <rect x="396" y="179" width="17" height="12" rx="1" fill="#d19a66"/>
+  <text x="372" y="210" class="mono tag">3.3</text>
+  <text x="400" y="210" class="mono tag cu">5 V</text>
+  <text x="426" y="190" class="note">slide switch on 5 V</text>
+
+  <text x="372" y="404" class="muted">every pin has its own</text>
+  <text x="372" y="420" class="muted">header in the order G V S</text>
+
+  <!-- pin order of the 3 pin headers -->
+  <text x="595" y="128" class="mono tag">G</text>
+  <text x="607" y="128" class="mono tag">V</text>
+  <text x="619" y="128" class="mono tag">S</text>
+
+  <g class="mono pin" text-anchor="end">
+    <text x="584" y="156">A0</text>
+    <text x="584" y="204">A1</text>
+    <text x="584" y="252">A2</text>
+    <text x="584" y="300">A3</text>
+    <text x="584" y="372">I2C</text>
+    <text x="584" y="484">D9</text>
+    <text x="584" y="532">D10</text>
+  </g>
+
+  <g>
+    <circle cx="598" cy="152" r="3" class="dot"/><circle cx="610" cy="152" r="3" class="dot"/><circle cx="622" cy="152" r="3" class="dot"/>
+    <circle cx="598" cy="200" r="3" class="dot"/><circle cx="610" cy="200" r="3" class="dot"/><circle cx="622" cy="200" r="3" class="dot"/>
+    <circle cx="598" cy="248" r="3" class="dot"/><circle cx="610" cy="248" r="3" class="dot"/><circle cx="622" cy="248" r="3" class="dot"/>
+    <circle cx="598" cy="296" r="3" class="dot"/><circle cx="610" cy="296" r="3" class="dot"/><circle cx="622" cy="296" r="3" class="dot"/>
+    <circle cx="598" cy="368" r="3" class="dot"/><circle cx="610" cy="368" r="3" class="dot"/><circle cx="622" cy="368" r="3" class="dot"/><circle cx="634" cy="368" r="3" class="dot"/>
+    <circle cx="598" cy="480" r="3" class="dot"/><circle cx="610" cy="480" r="3" class="dot"/><circle cx="622" cy="480" r="3" class="dot"/>
+    <circle cx="598" cy="528" r="3" class="dot"/><circle cx="610" cy="528" r="3" class="dot"/><circle cx="622" cy="528" r="3" class="dot"/>
+  </g>
+
+  <!-- light sensors, 3 pin cables -->
+  <path d="M628 152 H712" class="sig"/>
+  <path d="M628 200 H712" class="sig"/>
+  <path d="M628 248 H712" class="sig"/>
+  <path d="M628 296 H712" class="sig"/>
+  <text x="648" y="146" class="mono tag">G V S</text>
+  <text x="648" y="194" class="mono tag">G V S</text>
+  <text x="648" y="242" class="mono tag">G V S</text>
+  <text x="648" y="290" class="mono tag">G V S</text>
+
+  <rect x="712" y="134" width="224" height="36" rx="3" class="box"/>
+  <text x="728" y="157" class="name">L</text><text x="746" y="157" class="note">photoresistor, left</text>
+  <rect x="712" y="182" width="224" height="36" rx="3" class="box"/>
+  <text x="728" y="205" class="name">R</text><text x="746" y="205" class="note">photoresistor, right</text>
+  <rect x="712" y="230" width="224" height="36" rx="3" class="box"/>
+  <text x="728" y="253" class="name">U</text><text x="746" y="253" class="note">photoresistor, top edge</text>
+  <rect x="712" y="278" width="224" height="36" rx="3" class="box"/>
+  <text x="728" y="301" class="name">D</text><text x="746" y="301" class="note">photoresistor, bottom edge</text>
+
+  <!-- i2c -->
+  <path d="M640 368 H712" class="sig"/>
+  <text x="646" y="362" class="mono tag">4 pin</text>
+  <rect x="712" y="346" width="224" height="44" rx="3" class="box"/>
+  <text x="728" y="366" class="name">BH1750 light sensor</text>
+  <text x="728" y="383" class="mono tag">GND VCC SDA SCL, 0x23</text>
+
+  <path d="M676 368 V424 H712" class="sig dash"/>
+  <rect x="712" y="404" width="224" height="40" rx="3" class="opt"/>
+  <text x="728" y="422" class="name">INA219, optional</text>
+  <text x="728" y="437" class="mono tag">same bus, 0x40, panel power</text>
+
+  <!-- servos, the power path goes on -->
+  <path d="M628 480 H712" class="pwr"/>
+  <path d="M628 528 H712" class="pwr"/>
+  <text x="648" y="474" class="mono tag cu">G V S</text>
+  <text x="648" y="522" class="mono tag cu">G V S</text>
+
+  <rect x="712" y="462" width="224" height="36" rx="3" class="box"/>
+  <text x="728" y="485" class="name">Pan servo</text><text x="806" y="485" class="note">the lower one</text>
+  <rect x="712" y="510" width="224" height="36" rx="3" class="box"/>
+  <text x="728" y="533" class="name">Tilt servo</text><text x="806" y="533" class="note">the upper one</text>
+
+  <!-- legend -->
+  <path d="M32 600 H56" class="pwr"/>
+  <text x="64" y="604" class="note">power: the Pi feeds the UNO and both servos through the USB cable</text>
+  <path d="M520 600 H544" class="sig"/>
+  <text x="552" y="604" class="note">signal</text>
+  <text x="32" y="626" class="muted">every 3 pin cable joins G to G, V to V, S to S. servo leads: brown on G, red on V, orange on S</text>
+</svg>
