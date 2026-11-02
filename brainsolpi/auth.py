@@ -13,7 +13,7 @@ ITERATIONS = 120_000
 TOKEN_TTL = 12 * 3600
 MAX_TRIES = 5
 LOCK_S = 30.0
-# doubling stops at an hour, the owner can always restart the service to clear it
+# doubling stops at an hour, a restart of the service always clears it
 LOCK_MAX = 3600.0
 PIN_MIN = 4
 PIN_MAX = 32
