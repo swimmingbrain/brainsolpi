@@ -174,6 +174,10 @@ that the Pi serves itself:
 http://brainsol.local:8080
 ```
 
+The Pi serves this page from `web/` in the repo. `deploy/install.sh` and `deploy/update.sh` download the
+built web app there, `deploy/web.sh` does it by hand, also from a `site.zip` you copied over. Without it the
+address shows a short text page.
+
 This page is plain http, so it may talk to the Pi with `ws://` and nothing gets blocked. If
 `brainsol.local` does not resolve (some Android phones do not support `.local` names), use the IP
 address that `deploy/install.sh` printed at the end, or find it with `hostname -I` on the Pi:
