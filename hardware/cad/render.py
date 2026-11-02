@@ -1,4 +1,4 @@
-"""off screen renders with pyvista, colour roles from blueprint section 9"""
+"""off screen renders with pyvista, in the colour roles of params.py"""
 
 import math
 

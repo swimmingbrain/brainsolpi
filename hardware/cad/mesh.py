@@ -22,7 +22,7 @@ def rot_matrix(axis, angle_deg, origin):
 
 
 def pose_matrices(pan, tilt, pan_origin, tilt_origin):
-    """matrices for the neck group and the head group, blueprint section 3 and 9
+    """matrices for the neck group and the head group, the same joints as assembly.json
 
     the head first turns about the tilt axis at its pan 0 position, then everything that
     pans turns about the pan axis, axis (0, 0, -1) so positive pan turns clockwise from above

@@ -1,4 +1,4 @@
-"""STL, STEP, 3MF and the web files of blueprint section 9"""
+"""STL, STEP, 3MF and the web files for the twin, assembly.json and one glb per group"""
 
 import json
 import struct

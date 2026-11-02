@@ -73,7 +73,7 @@ MOD_L = 32.0
 MOD_W = 24.0
 MOD_T = 1.6
 MOD_HOLE_D = 4.9
-MOD_HOLE_FROM_SENSOR_END = 20.0  # photos and the lego grid say 20, the blueprint says about 21
+MOD_HOLE_FROM_SENSOR_END = 20.0  # photos and the lego grid say 20, an earlier estimate was about 21
 MOD_HOLE_SPACING = 16.0
 LDR_FROM_END = 6.3  # centre of the photoresistor from the sensor end
 LDR_D = 5.0
@@ -235,17 +235,17 @@ HEAD_WALL_T = 2.0
 MOD_STANDOFF = 2.0
 PARTS_TO_PANEL = 0.5
 HEAD_JOINT = 7.0  # parting plane of back shell and bezel, from the back face
-SHADE_K = 1.2  # target shade wall height over sensor width, blueprint section 5
+SHADE_K = 1.2  # target shade wall height over sensor width, the k of simmodel.py
 EYE_FLARE = 45.0
 BH_WINDOW_D = 3.6
 HEAD_CABLE_U = 0.0  # cable exit in the back of the head, centred between the side sensors
 
-# ranges, blueprint section 3
+# ranges of the two axes
 
 PAN_RANGE = (-90.0, 90.0)
 TILT_RANGE = (0.0, 180.0)
 
-# kit fasteners, blueprint section 2
+# kit fasteners
 
 KIT_FASTENERS = {
     "M3x8 flat head": 29,
@@ -255,7 +255,7 @@ KIT_FASTENERS = {
     "servo horn screw": 2,
 }
 
-# colour roles, blueprint section 9
+# colour roles, the twin of the web app uses the same ones
 
 COLORS = {
     "body": "#e4e2dd",

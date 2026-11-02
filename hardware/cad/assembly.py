@@ -17,7 +17,7 @@ TILT_ORIGIN = (P.TURRET_X, P.TURRET_Y, P.Z_TILT)
 class Part:
     name: str
     shape: object
-    group: str  # base, neck or head, blueprint section 9
+    group: str  # base, neck or head, the groups of assembly.json
     role: str  # body, dark or accent
     count: int = 1
     print_rot: tuple = ((1, 0, 0), 0.0)  # axis and angle that put the part on the bed

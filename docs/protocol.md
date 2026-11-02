@@ -5,8 +5,8 @@ HTTP and a WebSocket. Both are plain text, so you can watch them with a serial m
 dev tools.
 
 Angles are degrees. Times are unix seconds with the milliseconds as decimals. A number that is
-missing is `null`, never NaN. Fields marked as an addition go beyond the shared blueprint, the web
-app may ignore them.
+missing is `null`, never NaN. Fields marked as an addition go beyond what the web app needs, it may
+ignore them.
 
 ## Pi and UNO
 
