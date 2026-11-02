@@ -6,7 +6,7 @@
 #        deploy/web.sh path/to/build   takes a folder, the build/ of the brainsol repo for example
 #        deploy/web.sh --url URL       downloads the zip from another address
 #        deploy/web.sh --no-restart    leaves the service alone, the caller restarts it
-# exit code 0 when the new copy is in place, 2 when the download failed, 1 for anything else.
+# exit code 0 when the new copy is in place, 2 when the download failed, 1 for anything else,
 # the old copy stays as it is until the new one passed every check
 set -euo pipefail
 

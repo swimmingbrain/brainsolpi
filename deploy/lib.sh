@@ -111,7 +111,7 @@ install_unit() {
   info "installed $unit_file"
 }
 
-# the pi powers the uno and both servos through usb, a weak supply shows up here first.
+# the pi powers the uno and both servos through usb, a weak supply shows up here first,
 # vcgencmd get_throttled sets bit 0 for low voltage right now and bit 16 for low voltage since boot
 check_power() {
   local out
