@@ -109,3 +109,7 @@ minutes of random commands. `--driver fake` runs the real serial code path again
 ## License
 
 MIT, see [LICENSE](LICENSE).
+
+The FHV logo in `hardware/cad/assets/fhv_logo.svg`, engraved into the lid, belongs to FHV (Fachhochschule
+Vorarlberg) and is not covered by the MIT license. The Inter and JetBrains Mono fonts next to it are under the
+SIL Open Font License 1.1, their license texts lie beside them.
