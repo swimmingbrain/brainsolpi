@@ -7,6 +7,7 @@ import numpy as np
 
 from . import assembly as A
 from . import params as P
+from . import signature as S
 
 CONTACT_TOL = 1.0  # mm3, two faces that touch on purpose leave a sliver of this size at most
 
@@ -197,6 +198,117 @@ def wall_stats(mesh, man, n_samples=1500, seed=1):
             th.append(float(np.linalg.norm(np.asarray(hits[0].position) - o)) + 0.01)
     th = np.array(th) if th else np.array([99.0])
     return {"p02": float(np.percentile(th, 2)), "share_thin": float((th < P.WALL_MIN - 0.05).mean())}
+
+
+# the engraved signature, measured on the lid mesh
+
+
+def _largest(test, hi, step=0.05):
+    """largest radius up to hi for which test holds at every smaller radius too
+
+    walks up in small steps and halves the last one. a recess grown far enough can lose a new hole
+    again, so a plain halving over the whole range could jump over a failure
+    """
+    lo, r = 0.0, step
+    while r < hi + 1e-9:
+        if not test(r):
+            break
+        lo, r = r, r + step
+    else:
+        return hi if test(hi) else lo
+    for _ in range(8):
+        mid = (lo + r) / 2
+        if test(mid):
+            lo = mid
+        else:
+            r = mid
+    return lo
+
+
+def strokes_hold(cs, r):
+    """after taking r off every side, each piece is still one piece with the same holes"""
+    for piece in cs.decompose():
+        rest = S.offset(piece, -r).decompose()
+        if len(rest) != 1 or rest[0].num_contour() != piece.num_contour():
+            return False
+    return True
+
+
+def islands_hold(cs, r):
+    """after growing the recess by r, no two pieces meet and no counter closes"""
+    return S.topology(S.offset(cs, r)) == S.topology(cs)
+
+
+def engraving_report(lid_mesh):
+    """slice the lid half way down the recess and measure what the printer has to make
+
+    strokes: the recess shrunk by half the stroke limit keeps every piece and every hole
+    islands: the recess grown by half the island limit keeps them as well, so no counter, gap or
+    wall between recesses is narrower than the limit. both are also measured as numbers
+    """
+    man = to_manifold(lid_mesh)
+    top = P.BASE_TOP
+    design = S.profile()
+    zone = S.offset(design, 0.5)
+    measured = zone - man.slice(top - P.SIG_DEPTH / 2)
+    rep = {"sizes": S.sizes()}
+    rep["area_design"] = design.area()
+    rep["area_measured"] = measured.area()
+    rep["pieces"] = S.topology(measured)[0]
+    rep["holes"] = sum(S.topology(measured)[1])
+    # the font as drawn, no counter or gap may be lost by the fill or the mesh
+    rep["same_topology"] = S.topology(measured) == S.topology(S.profile(raw=True))
+    rep["stroke_min"] = 2 * _largest(lambda r: strokes_hold(measured, r), hi=1.2)
+    rep["island_min"] = 2 * _largest(lambda r: islands_hold(measured, r), hi=1.2)
+    rep["strokes_ok"] = rep["stroke_min"] >= P.ENGRAVE_STROKE_MIN and strokes_hold(measured, P.ENGRAVE_STROKE_MIN / 2)
+    rep["islands_ok"] = rep["island_min"] >= P.ENGRAVE_ISLAND_MIN and islands_hold(measured, P.ENGRAVE_ISLAND_MIN / 2)
+    # widest span across, the largest circle that fits, per kind of part
+    spans = {}
+    for kind in ("line", "tag", "heart", "logo", "rule"):
+        part = measured ^ S.offset(S.profile(kind), 0.2)
+        spans[kind] = 2 * _largest(lambda r: not S.offset(part, -r).is_empty(), hi=8.0, step=0.25)
+    rep["spans"] = spans
+    # depth: open just above the floor, closed just below it
+    above = (zone - man.slice(top - P.SIG_DEPTH + 0.02)).area()
+    below = (zone - man.slice(top - P.SIG_DEPTH - 0.02)).area()
+    rep["depth_ok"] = abs(above - design.area()) < 0.02 * design.area() and below < 1e-3
+    # solid plastic behind the floor, sliced every 0.1 mm down to the skin limit
+    skin = 0.0
+    z = top - P.SIG_DEPTH - 0.05
+    while skin < P.ENGRAVE_SKIN_MIN + 0.5:
+        if (S.offset(design, 0.3) - man.slice(z)).area() > 1e-3:
+            break
+        skin = top - P.SIG_DEPTH - z + 0.05
+        z -= 0.1
+    rep["skin"] = skin
+    # clear distance to the edge of the flat top, holes and other recesses
+    flat = man.slice(top - 0.05) + measured
+    rep["clear"] = _largest(lambda r: (S.offset(measured, r) - flat).area() < 1e-3, hi=15.0, step=0.5)
+    for k in ("area_design", "area_measured", "stroke_min", "island_min", "skin", "clear"):
+        rep[k] = round(float(rep[k]), 3)
+    rep["spans"] = {k: round(float(v), 3) for k, v in spans.items()}
+    rep["sizes"] = {k: (round(float(v), 3) if isinstance(v, float) else v) for k, v in rep["sizes"].items()}
+    rep["sizes"]["box"] = [round(float(v), 2) for v in rep["sizes"]["box"]]
+    return rep
+
+
+def engraving_failures(rep):
+    out = []
+    if abs(rep["area_measured"] - rep["area_design"]) > 0.01 * rep["area_design"]:
+        out.append(f"the signature in the lid mesh covers {rep['area_measured']:.1f} mm2, the design {rep['area_design']:.1f}")
+    if not rep["same_topology"]:
+        out.append("the signature lost a counter or a letter against the font outlines")
+    if not rep["strokes_ok"]:
+        out.append(f"a stroke of the signature is {rep['stroke_min']:.2f} mm wide, the limit is {P.ENGRAVE_STROKE_MIN}")
+    if not rep["islands_ok"]:
+        out.append(f"an island of the signature is {rep['island_min']:.2f} mm wide, the limit is {P.ENGRAVE_ISLAND_MIN}")
+    if not rep["depth_ok"]:
+        out.append("the signature is not cut to its depth")
+    if rep["skin"] < P.ENGRAVE_SKIN_MIN:
+        out.append(f"only {rep['skin']:.1f} mm of solid lid behind the signature")
+    if rep["clear"] < P.ENGRAVE_CLEAR_MIN:
+        out.append(f"the signature comes within {rep['clear']:.1f} mm of an edge or a hole")
+    return out
 
 
 def part_report(part):
