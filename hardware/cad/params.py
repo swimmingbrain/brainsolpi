@@ -16,6 +16,12 @@ FIT_SLIDE = 0.25  # per side, parts that must slide or turn
 FIT_SNUG = 0.15  # per side, parts that are pushed in and stay
 OVERHANG_MAX = 45.0
 BRIDGE_MAX = 25.0
+# engravings on a face that lies on the plate, they print in the first layers
+ENGRAVE_STROKE_MIN = 0.9  # every recessed stroke and join, two lines of the nozzle and some
+ENGRAVE_ISLAND_MIN = 0.8  # every counter, gap or wall of plastic between recesses
+ENGRAVE_SPAN_MAX = 3.0  # widest recess across, its floor is a bridge people see, a soft limit
+ENGRAVE_SKIN_MIN = 2.0  # solid plastic behind the floor of the recess
+ENGRAVE_CLEAR_MIN = 3.0  # recess to the edge of the flat face, a hole or another recess
 
 # fasteners, the kit screws are M3 flat head, the holes also seat a pan head
 
@@ -173,7 +179,31 @@ COLUMN_D = 8.0  # lid columns that stand on the floor and take the foot screws
 COLUMN_INSET = 12.0  # column centre from the outer wall
 VENT_W = 2.4
 VENT_PITCH = 5.2
-MARK_DEPTH = 0.4
+MARK_DEPTH = 0.4  # the small sun mark near the front edge of the lid
+
+# signature engraved into the lid top behind the sun mark, read upright by a person in front
+# the sizes are the smallest that pass the engraving limits above, checks.py measures them
+
+SIG_ON = True  # False gives a plain lid
+SIG_LINE = ("made with \u2665", "by Braian Plaku")  # one string per row, the heart sign becomes a drawn heart
+SIG_TAG = "FTM-NES-BB-26"  # the class tag
+SIG_LINE_FONT = "inter_bold.ttf"
+SIG_TAG_FONT = "jetbrains_mono_extrabold.ttf"
+# the official fhv logo from https://commons.wikimedia.org/wiki/File:FHV-Fachhochschule_Vorarlberg_logo_(2021%E2%80%93).svg
+SIG_LOGO_FILE = "fhv_logo.svg"
+SIG_X_HEIGHT = 6.7  # lowercase x height of the maker line, Inter needs this much for its joins and i dots
+SIG_LINE_TRACK = 0.0  # extra space between letters of the maker line
+SIG_LEADING = 4.2  # clear space between a baseline and the caps of the row below
+SIG_TAG_CAP = 6.6  # cap height of the class tag, the fhv mark is a third taller
+SIG_TAG_TRACK = 0.6  # keeps the gaps between the mono letters above the island limit
+SIG_ROW_GAP = 4.4  # tail of the y to the top of the mark row
+SIG_RULE_W = 1.0  # the thin rule between the fhv mark and the class tag
+SIG_RULE_GAP = 4.4  # space on each side of the rule
+SIG_HEART_LINE = 1.8  # 0 fills the heart, a width draws it as an outline as wide as a stem
+SIG_DEPTH = 0.6  # three layers
+SIG_SAMPLE = ("Braian", "FTM-NES")  # the tightest signs of both rows, engraved under the fit test
+SIG_X = 0.0  # on the centre line of the lid, like the sun mark and the neck
+SIG_Y = 48.0  # front edge of the signature, the sun mark ring starts at 57
 
 # layout inside the base, see the inside render
 
