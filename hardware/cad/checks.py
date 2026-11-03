@@ -264,7 +264,7 @@ def engraving_report(lid_mesh):
     rep["islands_ok"] = rep["island_min"] >= P.ENGRAVE_ISLAND_MIN and islands_hold(measured, P.ENGRAVE_ISLAND_MIN / 2)
     # widest span across, the largest circle that fits, per kind of part
     spans = {}
-    for kind in ("line", "tag", "heart", "logo", "rule"):
+    for kind in ("url", "tag", "logo", "rule"):
         part = measured ^ S.offset(S.profile(kind), 0.2)
         spans[kind] = 2 * _largest(lambda r: not S.offset(part, -r).is_empty(), hi=8.0, step=0.25)
     rep["spans"] = spans

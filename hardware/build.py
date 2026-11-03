@@ -37,7 +37,7 @@ def engraving_lines(eng):
         L += ["The signature is switched off in `cad/params.py`, the lid is plain.", ""]
         return L
     s, sp = eng["sizes"], eng["spans"]
-    L.append(f"Inter Bold at {fmt(s['x_height'])} mm x height ({fmt(s['line_cap'])} mm caps) for the maker line, "
+    L.append(f"Inter SemiBold at {fmt(s['x_height'])} mm x height ({fmt(s['url_cap'])} mm caps) for the name line, "
              f"JetBrains Mono ExtraBold at {fmt(s['tag_cap'])} mm cap height for the class tag, the fhv mark "
              f"{fmt(s['logo_height'])} mm tall. {fmt(s['depth'])} mm deep, {fmt(s['width'])} x {fmt(s['height'])} mm, "
              f"front edge at y = {fmt(s['box'][3])}.")
@@ -49,7 +49,7 @@ def engraving_lines(eng):
     L.append(f"| narrowest counter, gap or wall between recesses | {fmt(eng['island_min'], 2)} mm | {P.ENGRAVE_ISLAND_MIN} |")
     L.append(f"| solid lid behind the floor | {fmt(eng['skin'])} mm | {P.ENGRAVE_SKIN_MIN} |")
     L.append(f"| clear distance to an edge, a hole or the sun mark | {fmt(eng['clear'])} mm | {P.ENGRAVE_CLEAR_MIN} |")
-    L.append(f"| widest span: line, heart, tag, fhv mark, rule | {fmt(sp['line'])}, {fmt(sp['heart'])}, {fmt(sp['tag'])}, "
+    L.append(f"| widest span: name line, tag, fhv mark, rule | {fmt(sp['url'])}, {fmt(sp['tag'])}, "
              f"{fmt(sp['logo'])}, {fmt(sp['rule'])} mm | about {P.ENGRAVE_SPAN_MAX} |")
     L.append(f"| pieces and holes | {eng['pieces']} and {eng['holes']}, "
              f"{'the same as the font outlines' if eng['same_topology'] else 'different from the font outlines'} | the same |")
