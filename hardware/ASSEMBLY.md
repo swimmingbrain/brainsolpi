@@ -105,9 +105,9 @@ See `renders/neck_open.png`.
 2. From below, press one single arm horn into the pocket under the lid, hub up through the round hole, arm
    pointing away from the curved slot. The pocket holds it.
 3. From above, set the neck onto the lid: spline into the horn hub, all cables and both leads through the
-   curved slot. The neck has to face the front of the lid, the side with the small sun mark. The spline
-   only meshes in steps of about 15 degrees, take the step closest to straight ahead. The calibration step
-   "Centre the servos" fixes the rest.
+   curved slot. The neck has to face the front of the lid, the side with the small sun mark, where the
+   engraved signature reads upright. The spline only meshes in steps of about 15 degrees, take the step
+   closest to straight ahead. The calibration step "Centre the servos" fixes the rest.
 4. Hold the neck and drive the horn screw from below through the horn into the spline. The neck sits on the
    lid and turns with a light drag, it cannot lift off.
 
