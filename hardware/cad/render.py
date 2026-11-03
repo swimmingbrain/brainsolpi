@@ -89,8 +89,11 @@ def camera(target, az, el, dist, up=(0, 0, 1)):
 
 
 def render(items, path, cam, size=(1600, 1200), panels=(), parallel=False, zoom=1.0, floor=True,
-           lines=(), center=(0, -10, 60)):
-    """items: list of (trimesh, colour, opacity, role), cam: (position, focal point, up)"""
+           lines=(), center=(0, -10, 60), occlusion=False):
+    """items: list of (trimesh, colour, opacity, role), cam: (position, focal point, up)
+
+    occlusion shades the floor of shallow recesses like the engraving on the lid, close ups only
+    """
     pl = pv.Plotter(off_screen=True, window_size=size)
     pl.set_background(P.COLORS["background"])
     if floor:
@@ -109,6 +112,8 @@ def render(items, path, cam, size=(1600, 1200), panels=(), parallel=False, zoom=
     if parallel:
         pl.enable_parallel_projection()
     pl.camera.zoom(zoom)
+    if occlusion:
+        pl.enable_ssao(radius=0.8, bias=0.1, kernel_size=256, blur=True)
     pl.enable_anti_aliasing("ssaa")
     pl.screenshot(str(path))
     pl.close()

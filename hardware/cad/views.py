@@ -169,6 +169,34 @@ def cable_view(parts, elec, out):
     return [path]
 
 
+def signature_view(parts, elec, out):
+    """close up of the signature on the lid as a person in front of the tracker sees it"""
+    from . import signature
+    if not P.SIG_ON:
+        return []
+    b = signature.profile().bounds()
+    tgt = ((b[0] + b[2]) / 2, (b[1] + b[3]) / 2 + 4.0, P.BASE_TOP)
+    items = scene_items(parts, 0, 0, visible_kit(elec))
+    path = Path(out) / "lid_signature.png"
+    render(items, path, camera(tgt, 0, 50, 200), size=(1600, 1100), floor=False, center=tgt,
+           panels=[A.panel_corners(0, 0)], occlusion=True)
+    return [path]
+
+
+def first_layer_view(parts, out):
+    """the lid on the plate seen from below, the face that prints first with the signature in it"""
+    from .mesh import rot_matrix
+    lid = next(p for p in parts if p.name == "lid")
+    # turned over about y and seen from above, the same picture as from under the plate but lit
+    mesh = transformed(lid.print_mesh(), rot_matrix((0, 1, 0), 180.0, (0, 0, 0)))
+    path = Path(out) / "print" / "lid_first_layer.png"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    cam = [(0.0, 0.0, 400.0), (0.0, 0.0, 0.0), (0.0, 1.0, 0.0)]
+    render([(mesh, ROLE[lid.role], 1.0, lid.role)], path, cam, size=(1200, 1200), floor=False, center=(0, 0, 0),
+           parallel=True, zoom=1.0, occlusion=True)
+    return [path]
+
+
 def print_views(parts, out):
     written = []
     for p in parts:
@@ -196,7 +224,9 @@ def all_views(parts, elec, out):
     w += exploded(parts, elec, out)
     w += inside_views(parts, elec, out)
     w += cable_view(parts, elec, out)
+    w += signature_view(parts, elec, out)
     w += print_views(parts, out)
+    w += first_layer_view(parts, out)
     return w
 
 
