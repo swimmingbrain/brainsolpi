@@ -1,13 +1,14 @@
 """a small plate that checks every fit in about twenty minutes of printing
 
 servo frame, horn pocket, module peg pair, three tap holes, a pi pin, a cap recess and a
-corner of the panel pocket with its lip, all with the same numbers as the real parts
+corner of the panel pocket with its lip, all with the same numbers as the real parts, and a
+strip of the lid signature under the plate to judge the engraving before the long lid print
 print one cap next to it
 """
 
 import math
 
-from . import kit
+from . import kit, signature
 from . import params as P
 from .helpers import box, cone, cyl, poly_prism, rrect_points, union_all
 
@@ -70,6 +71,9 @@ def fit_plate():
     pocket = box(cx + 6 - f, cx + 30, cy + 6 - f, cy + 30, P.BEZEL_FRONT_T, depth + 2)
     window = box(cx + 6 + lip, cx + 30, cy + 6 + lip, cy + 30, -1, P.BEZEL_FRONT_T + 0.1)
     add.append(corner - pocket - window)
+    # a strip of the lid signature in the face on the plate, it prints like the lid top, turn the
+    # plate over to read it
+    cut.append(signature.sample_cut(0.0, -16.0))
     body = union_all([plate] + add)
     return body - union_all(cut)
 
