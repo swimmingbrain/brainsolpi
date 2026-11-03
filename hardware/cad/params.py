@@ -185,23 +185,21 @@ MARK_DEPTH = 0.4  # the small sun mark near the front edge of the lid
 # the sizes are the smallest that pass the engraving limits above, checks.py measures them
 
 SIG_ON = True  # False gives a plain lid
-SIG_LINE = ("made with \u2665", "by Braian Plaku")  # one string per row, the heart sign becomes a drawn heart
+SIG_URL = "swimmingbrain.dev"  # the name line
 SIG_TAG = "FTM-NES-BB-26"  # the class tag
-SIG_LINE_FONT = "inter_bold.ttf"
+SIG_URL_FONT = "inter_semibold.ttf"
 SIG_TAG_FONT = "jetbrains_mono_extrabold.ttf"
 # the official fhv logo from https://commons.wikimedia.org/wiki/File:FHV-Fachhochschule_Vorarlberg_logo_(2021%E2%80%93).svg
 SIG_LOGO_FILE = "fhv_logo.svg"
-SIG_X_HEIGHT = 6.7  # lowercase x height of the maker line, Inter needs this much for its joins and i dots
-SIG_LINE_TRACK = 0.0  # extra space between letters of the maker line
-SIG_LEADING = 4.2  # clear space between a baseline and the caps of the row below
+SIG_X_HEIGHT = 7.3  # lowercase x height of the name line, Inter needs this for the joins of m and the openings of s and g
+SIG_URL_TRACK = 0.0  # extra space between letters of the name line
 SIG_TAG_CAP = 6.6  # cap height of the class tag, the fhv mark is a third taller
 SIG_TAG_TRACK = 0.6  # keeps the gaps between the mono letters above the island limit
-SIG_ROW_GAP = 4.4  # tail of the y to the top of the mark row
+SIG_ROW_GAP = 4.4  # tail of the g to the top of the mark row
 SIG_RULE_W = 1.0  # the thin rule between the fhv mark and the class tag
 SIG_RULE_GAP = 4.4  # space on each side of the rule
-SIG_HEART_LINE = 1.8  # 0 fills the heart, a width draws it as an outline as wide as a stem
 SIG_DEPTH = 0.6  # three layers
-SIG_SAMPLE = ("Braian", "FTM-NES")  # the tightest signs of both rows, engraved under the fit test
+SIG_SAMPLE = ("swim", "FTM-NES")  # the tightest signs of both rows, engraved under the fit test
 SIG_X = 0.0  # on the centre line of the lid, like the sun mark and the neck
 SIG_Y = 48.0  # front edge of the signature, the sun mark ring starts at 57
 

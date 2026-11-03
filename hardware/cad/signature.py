@@ -1,4 +1,4 @@
-"""the signature engraved into the lid top: the maker line, the fhv mark, a thin rule and the class tag
+"""the signature engraved into the lid top: the name line, the fhv mark, a thin rule and the class tag
 
 the layout lives in a flat frame in millimetres, u to the right and v up as a person in front of
 the tracker reads it. that person looks toward minus y, so on the lid u runs along minus x and v
@@ -26,7 +26,6 @@ from fontTools.ttLib import TTFont
 from . import params as P
 
 ASSETS = Path(__file__).resolve().parent / "assets"
-HEART = "\u2665"  # the heart sign, drawn as a shape instead of a glyph
 FLAT_TOL = 0.01  # chord error of curves in mm, far below what the nozzle can show
 ROUND = m3d.JoinType.Round
 ARC_SEGMENTS = 96  # per full circle for every offset, the default of manifold is far too coarse at 0.4 mm
@@ -122,27 +121,6 @@ def fill(cs):
     return offset(offset(cs, r), -r)
 
 
-def heart(height, u_mid, v0):
-    """a heart from a square turned by 45 degrees and a half circle on each upper side
-
-    the tip sits on v0, height is from the tip to the top of the lobes
-    """
-    s = height / (1.5 / math.sqrt(2) + 0.5)  # side of the square
-    h = s / math.sqrt(2)
-    pts = [(u_mid, v0), (u_mid + h, v0 + h)]
-    for cx, a0 in ((u_mid + h / 2, -45.0), (u_mid - h / 2, 45.0)):
-        cy = v0 + 1.5 * h
-        n = 72
-        for i in range(1, n + 1):
-            a = math.radians(a0 + 180.0 * i / n)
-            pts.append((cx + s / 2 * math.cos(a), cy + s / 2 * math.sin(a)))
-    return m3d.CrossSection([np.asarray(pts)], m3d.FillRule.NonZero)
-
-
-def heart_width(height):
-    return height * (1 / math.sqrt(2) + 1) / (1.5 / math.sqrt(2) + 0.5)
-
-
 @lru_cache(maxsize=None)
 def logo_points():
     """the square fhv mark in svg units with y down, the first polygon of the official logo
@@ -185,20 +163,10 @@ def text(line, fnt, size, track=0.0, u0=0.0, v0=0.0, by="x", filled=True):
     u = u0
     signs = []
     for i, ch in enumerate(line):
-        if ch == HEART:
-            hh = fnt.cap_height * k
-            w = heart_width(hh)
-            side = 0.1 * hh
-            cs = heart(hh, u + side + w / 2, v0)
-            if P.SIG_HEART_LINE > 0:
-                cs = cs - offset(cs, -P.SIG_HEART_LINE)
-            signs.append((ch, cs))
-            u += w + 2 * side
-        else:
-            if ch != " ":
-                cs = m3d.CrossSection([lp + (u, v0) for lp in fnt.loops(ch, k)], m3d.FillRule.NonZero)
-                signs.append((ch, fill(cs) if filled else cs))
-            u += fnt.advance(ch) * k
+        if ch != " ":
+            cs = m3d.CrossSection([lp + (u, v0) for lp in fnt.loops(ch, k)], m3d.FillRule.NonZero)
+            signs.append((ch, fill(cs) if filled else cs))
+        u += fnt.advance(ch) * k
         if i < len(line) - 1:
             u += track
     b = union([cs for _, cs in signs]).bounds()
@@ -219,27 +187,18 @@ def placed(line, fnt, size, track, v0, by="x", u_mid=None, u_left=None, filled=T
 def layout(filled=True):
     """the parts of the signature in the flat frame, the block centred on u = 0 with its lowest point on v = 0
 
-    two centred lines of the maker line, below them a row with the fhv mark, a thin rule and the
-    class tag. the mark is four tag cap heights over three tall, so the top of its upper bar lines
-    up with the caps of the tag. returns a list of (kind, character, section), the kinds are
-    line, heart, logo, rule and tag
+    the name line centred, below it a row with the fhv mark, a thin rule and the class tag. the mark
+    is four tag cap heights over three tall, so the top of its upper bar lines up with the caps of
+    the tag. returns a list of (kind, character, section), the kinds are url, logo, rule and tag
     """
-    f_line, f_tag = font(P.SIG_LINE_FONT), font(P.SIG_TAG_FONT)
-    k = P.SIG_X_HEIGHT / f_line.x_height
-    cap = f_line.cap_height * k
-    desc = 0.208 * f_line.upm * k  # the tail of y in Inter, 426 of 2048
-    parts = []
-    v = 0.0
-    baselines = []
-    for i, row in enumerate(P.SIG_LINE):
-        v = -cap if i == 0 else v - cap - P.SIG_LEADING
-        baselines.append(v)
-        signs, _ = placed(row, f_line, P.SIG_X_HEIGHT, P.SIG_LINE_TRACK, v, u_mid=0.0, filled=filled)
-        parts += [("heart" if ch == HEART else "line", ch, cs) for ch, cs in signs]
+    f_url, f_tag = font(P.SIG_URL_FONT), font(P.SIG_TAG_FONT)
+    desc = 0.208 * f_url.upm * P.SIG_X_HEIGHT / f_url.x_height  # the tail of g in Inter, 426 of 2048
+    signs, _ = placed(P.SIG_URL, f_url, P.SIG_X_HEIGHT, P.SIG_URL_TRACK, 0.0, u_mid=0.0, filled=filled)
+    parts = [("url", ch, cs) for ch, cs in signs]
     # the row of mark, rule and tag
     tag_cap = P.SIG_TAG_CAP
     mark_h = tag_cap * 4 / 3
-    v_tag = baselines[-1] - desc - P.SIG_ROW_GAP - mark_h
+    v_tag = -desc - P.SIG_ROW_GAP - mark_h
     _, (a, b) = text(P.SIG_TAG, f_tag, tag_cap, P.SIG_TAG_TRACK, by="cap")
     gap = P.SIG_RULE_GAP
     row_w = logo_width(mark_h) + gap + P.SIG_RULE_W + gap + (b - a)
@@ -274,22 +233,22 @@ def profile(kind=None, raw=False):
 
 def sizes():
     """the numbers for the report"""
-    f_line, f_tag = font(P.SIG_LINE_FONT), font(P.SIG_TAG_FONT)
-    k = P.SIG_X_HEIGHT / f_line.x_height
+    f_url = font(P.SIG_URL_FONT)
+    k = P.SIG_X_HEIGHT / f_url.x_height
     b = profile().bounds()
-    return {"x_height": P.SIG_X_HEIGHT, "line_cap": f_line.cap_height * k, "tag_cap": P.SIG_TAG_CAP,
+    return {"x_height": P.SIG_X_HEIGHT, "url_cap": f_url.cap_height * k, "tag_cap": P.SIG_TAG_CAP,
             "logo_height": P.SIG_TAG_CAP * 4 / 3, "depth": P.SIG_DEPTH,
             "box": (b[0], b[1], b[2], b[3]), "width": b[2] - b[0], "height": b[3] - b[1],
-            "fill": P.ENGRAVE_ISLAND_MIN / 2, "line_font": P.SIG_LINE_FONT, "tag_font": P.SIG_TAG_FONT}
+            "fill": P.ENGRAVE_ISLAND_MIN / 2, "url_font": P.SIG_URL_FONT, "tag_font": P.SIG_TAG_FONT}
 
 
 def sample():
-    """a piece of the maker line over a piece of the class tag at the lid sizes, for the fit test
+    """a piece of the name line over a piece of the class tag at the lid sizes, for the fit test
 
     flat frame, the ink centred on the origin
     """
-    f_line, f_tag = font(P.SIG_LINE_FONT), font(P.SIG_TAG_FONT)
-    row1, _ = placed(P.SIG_SAMPLE[0], f_line, P.SIG_X_HEIGHT, P.SIG_LINE_TRACK, P.SIG_TAG_CAP + P.SIG_LEADING,
+    f_url, f_tag = font(P.SIG_URL_FONT), font(P.SIG_TAG_FONT)
+    row1, _ = placed(P.SIG_SAMPLE[0], f_url, P.SIG_X_HEIGHT, P.SIG_URL_TRACK, P.SIG_TAG_CAP + P.SIG_ROW_GAP,
                      u_mid=0.0)
     row2, _ = placed(P.SIG_SAMPLE[1], f_tag, P.SIG_TAG_CAP, P.SIG_TAG_TRACK, 0.0, by="cap", u_mid=0.0)
     cs = union([cs for _, cs in row1 + row2])
