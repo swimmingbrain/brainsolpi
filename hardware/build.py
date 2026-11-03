@@ -147,6 +147,7 @@ def write_report(path, parts_rep, static_bad, sweep, cable_rows, fast_rows, web_
     L.append("|---|---|---|")
     for k, (size, tris) in web_sizes.items():
         L.append(f"| {k}.glb | {size} | {tris} |")
+    L.append(f"| together | {sum(s for s, _ in web_sizes.values())} | {sum(t for _, t in web_sizes.values())} |")
     L.append("")
     path.write_text("\n".join(L) + "\n", encoding="utf-8", newline=LF)
 
@@ -247,8 +248,10 @@ def main():
     if not fasteners.ok():
         failures.append("more screws than the kit has")
     for k, (size, _) in web_sizes.items():
-        if size > exporting.GLB_LIMIT:
+        if size > exporting.glb_limit(k):
             failures.append(f"{k}.glb is {size} bytes")
+    if sum(size for size, _ in web_sizes.values()) > exporting.GLB_TOTAL_LIMIT:
+        failures.append(f"the web files are {sum(size for size, _ in web_sizes.values())} bytes together")
     if engraving is not None:
         failures += checks.engraving_failures(engraving)
 

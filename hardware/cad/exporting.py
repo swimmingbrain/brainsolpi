@@ -8,13 +8,16 @@ import numpy as np
 import pyvista as pv
 from build123d import Compound, Location, Mesher, Plane, export_step
 
-from . import kit
+from . import base, kit
 from . import params as P
 from .assembly import PAN_ORIGIN, TILT_ORIGIN
 from .mesh import to_trimesh, transformed
 
 STEP_STAMP = "2026-01-01T00:00:00"  # fixed so a rebuild without changes gives the same files
-GLB_LIMIT = 400_000
+GLB_LIMIT = 400_000  # one file
+GLB_LIMIT_BASE = 600_000  # the base file, the letters on the lid take about 150 kB more
+GLB_TOTAL_LIMIT = 1_500_000  # all four files, what a visitor of the page downloads
+WEB_SIG_TOL = 0.05  # outline tolerance of the lid signature in the web model, mm
 LF = chr(10)  # write unix line ends on windows too, the repo keeps lf
 
 
@@ -129,6 +132,10 @@ def _decimate(mesh, target):
     return trimesh.Trimesh(np.asarray(pd.points), pd.faces.reshape(-1, 4)[:, 1:], process=True)
 
 
+def glb_limit(group):
+    return GLB_LIMIT_BASE if group == "base" else GLB_LIMIT
+
+
 def write_glb(path, mesh, color_hex, name):
     """one mesh, one node without any transform, positions and normals in millimetres"""
     pos, nrm, faces = _smooth(mesh)
@@ -180,13 +187,14 @@ def write_glb(path, mesh, color_hex, name):
     return Path(path).stat().st_size
 
 
-def group_mesh(parts, group, tol=0.15, ang=0.35):
+def group_mesh(parts, group, tol=0.15, ang=0.35, swap=None):
+    """one mesh of every part in a group, swap gives other shapes by part name"""
     import trimesh
     ms = []
     for p in parts:
         if p.group != group:
             continue
-        m = to_trimesh(p.shape, tol=tol, ang=ang)
+        m = to_trimesh((swap or {}).get(p.name, p.shape), tol=tol, ang=ang)
         ms.append(m)
         for inst in p.instances:
             ms.append(transformed(m, inst))
@@ -207,13 +215,15 @@ def export_web(parts, out):
     d.mkdir(parents=True, exist_ok=True)
     roles = {"base": "body", "neck": "dark", "head": "dark"}
     sizes, bounds = {}, []
+    # the letters on the lid with a coarser outline, the print files keep the fine one
+    swap = {"lid": base.lid(sig_tol=WEB_SIG_TOL)} if P.SIG_ON else {}
     for g in ("base", "neck", "head"):
-        mesh = group_mesh(parts, g)
+        mesh = group_mesh(parts, g, swap=swap)
         target = len(mesh.faces)
         while True:
             m = _decimate(mesh, target)
             size = write_glb(d / f"{g}.glb", m, P.COLORS[roles[g]], g)
-            if size <= GLB_LIMIT * 0.95 or target < 2000:
+            if size <= glb_limit(g) * 0.95 or target < 2000:
                 break
             target = int(target * 0.8)
         sizes[g] = (size, len(m.faces))
