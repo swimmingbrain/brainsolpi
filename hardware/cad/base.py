@@ -9,7 +9,7 @@ import math
 
 from build123d import Axis, Plane
 
-from . import kit
+from . import kit, signature
 from . import params as P
 from .helpers import arc_slot_points, box, cone, cyl, poly_prism, rrect_prism, stadium_points, union_all
 
@@ -119,7 +119,8 @@ def place_arm_left(length, z0, z1):
     return s.translate((P.TURRET_X, P.TURRET_Y, 0))
 
 
-def lid():
+def lid(sig_tol=0.004):
+    """the lid with its columns, posts and fingers, sig_tol is the outline tolerance of the signature"""
     iw, idp, ir = inner_size()
     plate = rrect_prism(P.BASE_W, P.BASE_D, P.R_BIG, P.LID_BOTTOM, P.BASE_TOP, cb=0.4, ct=P.EDGE)
     sk_w, sk_d, sk_r = iw - 2 * P.FIT_SLIDE, idp - 2 * P.FIT_SLIDE, ir - P.FIT_SLIDE
@@ -160,6 +161,7 @@ def lid():
     for x, y in pi_hole_xy():
         cuts.append(cyl("z", (P.PI_PIN_D + 0.5) / 2, pi_top - 1, pi_top + 4.0, (x, y)))
     cuts.append(mark_cut())
+    cuts.append(signature.cut(sig_tol))
     lid_s = lid_s - union_all(cuts)
     # posts next to the dc jack and the digital header get a notch
     lid_s = lid_s - uno_clearance()
