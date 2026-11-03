@@ -64,6 +64,9 @@ sudo systemctl start brainsolpi
 - Tap holes: one notch is 2.6, two notches 2.65, three notches 2.7.
 - Pi pin and cap: see the table.
 - Panel corner: the corner of the real panel drops into the pocket and the lip covers about 2 mm of the edge.
+- Signature sample: turn the plate over. `Braian` and `FTM-NES` are cut like the signature on the lid. Every
+  letter must be open, the counters of `a` clear and the dot of the `i` apart from its stem. `PRINTING.md`
+  says what to do when they close.
 
 ## Running the build again
 
