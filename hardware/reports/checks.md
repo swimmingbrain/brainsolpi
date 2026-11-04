@@ -11,7 +11,7 @@ All checks passed.
 | part | count | size on the bed mm | closed solid | watertight | fits | steep overhang mm2 | widest bridge mm | thin wall share | grams | minutes |
 |---|---|---|---|---|---|---|---|---|---|---|
 | tray | 1 | 156.0 x 156.0 x 41.2 | yes | yes | yes | 0.0 | 0.3 | 0.1 % | 140.2 | 213 |
-| lid | 1 | 156.0 x 156.0 x 44.8 | yes | yes | yes | 0.0 | 10.0 | 1.1 % | 114.7 | 176 |
+| lid | 1 | 156.0 x 156.0 x 44.8 | yes | yes | yes | 0.0 | 10.0 | 1.1 % | 114.2 | 175 |
 | foot | 4 | 14.0 x 14.0 x 3.0 | yes | yes | yes | 0.0 | 0.0 | 0.1 % | 2.0 | 5 |
 | neck_front | 1 | 52.0 x 73.0 x 30.0 | yes | yes | yes | 0.0 | 6.2 | 0.8 % | 28.8 | 47 |
 | neck_back | 1 | 52.0 x 70.6 x 18.0 | yes | yes | yes | 0.0 | 6.2 | 0.3 % | 24.9 | 40 |
@@ -20,7 +20,7 @@ All checks passed.
 | ear_horn | 1 | 26.0 x 32.2 x 12.0 | yes | yes | yes | 0.0 | 16.1 | 0.0 % | 5.6 | 11 |
 | ear_pivot | 1 | 26.0 x 32.2 x 12.0 | yes | yes | yes | 0.0 | 16.5 | 0.0 % | 5.6 | 11 |
 | cap | 2 | 11.8 x 12.1 x 1.6 | yes | yes | yes | 0.0 | 0.4 | 7.5 % | 0.4 | 1 |
-| fit_test | 1 | 104.0 x 56.0 x 10.0 | yes | yes | yes | 0.0 | 0.0 | 0.1 % | 20.0 | 31 |
+| fit_test | 1 | 104.0 x 56.0 x 10.0 | yes | yes | yes | 0.0 | 7.8 | 3.0 % | 19.8 | 31 |
 
 Steep overhang counts downward faces steeper than 45 degrees and wider than 3 mm. Thin wall share is the
 part of the surface where a ray straight into the part leaves it again within 1.6 mm, most of it sits on
@@ -37,6 +37,25 @@ Pan swept from -90 to 90 in steps of 10 degrees, tilt from 0 to 180 in steps of 
 | base and head | 0.000 | 3.00 at pan -90, tilt 0 |
 
 Static pairs inside each group (printed parts against each other and against the kit keep outs): no overlap above 1.0 mm3.
+
+## Signature on the lid
+
+Inter SemiBold at 7.3 mm x height (9.7 mm caps) for the name line, JetBrains Mono ExtraBold at 6.6 mm cap height for the class tag, the fhv mark 8.8 mm tall. 0.6 mm deep, 126.8 x 26.3 mm, front edge at y = 48.0.
+Measured on the lid mesh, sliced half way down the recess.
+
+| value | measured | limit |
+|---|---|---|
+| narrowest stroke or join | 0.91 mm | 0.9 |
+| narrowest counter, gap or wall between recesses | 0.84 mm | 0.8 |
+| solid lid behind the floor | 2.4 mm | 2.0 |
+| clear distance to an edge, a hole or the sun mark | 9.1 mm | 3.0 |
+| widest span: name line, tag, fhv mark, rule | 2.6, 2.6, 2.8, 1.0 mm | about 3.0 |
+| pieces and holes | 35 and 10, the same as the font outlines | the same |
+
+Strokes: the recess shrunk by half the limit keeps every piece whole. Islands: the recess grown by half
+the limit lets no two pieces meet and closes no counter. Before the cut each letter is closed by 0.40 mm, so
+the notches where a bowl meets a stem and the slivers inside M and N, all too thin to print, go with the
+letter.
 
 ## Sensor eyes
 
@@ -81,8 +100,9 @@ Free segments are measured for the worst pose and get an allowance for bends.
 
 | file | bytes | triangles |
 |---|---|---|
-| base.glb | 331952 | 11118 |
+| base.glb | 563876 | 18684 |
 | neck.glb | 210808 | 6766 |
 | head.glb | 370796 | 11836 |
 | panel.glb | 1616 | 12 |
+| together | 1147096 | 37298 |
 

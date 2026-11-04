@@ -78,7 +78,7 @@ refreshed by every `uv run build.py`.
 | part | count | colour | layer mm | infill | grams | minutes |
 |---|---|---|---|---|---|---|
 | tray | 1 | body | 0.2 | 15 % gyroid | 140.2 | 213 |
-| lid | 1 | body | 0.2 | 15 % gyroid | 114.7 | 176 |
+| lid | 1 | body | 0.2 | 15 % gyroid | 114.2 | 175 |
 | foot | 4 | dark | 0.2 | 100 % concentric | 2.0 | 5 |
 | neck_front | 1 | dark | 0.2 | 25 % gyroid | 28.8 | 47 |
 | neck_back | 1 | dark | 0.2 | 25 % gyroid | 24.9 | 40 |
@@ -87,8 +87,8 @@ refreshed by every `uv run build.py`.
 | ear_horn | 1 | dark | 0.16 | 40 % gyroid | 5.6 | 11 |
 | ear_pivot | 1 | dark | 0.16 | 40 % gyroid | 5.6 | 11 |
 | cap | 2 | accent | 0.12 | 100 % concentric | 0.4 | 1 |
-| fit_test | 1 | body | 0.2 | 15 % gyroid | 20.0 | 31 |
-| total | | | | | 448.2 | 694 |
+| fit_test | 1 | body | 0.2 | 15 % gyroid | 19.8 | 31 |
+| total | | | | | 447.5 | 693 |
 <!-- print table end -->
 
 ## Slicer settings that matter

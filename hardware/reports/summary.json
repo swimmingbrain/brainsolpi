@@ -1,7 +1,7 @@
 {
  "failures": [],
  "sweep": {
-  "base_neck": 2.5989220456566547e-13,
+  "base_neck": 2.4663891720920266e-13,
   "neck_head": 0.0,
   "base_head": 0.0,
   "gap_head_base": 3.0,
@@ -219,7 +219,7 @@
    "min": [
     -82.0,
     -78.0,
-    -0.0
+    0.0
    ],
    "max": [
     82.0,
@@ -227,6 +227,44 @@
     164.0
    ]
   }
+ },
+ "engraving": {
+  "sizes": {
+   "x_height": 7.3,
+   "url_cap": 9.729,
+   "tag_cap": 6.6,
+   "logo_height": 8.8,
+   "depth": 0.6,
+   "box": [
+    -63.38,
+    21.74,
+    63.38,
+    48.0
+   ],
+   "width": 126.75,
+   "height": 26.264,
+   "fill": 0.4,
+   "url_font": "inter_semibold.ttf",
+   "tag_font": "jetbrains_mono_extrabold.ttf"
+  },
+  "area_design": 729.835,
+  "area_measured": 729.979,
+  "pieces": 35,
+  "holes": 10,
+  "same_topology": true,
+  "stroke_min": 0.913,
+  "island_min": 0.843,
+  "strokes_ok": true,
+  "islands_ok": true,
+  "spans": {
+   "url": 2.65,
+   "tag": 2.643,
+   "logo": 2.75,
+   "rule": 0.998
+  },
+  "depth_ok": true,
+  "skin": 2.4,
+  "clear": 9.117
  },
  "parts": [
   {
@@ -257,7 +295,7 @@
    "valid": true,
    "solids": 1,
    "watertight": true,
-   "volume": 91065.57254243865,
+   "volume": 90627.58512735245,
    "size": [
     156.0,
     156.0,
@@ -267,10 +305,10 @@
    "note": "top face on the bed",
    "steep_area": 0.0,
    "steep_small_area": 0.0,
-   "flat_area": 43.647233426125574,
+   "flat_area": 773.6262585698437,
    "bridge_max": 9.999999999999993,
-   "p02": 1.59506647768285,
-   "share_thin": 0.011004126547455296,
+   "p02": 1.5950671868927946,
+   "share_thin": 0.011026878015161957,
    "role": "body"
   },
   {
@@ -455,7 +493,7 @@
    "valid": true,
    "solids": 1,
    "watertight": true,
-   "volume": 15883.505307722551,
+   "volume": 15739.29075360208,
    "size": [
     104.0,
     56.0,
@@ -465,10 +503,10 @@
    "note": "plate on the bed, print first",
    "steep_area": 0.0,
    "steep_small_area": 0.0,
-   "flat_area": 0.0,
-   "bridge_max": 0.0,
-   "p02": 1.5999999999999999,
-   "share_thin": 0.0006963788300835655,
+   "flat_area": 240.35759020078632,
+   "bridge_max": 7.810022118595553,
+   "p02": 1.0000000238418578,
+   "share_thin": 0.030344827586206897,
    "role": "body"
   }
  ],
@@ -484,8 +522,8 @@
    "layer": 0.2,
    "infill": 15,
    "pattern": "gyroid",
-   "grams": 114.7426214034727,
-   "minutes": 176.1066158193308
+   "grams": 114.19075726046408,
+   "minutes": 175.29552801361564
   },
   "foot": {
    "layer": 0.2,
@@ -547,8 +585,8 @@
    "layer": 0.2,
    "infill": 15,
    "pattern": "gyroid",
-   "grams": 20.013216687730413,
-   "minutes": 31.08056538467139
+   "grams": 19.83150634953862,
+   "minutes": 30.813501395559406
   }
  }
 }
