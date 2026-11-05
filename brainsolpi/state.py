@@ -29,11 +29,14 @@ class StateStore:
 
     def __init__(self, path: Path | None):
         self.path = path
+        # the pose of the real head, only a board, brainsolpi centre and the doctor write it
         self.pan = 0.0
         self.tilt = 90.0
         # true once the servos really were at this pose, the tracker or brainsolpi centre sent it,
         # setpin also writes this file and must not make up a pose
         self.known = False
+        # the sim keeps its own pose, where it left the simulated head says nothing about the real one
+        self.simpose: tuple[float, float] | None = None
         self.mode = "auto"
         self.sim = dict(DEFAULT_SIM)
         self.tokens: list[list] = []
@@ -48,12 +51,16 @@ class StateStore:
         if raw:
             s.pan = _num(raw.get("pan"), -90.0, 90.0, 0.0)
             s.tilt = _num(raw.get("tilt"), 0.0, 180.0, 90.0)
-            known = raw.get("known")
-            if isinstance(known, bool):
-                s.known = known
+            sp = raw.get("simpose")
+            if "simpose" not in raw:
+                # older files took the pose from whichever driver ran, mostly the sim, so it says
+                # nothing about the real head. the sim goes on from there
+                s.simpose = (s.pan, s.tilt)
             else:
-                # older files came from the tracker only, a pose in them was a real one
-                s.known = all(_is_num(raw.get(k)) for k in ("pan", "tilt"))
+                known = raw.get("known")
+                s.known = known if isinstance(known, bool) else False
+                if isinstance(sp, dict):
+                    s.simpose = (_num(sp.get("pan"), -90.0, 90.0, 0.0), _num(sp.get("tilt"), 0.0, 180.0, 90.0))
             mode = raw.get("mode")
             s.mode = mode if mode in MODES else "auto"
             sim = raw.get("sim")
@@ -81,6 +88,8 @@ class StateStore:
             "pan": round(self.pan, 2),
             "tilt": round(self.tilt, 2),
             "known": self.known,
+            "simpose": {"pan": round(self.simpose[0], 2), "tilt": round(self.simpose[1], 2)}
+            if self.simpose is not None else None,
             "mode": self.mode,
             "sim": dict(self.sim),
             "tokens": [list(t) for t in self.tokens],

@@ -131,13 +131,22 @@ class Engine:
         self.calib_done: set[str] = set()
         self._apply_calib()
         lp, lt = settings.pan_limits, settings.tilt_limits
+        # the sim and a real head keep their poses apart, a pose the sim drove says nothing about
+        # where the real head sits
+        real = not driver.has_simlight
+        self.real = real
+        if real:
+            # without a driven pose the head is taken to sit at the centre where brainsolpi
+            # centre leaves the horns, that is where the first pulse goes
+            pose = (state.pan, state.tilt) if state.known else (self.pan_map.to_angle(1500), self.tilt_map.to_angle(1500))
+        else:
+            pose = state.simpose if state.simpose is not None else (state.pan, state.tilt)
         # the first command goes out at the saved pose so the head does not jump
-        self.motion = Motion(clamp(state.pan, *lp), clamp(state.tilt, *lt))
+        self.motion = Motion(clamp(pose[0], *lp), clamp(pose[1], *lt))
         self.mode: Mode = make_mode(state.mode if state.mode in MODES else "auto")
         # a real board starts gently, its calibration came from the simulated phone light and
         # may not fit the real sensors, so without a saved one it holds, and without a pose
         # that was really driven nobody knows where the head sits, so it holds as well
-        real = not driver.has_simlight
         self.first_start: list[str] = []
         if real and not self.calib["saved"]:
             self.first_start.append("calib")
@@ -368,8 +377,9 @@ class Engine:
             self._last_us = us
             self._last_send = now
             self._force_send = False
-            # from now on the state file holds a pose the head really had
-            self.state.known = True
+            if self.real:
+                # from now on the state file holds a pose the head really had
+                self.state.known = True
 
     def _servos_on(self) -> None:
         # the first pulse after power up goes out at full servo speed, nothing can slew it from
@@ -606,8 +616,11 @@ class Engine:
 
     def save_state(self) -> None:
         st = self.state
-        st.pan = self.motion.pan
-        st.tilt = self.motion.tilt
+        if self.real:
+            st.pan = self.motion.pan
+            st.tilt = self.motion.tilt
+        else:
+            st.simpose = (self.motion.pan, self.motion.tilt)
         # the hold of a first start is no choice of anyone, the next start decides again
         st.mode = self.resume if self.first_start else self.mode.name
         if self.driver.has_simlight and not isinstance(self.mode, MODES["sun"]):
