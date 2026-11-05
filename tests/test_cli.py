@@ -1,3 +1,4 @@
+import contextlib
 import json
 import subprocess
 import sys
@@ -111,7 +112,9 @@ def test_flash_retries_once_at_57600(monkeypatch, tmp_path, capsys):
         calls.append((cmd, cwd))
         return 1 if len(calls) == 1 else 0
 
-    assert tools.flash(SimpleNamespace(port="/dev/ttyACM0", hex=str(hexfile)), runner=runner) == 0
+    # on a pi with the service installed the real pause would stop and start it
+    args = SimpleNamespace(port="/dev/ttyACM0", hex=str(hexfile))
+    assert tools.flash(args, runner=runner, hello=lambda port: None, pause=contextlib.nullcontext()) == 0
     first, second = calls[0][0], calls[1][0]
     assert first[1:] == ["-p", "atmega328p", "-c", "arduino", "-P", "/dev/ttyACM0", "-b", "115200", "-D",
                          "-U", "flash:w:brainsol_bridge.hex:i"]

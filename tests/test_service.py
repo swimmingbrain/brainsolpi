@@ -83,6 +83,8 @@ def test_flash_without_an_answer_points_to_the_doctor(monkeypatch, tmp_path, cap
     hexfile = tmp_path / "brainsol_bridge.hex"
     hexfile.write_text(":00000001FF\n", encoding="utf-8")
     args = SimpleNamespace(port="/dev/ttyACM0", hex=str(hexfile))
+    # the real pause would stop a service that runs on this machine
+    monkeypatch.setattr(service, "active", lambda run: False)
     assert tools.flash(args, runner=lambda cmd, cwd: 0, hello=lambda port: None) == 0
     assert "brainsolpi doctor" in capsys.readouterr().out
 
