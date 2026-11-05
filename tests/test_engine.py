@@ -276,4 +276,6 @@ def test_shutdown_saves_the_pose(sim, tmp_path):
     s.run(3)
     s.engine.shutdown()
     saved = json.loads((tmp_path / "state.json").read_text(encoding="utf-8"))
-    assert (saved["pan"], saved["tilt"], saved["mode"]) == (-20, 70, "manual")
+    assert (saved["simpose"]["pan"], saved["simpose"]["tilt"], saved["mode"]) == (-20, 70, "manual")
+    # the sim keeps its pose apart, the real head was never driven
+    assert (saved["pan"], saved["tilt"], saved["known"]) == (10, 50, False)

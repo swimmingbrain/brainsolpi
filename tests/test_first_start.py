@@ -166,14 +166,46 @@ def test_the_sim_starts_right_away():
     assert s.mode.name == "auto" and s.first_start == [] and not s.servos_off
 
 
-def test_setpin_writes_no_pose_and_older_state_files_count_as_driven(tmp_path):
+def test_setpin_writes_no_pose_and_older_state_files_say_nothing_about_the_head(tmp_path):
     args = SimpleNamespace(config_dir=str(tmp_path))
     answers = iter(["2468", "2468"])
     assert tools.setpin(args, ask=lambda prompt: next(answers)) == 0
     assert StateStore.load(tmp_path / "state.json").known is False
-    (tmp_path / "state.json").write_text(json.dumps({"pan": 12, "tilt": 70, "mode": "auto"}), encoding="utf-8")
+    # older files took the pose from the sim as well, the sim goes on from it, the head does not
+    for old in ({"pan": 12, "tilt": 70, "mode": "auto"}, {"pan": 12, "tilt": 70, "known": True, "mode": "auto"}):
+        (tmp_path / "state.json").write_text(json.dumps(old), encoding="utf-8")
+        st = StateStore.load(tmp_path / "state.json")
+        assert not st.known and st.simpose == (12, 70)
+
+
+def test_a_sim_run_leaves_the_pose_of_the_real_head_alone(tmp_path):
+    state = StateStore.load(tmp_path / "state.json")
+    sim = Engine(Settings(), state, SimDriver(seed=1), sink=RecSink())
+    sim.set_target(25, 40)
+    for i in range(150):
+        sim.tick(10.0 + i * DT)
+    sim.shutdown()
     st = StateStore.load(tmp_path / "state.json")
-    assert st.known and (st.pan, st.tilt) == (12, 70)
+    assert not st.known and (st.pan, st.tilt) == (0, 90)
+    assert st.simpose == pytest.approx((25, 40), abs=0.5)
+    # the sim goes on where it left its own head
+    again = Engine(Settings(), st, SimDriver(seed=1), sink=RecSink())
+    assert (again.motion.pan, again.motion.tilt) == pytest.approx((25, 40), abs=0.5)
+
+
+def test_a_first_board_after_the_sim_holds_with_its_servos_off_and_starts_at_the_centre(tmp_path):
+    # the state file the sim wrote on the pi before this version, its pose looks driven
+    path = tmp_path / "state.json"
+    path.write_text(json.dumps({"pan": 21.8, "tilt": 42.59, "known": True, "mode": "auto"}), encoding="utf-8")
+    r = Rig()
+    r.state = StateStore.load(path)
+    r.engine = Engine(r.settings, r.state, r.driver, wall=lambda: 1.78e9 + r.t, sink=r.sink)
+    r.run(2)
+    assert r.engine.mode.name == "hold" and r.driver.moves == []
+    assert any("servos stay off" in m and "pan 0 tilt 90" in m for m in r.events())
+    r.engine.set_mode("auto")
+    r.run(0.4)
+    assert set(r.driver.moves) == {(1500, 1500)}
 
 
 ALL_OK = [("serial port", True, "/dev/ttyACM0"), ("firmware", True, "1.0.0"), ("sample frames", True, ""),
