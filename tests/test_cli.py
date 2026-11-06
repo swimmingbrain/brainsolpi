@@ -45,6 +45,36 @@ def test_demo_runs_the_sim_on_this_computer_in_a_folder_that_goes_away(monkeypat
     assert cli.build_parser().parse_args(["demo", "--http-port", "9001"]).http_port == 9001
 
 
+def test_under_systemd_each_log_line_carries_its_level_and_no_time(monkeypatch, tmp_path):
+    import logging
+    import os
+
+    from brainsolpi import cli
+
+    with open(tmp_path / "journal", "w", encoding="utf-8") as stream:
+        st = os.fstat(stream.fileno())
+        monkeypatch.setattr(sys, "stderr", stream)
+        monkeypatch.setenv("JOURNAL_STREAM", f"{st.st_dev}:{st.st_ino}")
+        assert cli.under_journal()
+        # a name of another stream, a terminal started from a service for example, does not count
+        monkeypatch.setenv("JOURNAL_STREAM", f"{st.st_dev}:{st.st_ino + 1}")
+        assert not cli.under_journal()
+        monkeypatch.setenv("JOURNAL_STREAM", "garbage")
+        assert not cli.under_journal()
+        monkeypatch.delenv("JOURNAL_STREAM")
+        assert not cli.under_journal()
+    fmt = cli.JournalFormatter()
+    rec = logging.LogRecord("brainsolpi", logging.WARNING, __file__, 1, "no board answered", None, None)
+    assert fmt.format(rec) == "<4>WARNING brainsolpi: no board answered"
+    try:
+        raise ValueError("bad")
+    except ValueError:
+        rec = logging.LogRecord("brainsolpi.engine", logging.ERROR, __file__, 1, "loop", None, sys.exc_info())
+    lines = fmt.format(rec).splitlines()
+    assert len(lines) > 2 and all(line.startswith("<3>") for line in lines)
+    assert lines[-1] == "<3>ValueError: bad"
+
+
 def test_repo_paths():
     root = paths.repo_root()
     assert (root / "pyproject.toml").is_file()
