@@ -36,8 +36,10 @@ done
 if [ -n "$missing" ]; then
   info "installing:$missing"
   sudo apt-get update
+  # none of these packages asks anything, and without a terminal debconf would complain about
+  # every frontend it tries
   # shellcheck disable=SC2086
-  sudo apt-get install -y $missing
+  sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y $missing
 else
   info "all there: $packages"
 fi
