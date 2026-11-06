@@ -141,7 +141,8 @@ class Auth:
         return token, exp
 
     def verify_token(self, token) -> float | None:
-        if not isinstance(token, str) or not token or len(token) > 256:
+        # without a pin nobody is admin, a token left from an earlier pin does not count either
+        if not self.enabled or not isinstance(token, str) or not token or len(token) > 256:
             return None
         now = self.clock()
         expired = [k for k, e in self.tokens.items() if e <= now]
@@ -152,6 +153,8 @@ class Auth:
         return self.tokens.get(_token_key(token))
 
     def resume(self, token) -> dict:
+        if not self.enabled:
+            return {"t": "auth", "ok": False, "err": "pin", "msg": NO_PIN, "wait": 0}
         exp = self.verify_token(token)
         if exp is None:
             return {"t": "auth", "ok": False, "err": "token", "msg": "the token is unknown or expired, log in with the pin", "wait": 0}
