@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import secrets
 import sys
 import tempfile
@@ -82,12 +83,39 @@ def demo_args(args) -> argparse.Namespace:
     )
 
 
+class JournalFormatter(logging.Formatter):
+    # systemd takes a <n> in front of a line as its priority, so journalctl -p warning finds
+    # the warnings. the journal adds the time itself
+
+    PRIORITY = {logging.DEBUG: 7, logging.INFO: 6, logging.WARNING: 4, logging.ERROR: 3, logging.CRITICAL: 2}
+
+    def __init__(self) -> None:
+        super().__init__("%(levelname)s %(name)s: %(message)s")
+
+    def format(self, record: logging.LogRecord) -> str:
+        prio = self.PRIORITY.get(record.levelno, 6)
+        # every line of a traceback gets it, else the journal files them as plain info
+        return "\n".join(f"<{prio}>{line}" for line in super().format(record).splitlines())
+
+
+def under_journal() -> bool:
+    # systemd names the stream of the journal here, it counts only when stderr really is that stream
+    try:
+        dev, ino = (int(x) for x in os.environ.get("JOURNAL_STREAM", "").split(":"))
+        st = os.fstat(sys.stderr.fileno())
+    except (ValueError, OSError, AttributeError):
+        return False
+    return (st.st_dev, st.st_ino) == (dev, ino)
+
+
 def setup_logging(verbose: bool) -> None:
-    logging.basicConfig(
-        level=logging.DEBUG if verbose else logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-        datefmt="%H:%M:%S",
-    )
+    level = logging.DEBUG if verbose else logging.INFO
+    if under_journal():
+        handler = logging.StreamHandler()
+        handler.setFormatter(JournalFormatter())
+        logging.basicConfig(level=level, handlers=[handler])
+    else:
+        logging.basicConfig(level=level, format="%(asctime)s %(levelname)s %(name)s: %(message)s", datefmt="%H:%M:%S")
     if not verbose:
         logging.getLogger("aiohttp").setLevel(logging.WARNING)
 
