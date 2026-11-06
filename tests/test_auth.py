@@ -44,6 +44,20 @@ def test_no_pin_means_no_admin():
     assert auth.check("2468") == {"t": "auth", "ok": False, "err": "pin", "msg": NO_PIN, "wait": 0}
 
 
+def test_without_a_pin_even_a_token_from_before_unlocks_nothing():
+    saved = []
+    old, clock = make(saved=saved)
+    token = old.check("2468")["token"]
+    # the pin hash went out of the settings, the state file still holds the token
+    auth = Auth("", tokens=saved[-1], clock=clock)
+    assert auth.resume(token) == {"t": "auth", "ok": False, "err": "pin", "msg": NO_PIN, "wait": 0}
+    assert auth.verify_token(token) is None
+    for _ in range(10):
+        assert not auth.check("2468")["ok"]
+    # nothing counted as a wrong try, so a pin set later works at once
+    assert auth.wait() == 0
+
+
 def test_good_pin_gives_a_twelve_hour_token():
     auth, clock = make()
     out = auth.check("2468")
