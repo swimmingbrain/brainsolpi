@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# sets up brainsol on a raspberry pi with raspberry pi os bookworm or newer
+# sets up brainsol on a raspberry pi 3b+ or 4 with raspberry pi os bookworm or newer, it ran first on trixie
 #
 # run it once from the cloned repo as your normal user, it calls sudo where it needs to:
 #   cd ~/brainsolpi && deploy/install.sh
