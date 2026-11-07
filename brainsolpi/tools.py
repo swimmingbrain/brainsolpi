@@ -228,21 +228,22 @@ def flash(args, runner=subprocess.call, hello=_hello, pause=None) -> int:
     return 0
 
 
-def _avrdude(avrdude: str, port: str, hexfile: Path, runner) -> int:
+def _avrdude(avrdude: str, port: str, hexfile: Path, runner, out=print) -> int:
+    # the one avrdude step, brainsolpi flash and the service both go through here
     rc = 1
     for baud in (115200, 57600):
         # avrdude reads a drive letter as a field separator, so it gets the bare file name
         cmd = [avrdude, "-p", "atmega328p", "-c", "arduino", "-P", port, "-b", str(baud),
                "-D", "-U", f"flash:w:{hexfile.name}:i"]
-        print(" ".join(cmd))
+        out(" ".join(cmd))
         rc = runner(cmd, cwd=str(hexfile.parent))
         if rc == 0:
             return 0
         if baud == 115200:
-            print("avrdude could not sync at 115200 baud, trying once more at 57600 for an older bootloader")
-    print("flashing failed")
-    print("check the usb cable and close every other program that uses the port, a serial monitor perhaps")
-    print("if it still fails, press the reset button on the board right when avrdude starts")
+            out("avrdude could not sync at 115200 baud, trying once more at 57600 for an older bootloader")
+    out("flashing failed")
+    out("check the usb cable and close every other program that uses the port, a serial monitor perhaps")
+    out("if it still fails, press the reset button on the board right when avrdude starts")
     return rc
 
 
