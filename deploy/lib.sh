@@ -111,6 +111,18 @@ install_unit() {
   info "installed $unit_file"
 }
 
+# the official supply of this pi model, a pi 3b+ takes micro usb and a pi 4 usb c, the same
+# words as brainsolpi/sysinfo.py
+supply_text() {
+  local model=""
+  model="$(tr -d '\0' 2>/dev/null </proc/device-tree/model || true)"
+  case "$model" in
+    *"Raspberry Pi 4"*) printf 'the official 5.1 V 3 A usb c supply of the pi 4' ;;
+    *"Raspberry Pi 3"*) printf 'the official 5.1 V 2.5 A micro usb supply of the pi 3b+' ;;
+    *) printf 'the official 5.1 V 2.5 A micro usb supply for a pi 3b+ or the official 5.1 V 3 A usb c supply for a pi 4' ;;
+  esac
+}
+
 # the pi powers the uno and both servos through usb, a weak supply shows up here first,
 # vcgencmd get_throttled sets bit 0 for low voltage right now and bit 16 for low voltage since boot
 check_power() {
@@ -124,7 +136,7 @@ check_power() {
   esac
   if [ $((bits & 0x10001)) -ne 0 ]; then
     warn "the pi saw low voltage since it started ($out). it powers the uno and both servos through usb,"
-    warn "so it needs the official 5.1 V 2.5 A micro usb supply or a better one, see docs/troubleshooting.md"
+    warn "so it needs $(supply_text) or a better one, see docs/troubleshooting.md"
   else
     info "power: no low voltage seen since the start ($out)"
   fi
