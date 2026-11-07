@@ -44,6 +44,30 @@ def test_missing_files_give_none(tmp_path, monkeypatch):
     assert s.sample() == {"cpu": None, "temp": None, "mem": None}
 
 
+def test_the_supply_hint_fits_the_model_of_the_pi(tmp_path, monkeypatch):
+    model = tmp_path / "model"
+    monkeypatch.setattr(sysinfo, "MODEL", model)
+    model.write_bytes(b"Raspberry Pi 3 Model B Plus Rev 1.3\x00")
+    assert sysinfo.supply() == "the official 5.1 V 2.5 A micro usb supply of the pi 3b+"
+    model.write_bytes(b"Raspberry Pi 4 Model B Rev 1.5\x00")
+    assert sysinfo.supply() == "the official 5.1 V 3 A usb c supply of the pi 4"
+    # another computer, or a model it does not know, gets both
+    model.unlink()
+    both = sysinfo.supply()
+    assert "5.1 V 2.5 A micro usb supply for a pi 3b+" in both and "5.1 V 3 A usb c supply for a pi 4" in both
+
+
+def test_a_board_restart_names_the_supply_of_this_pi(monkeypatch):
+    from brainsolpi.drivers import bridge
+
+    monkeypatch.setattr(bridge, "supply", lambda: "the official 5.1 V 3 A usb c supply of the pi 4")
+    d = bridge.BridgeDriver("fake")
+    d._restarted(100.0)
+    (lvl, msg), = d.drain_events()
+    assert lvl == "warn" and "restarted by itself" in msg
+    assert msg.endswith("it needs the official 5.1 V 3 A usb c supply of the pi 4 or a better one")
+
+
 def test_low_voltage_reads_the_throttled_bits_of_the_pi(monkeypatch):
     from types import SimpleNamespace
 
