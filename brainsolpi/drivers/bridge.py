@@ -8,6 +8,7 @@ import time
 from collections import deque
 from typing import Callable
 
+from ..sysinfo import supply
 from .base import Driver
 from .protocol import (
     BAUD,
@@ -322,7 +323,7 @@ class BridgeDriver(Driver):
         self.event(
             "warn",
             "the board restarted by itself, if that happens while the servos move the supply of the pi "
-            "sags, it needs the official 5.1 V 2.5 A micro usb supply or a better one",
+            f"sags, it needs {supply()} or a better one",
         )
 
 

@@ -22,6 +22,23 @@ def _read(path: Path) -> str | None:
         return None
 
 
+MODEL = Path("/proc/device-tree/model")
+# the official supplies, a pi 3b+ takes micro usb and a pi 4 usb c with a bit more current
+SUPPLY_3 = "the official 5.1 V 2.5 A micro usb supply"
+SUPPLY_4 = "the official 5.1 V 3 A usb c supply"
+
+
+def supply() -> str:
+    # the supply this pi needs, it powers the uno and both servos through usb as well.
+    # off a pi or on a model it does not know it names both
+    text = _read(MODEL) or ""
+    if "Raspberry Pi 4" in text:
+        return f"{SUPPLY_4} of the pi 4"
+    if "Raspberry Pi 3" in text:
+        return f"{SUPPLY_3} of the pi 3b+"
+    return f"{SUPPLY_3} for a pi 3b+ or {SUPPLY_4} for a pi 4"
+
+
 def low_voltage(run: Callable = subprocess.run) -> bool | None:
     # the pi itself notices when its 5 V input sags below about 4.63 V, None off a pi
     if shutil.which("vcgencmd") is None:

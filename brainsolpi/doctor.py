@@ -16,12 +16,12 @@ from .drivers.protocol import FLAG_ATTACHED, RAW_MAX
 from .jsonio import read_json
 from .kinematics import ServoMap
 from .state import StateStore
-from .sysinfo import low_voltage
+from .sysinfo import low_voltage, supply
 from .tools import BUSY_HINT
 
 POWER_NOTE = ("the pi reports low voltage since it started. it powers the uno and both servos "
-              "through usb, so it needs the official 5.1 V 2.5 A micro usb supply or a better one")
-POWER_STEP = ("use the official 5.1 V 2.5 A micro usb supply or a better one with a short cable, "
+              "through usb, so it needs {supply} or a better one")
+POWER_STEP = ("use {supply} or a better one with a short cable, "
               "a phone charger or a pc port sags when the servos move, then reboot the pi")
 
 NAMES = ("L", "R", "U", "D")
@@ -51,6 +51,7 @@ class Doctor:
         live: bool = True,
         quick: bool = False,
         power: Callable[[], bool | None] = low_voltage,
+        supply: Callable[[], str] = supply,
     ):
         self.port = port
         self.fake = fake
@@ -67,6 +68,7 @@ class Doctor:
         self.drv: BridgeDriver | None = None
         self.results: list[tuple[str, bool | None, str]] = []
         self.power = power
+        self.supply = supply
         # true when the pi saw its supply sag, None when nobody asked or it cannot tell
         self.low_voltage: bool | None = None
 
@@ -317,14 +319,14 @@ class Doctor:
         # the pi feeds the uno and both servos through usb, a weak supply shows here first
         self.low_voltage = self.power()
         if self.low_voltage:
-            self.out(f"  warning: {POWER_NOTE}")
+            self.out(f"  warning: {POWER_NOTE.format(supply=self.supply())}")
 
     def next_steps(self) -> list[str]:
         # what to do now, as exact as the results allow, the first failure comes first
         steps = self._next_steps()
         if self.low_voltage and not self.fake:
             # a sagging supply explains resets and jitter, so it goes before everything else
-            steps.insert(0, POWER_STEP)
+            steps.insert(0, POWER_STEP.format(supply=self.supply()))
         return steps
 
     def _next_steps(self) -> list[str]:
