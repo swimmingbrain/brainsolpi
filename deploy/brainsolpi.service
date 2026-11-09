@@ -16,7 +16,9 @@ Group=@GROUP@
 SupplementaryGroups=dialout
 WorkingDirectory=@REPO@
 Environment=PYTHONUNBUFFERED=1
-ExecStart=@VENV@/bin/brainsolpi run --driver auto
+# --autoflash writes the bridge firmware to a fresh uno, serial.autoflash false in
+# ~/.config/brainsolpi/settings.json turns that off
+ExecStart=@VENV@/bin/brainsolpi run --driver auto --autoflash
 Restart=always
 # long enough for the uno to reset and for the port to come back after a crash
 RestartSec=3
