@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import logging
+import os
 import threading
 import time
-from typing import Callable
+from typing import Callable, Iterable, NamedTuple
 
 from .bridge import IDENT_TIMEOUT, open_serial, wait_ident
 from .protocol import Ident
@@ -14,6 +15,40 @@ log = logging.getLogger(__name__)
 KNOWN_VIDS = {0x2341: "Arduino", 0x2A03: "Arduino", 0x1A86: "CH340", 0x0403: "FTDI", 0x10C4: "CP210x"}
 # the pi uart and bluetooth ports, never a board
 SKIP = ("/dev/ttyS", "/dev/ttyAMA", "/dev/serial", "/dev/ttyprintk")
+# vendor and product ids of an uno r3 whose usb chip is an atmega16u2 with the arduino firmware,
+# arduino cc, arduino org and the genuino uno. the keyestudio board of the kit is sold as an uno
+# r3 with that chip. a ch340, ftdi or cp210x adapter can sit in front of anything, so none of
+# them is here
+UNO_IDS = frozenset({(0x2341, 0x0043), (0x2A03, 0x0043), (0x2341, 0x0243)})
+# a port that opened and said nothing for this long counts as silent, a board with other code on it
+SILENT_S = 4.0
+
+
+class UsbInfo(NamedTuple):
+    vid: int
+    pid: int
+    serial: str | None
+
+    @property
+    def ids(self) -> str:
+        return f"{self.vid:04x}:{self.pid:04x}"
+
+    @property
+    def uno(self) -> bool:
+        return (self.vid, self.pid) in UNO_IDS
+
+
+def usb_info(port: str) -> UsbInfo | None:
+    # the usb ids and the serial number behind a serial port, None for a port without usb
+    try:
+        from serial.tools import list_ports
+    except ImportError:
+        return None
+    real = os.path.realpath(port)
+    for p in list_ports.comports():
+        if p.device in (port, real) and p.vid is not None and p.pid is not None:
+            return UsbInfo(p.vid, p.pid, p.serial_number or None)
+    return None
 
 
 def _scored() -> list[tuple[int, str, str]]:
@@ -47,15 +82,19 @@ def likely_ports() -> list[str]:
 
 
 def probe(port: str, opener: Callable = open_serial, timeout: float = IDENT_TIMEOUT,
-          halt: threading.Event | None = None) -> tuple | None:
-    # opens a port and waits for the identity line, the port stays open when it answers
+          halt: threading.Event | None = None, silent: set[str] | None = None) -> tuple | None:
+    # opens a port and waits for the identity line, the port stays open when it answers.
+    # a port that opened fine and stayed quiet for a while goes into silent
     try:
         ser = opener(port)
     except Exception as e:
         log.debug("cannot open %s: %s", port, e)
         return None
+    start = time.monotonic()
+    quiet = False
     try:
         ident = wait_ident(ser, timeout, halt)
+        quiet = ident is None and time.monotonic() - start >= min(timeout, SILENT_S) * 0.95
     except Exception as e:
         log.debug("%s failed while waiting: %s", port, e)
         ident = None
@@ -64,11 +103,14 @@ def probe(port: str, opener: Callable = open_serial, timeout: float = IDENT_TIME
             ser.close()
         except Exception:
             pass
+        if quiet and silent is not None:
+            silent.add(port)
         return None
     return port, ser, ident
 
 
-def find_board(timeout: float = 6.0, opener: Callable = open_serial, ports: list[str] | None = None) -> tuple | None:
+def find_board(timeout: float = 6.0, opener: Callable = open_serial, ports: list[str] | None = None,
+               silent: set[str] | None = None) -> tuple | None:
     # probes every candidate at the same time, the first brainsol board wins
     if ports is None:
         ports = [dev for dev, _ in candidates()]
@@ -80,7 +122,7 @@ def find_board(timeout: float = 6.0, opener: Callable = open_serial, ports: list
     done = [False]
 
     def worker(port: str) -> None:
-        got = probe(port, opener, min(timeout, IDENT_TIMEOUT + 1.0), halt)
+        got = probe(port, opener, min(timeout, IDENT_TIMEOUT + 1.0), halt, silent)
         if got is None:
             return
         with lock:
@@ -98,6 +140,10 @@ def find_board(timeout: float = 6.0, opener: Callable = open_serial, ports: list
     for t in threads:
         t.join(max(0.0, end - time.monotonic()))
     halt.set()
+    # a probe gives up within one read after the halt, so silent is complete once it returns
+    end = time.monotonic() + 0.5
+    for t in threads:
+        t.join(max(0.0, end - time.monotonic()))
     with lock:
         done[0] = True
         return result[0] if result else None
@@ -111,14 +157,21 @@ class BoardWatch:
     TRIES = 2
 
     def __init__(self, lister: Callable[[], list[str]] = likely_ports, opener: Callable = open_serial,
-                 timeout: float = IDENT_TIMEOUT + 1.0):
+                 timeout: float = IDENT_TIMEOUT + 1.0, start: Iterable[str] | None = None,
+                 silent: Iterable[str] = (), info: Callable[[str], UsbInfo | None] = usb_info):
         self.lister = lister
         self.opener = opener
         self.timeout = timeout
+        self.info = info
         self.halt = threading.Event()
-        # ports that are done with until they go away, None before the first look
-        self.seen: set[str] | None = None
+        # ports that are done with until they go away, None before the first look. auto passes
+        # the ports it already probed at the start
+        self.seen: set[str] | None = set(start) if start is not None else None
         self.tries: dict[str, int] = {}
+        # ports that opened fine and stayed quiet, a board with other code on it perhaps
+        self.silent: set[str] = set(silent)
+        # silent ports that were already handed out once, until they go away
+        self.told: set[str] = set()
 
     def check(self) -> tuple | None:
         # one look, returns (port, serial, ident) of a board that answered, its port still open
@@ -128,12 +181,16 @@ class BoardWatch:
             self.seen = set(ports)
             return None
         # a port that went away and comes back is a new plug
-        self.seen &= set(ports)
-        self.tries = {p: n for p, n in self.tries.items() if p in ports}
+        present = set(ports)
+        self.seen &= present
+        self.silent &= present
+        self.told &= present
+        self.tries = {p: n for p, n in self.tries.items() if p in present}
         for port in ports:
             if port in self.seen or self.halt.is_set():
                 continue
-            got = probe(port, self.opener, self.timeout, self.halt)
+            quiet: set[str] = set()
+            got = probe(port, self.opener, self.timeout, self.halt, quiet)
             if got is not None:
                 return got
             self.tries[port] = self.tries.get(port, 0) + 1
@@ -142,7 +199,15 @@ class BoardWatch:
                 # would only reset it, so it stays alone until it is plugged in again
                 del self.tries[port]
                 self.seen.add(port)
+                self.silent |= quiet
+        return None
+
+    def next_silent(self) -> tuple[str, UsbInfo | None] | None:
+        # a silent port nobody was told about yet, with its usb ids. each one comes up once per plug
+        for port in sorted(self.silent - self.told):
+            self.told.add(port)
+            return port, self.info(port)
         return None
 
 
-__all__ = ["BoardWatch", "Ident", "candidates", "find_board", "likely_ports", "probe"]
+__all__ = ["BoardWatch", "Ident", "UNO_IDS", "UsbInfo", "candidates", "find_board", "likely_ports", "probe", "usb_info"]
