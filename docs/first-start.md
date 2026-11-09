@@ -19,16 +19,28 @@ one colour each.
 
 ## 3. Flash the bridge firmware
 
-While the prints run, lay the electronics out on the table. Plug the UNO into the lower USB port of the Pi
-with the kit cable. On the Pi:
+While the prints run, lay the electronics out on the table. Plug the UNO into a USB port of the Pi with the
+kit cable, nothing else on it yet. The service does the rest by itself:
+
+1. within about 15 s it notices a port that opens but never answers the brainSOL hello
+2. it checks that the USB ids are those of an UNO R3 with the ATmega16U2 chip, `lsusb` shows them, the kit
+   board should say `2341:0043`
+3. it writes `firmware/brainsol_bridge.hex` with avrdude, that takes about half a minute
+4. the board says hello and the service restarts with it
+
+Follow it with `journalctl -u brainsolpi -f`, or in the event log of the System tab if the admin tools are
+unlocked. Afterwards the System tab says Driver UNO board. The tracker starts in hold with the servos off,
+nothing moves until the next steps.
+
+If the service says it left the board alone, if flashing failed, or if you turned `serial.autoflash` off,
+flash it by hand:
 
 ```
 brainsolpi flash
 ```
 
-It stops the service, writes `firmware/brainsol_bridge.hex` with avrdude, waits for the board to say hello
-and starts the service again. The last line looks like `the board answers: I,brainsol,1.0.0,0`. The service
-now finds the board and runs with it, the System tab of the admin tools says Driver UNO board.
+It stops the service, writes the same hex with avrdude, waits for the board to say hello and starts the
+service again. The last line looks like `the board answers: I,brainsol,1.0.0,0`.
 
 ## 4. Check everything with the doctor
 
@@ -50,7 +62,8 @@ It goes through six steps and tells you what to do in each:
 6. servos: both turn a few degrees and come back, you confirm it
 
 It ends with a summary and the exact next steps for your setup. Fix whatever it reports and run it again
-until every step says ok. It also warns when the Pi saw low voltage, then change the power supply first.
+until every step says ok. It also warns when the Pi saw low voltage, then change the power supply first:
+the official 5.1 V 2.5 A micro USB supply for a Pi 3B+, the official 5.1 V 3 A USB C supply for a Pi 4.
 
 ## 5. Centre the servos
 
@@ -62,11 +75,15 @@ Both servos go to 1500 us, the middle of their range. That is pan 0 and tilt 90 
 they stop, press Ctrl+C. `centre` stores this pose, so the tracker later starts right there. Do not turn the
 servo shafts by hand from now on, the horns go on in this position during the assembly.
 
+Only `centre`, the doctor and the tracker on the real board store a pose. The weeks of simulation before do
+not count, the sim keeps a pose of its own, so before this step the board knows nothing about the head.
+
 ## 6. Assemble
 
 Shut the Pi down with `sudo poweroff`, wait until the green light stops blinking and pull the power plug.
 Then follow `hardware/ASSEMBLY.md`. Its step 2 is what you just did, skip it. All screws come from the kit,
-the two screwdrivers of the kit are the only tools.
+the two screwdrivers of the kit are the only tools. Read step 3 of the assembly before you start: the plug of
+the power cable does not fit through the notch in the back wall.
 
 ## 7. Calibrate
 
