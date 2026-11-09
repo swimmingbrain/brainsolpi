@@ -90,8 +90,8 @@ def demo_args(args) -> argparse.Namespace:
 
 
 class JournalFormatter(logging.Formatter):
-    # systemd takes a <n> in front of a line as its priority, so journalctl -p warning finds
-    # the warnings. the journal adds the time itself
+    # systemd takes a <n> in front of a line as its priority, so journalctl can show only the
+    # warnings. the journal adds the time itself
 
     PRIORITY = {logging.DEBUG: 7, logging.INFO: 6, logging.WARNING: 4, logging.ERROR: 3, logging.CRITICAL: 2}
 

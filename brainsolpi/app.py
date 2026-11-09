@@ -91,7 +91,7 @@ def board_watch(args, looked: dict | None = None) -> BoardWatch:
 
 
 def autoflash(args, settings: Settings, state: StateStore) -> AutoFlash | None:
-    # only the service asks for it with --autoflash, a run by hand on a computer with an arduino
+    # only the service asks for it with the autoflash flag, a run by hand on a computer with an arduino
     # for something else never writes to it. serial.autoflash false in the settings turns it off
     if args.driver != "auto" or not getattr(args, "autoflash", False) or not settings.data["serial"]["autoflash"]:
         return None
