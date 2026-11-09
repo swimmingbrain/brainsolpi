@@ -1,7 +1,7 @@
 # Building the brainSOL tracker
 
-You need the printed parts (see `PRINTING.md`), the Raspberry Pi 3B+ with the official 5.1 V 2.5 A micro USB
-supply or a better one, and from the kit: the Keyestudio UNO, two servos with their horn bags, four
+You need the printed parts (see `PRINTING.md`), the Raspberry Pi with its official supply or a better one
+(5.1 V 2.5 A micro USB for a Pi 3B+, 5.1 V 3 A USB C for a Pi 4), and from the kit: the Keyestudio UNO, two servos with their horn bags, four
 photoresistor modules, the BH1750 module, the solar panel, four 3 pin cables, the long 4 pin cable (350 mm),
 the USB A to B cable, the screws and the two screwdrivers. No glue, no soldering, no other tools.
 
@@ -34,7 +34,7 @@ One more turn strips the thread.
 | pan servo lead | lower servo | D9, brown on G |
 | tilt servo lead | upper servo | D10, brown on G |
 | USB A to B | Pi, lower USB port next to the Ethernet jack | UNO USB socket |
-| Pi power | wall plug | micro USB on the Pi, cable out through the notch in the back wall |
+| Pi power | wall plug | micro USB (Pi 3B+) or USB C (Pi 4) on the Pi, cable out through the notch in the back wall, see step 3 |
 
 G must meet G on both ends of every 3 pin cable. Note the colour of the wire on the G pin of the module and
 put the same colour on the G row of the UNO. Set the small slide switch on the UNO to 5 V.
@@ -59,8 +59,8 @@ spline.
 
 1. Plug the USB B end of the kit cable into the UNO and the A end into the Pi. Plug the pan servo into D9 and
    the tilt servo into D10, brown on G. Set the slide switch on the UNO to 5 V.
-2. Power the Pi and log in. Flash the bridge firmware once with `brainsolpi flash`, unless
-   `deploy/install.sh` already did it. `brainsolpi doctor` then checks the board, the servos and every sensor
+2. Power the Pi and log in. The service writes the bridge firmware to a fresh UNO by itself, see
+   `docs/first-start.md`, otherwise flash it once with `brainsolpi flash`. `brainsolpi doctor` then checks the board, the servos and every sensor
    you plugged in, `docs/first-start.md` shows how to test all of them on the table first. Both commands stop
    the tracker service while they need the board and start it again at the end.
 3. Run `brainsolpi centre`. Both servos go to 1500 us, that is pan 0 and tilt 90. It asks you to mount the
@@ -75,8 +75,18 @@ See `renders/inside_base.png`.
 
 1. Set the Pi onto its four pins in the tray, USB ports toward the front, then push it down until it sits
    flat on the standoffs.
-2. Plug the micro USB power cable into the Pi. Lead the cable back along the floor and press it into the
-   notch at the bottom of the back wall. The plug stays inside.
+2. The power cable has to get from the wall plug outside to the Pi inside, but the notch at the bottom of
+   the back wall is only 4.5 mm wide. It passes the cable, no plug fits through it, neither the micro USB
+   plug of a Pi 3B+ nor the USB C plug of a Pi 4. Pick one of two ways:
+   - Widen the notch to about 13 x 10 mm (width x height) with a file or a craft knife, so the plug of the
+     supply goes through from outside. Push the plug in, plug it into the Pi, lead the cable back along the
+     floor and lay it into the bottom of the notch.
+   - Or cut the supply cable, lead the cut end in through the notch and join both ends again inside, with
+     solder and heat shrink or with a small screw terminal, each wire to the one of the same colour. Check
+     with a multimeter that 5 V arrives with the right polarity before the Pi sees it. Then plug the micro USB or USB C plug into the Pi and
+     lead the cable back along the floor to the notch.
+
+   The plug and the joint stay inside either way.
 3. Plug the A end of the USB cable into the lower USB port next to the Ethernet jack. Wind the spare cable
    around the two low posts in the front bay, two or three turns, and leave the B end about 15 cm long.
 
