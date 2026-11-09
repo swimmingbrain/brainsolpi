@@ -19,7 +19,7 @@ The pins are the ones of the stock kit wiring, the bridge firmware expects them 
 | pan servo, the lower one | its own lead | D9 | brown on G |
 | tilt servo, the upper one | its own lead | D10 | brown on G |
 | UNO | USB A to B cable of the kit | lower USB port of the Pi, next to the Ethernet jack | power and data |
-| Pi | micro USB | wall plug | the official 5.1 V 2.5 A supply or a better one |
+| Pi | micro USB (Pi 3B+) or USB C (Pi 4) | wall plug | the official 5.1 V 2.5 A or 5.1 V 3 A supply or a better one |
 | INA219, optional | 4 single wires | V, G, A4 and A5 | see below |
 
 L, R, U and D are named in the frame of the panel, seen from behind the tracker. Standing in front of the
@@ -45,8 +45,9 @@ barely move and the readings of the light sensors shrink.
 ## Power
 
 The Pi powers the UNO and both servos through the USB cable. There is no second supply, so the supply of the
-Pi carries everything: use the official 5.1 V 2.5 A micro USB supply of the Pi 3B+ or a better one, with the
-cable it came with. The motion limits keep the current low, see the power entry in
+Pi carries everything: use the official supply of your Pi or a better one, with the cable it came with. That
+is 5.1 V 2.5 A over micro USB for a Pi 3B+ and 5.1 V 3 A over USB C for a Pi 4. The diagram above shows the
+Pi 3B+. The motion limits keep the current low, see the power entry in
 `docs/troubleshooting.md` for what a weak supply looks like and what the low voltage warning of the Pi means.
 
 ## The optional INA219

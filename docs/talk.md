@@ -37,8 +37,8 @@ not work. So the Pi and the laptop do not use it at all.
 ## The evening before
 
 - [ ] Run `deploy/update.sh` on the Pi, then `brainsolpi doctor`. Every step ok, no low voltage warning.
-- [ ] Power supply, the USB cable and the phone torch are packed. The official 5.1 V 2.5 A supply, not a
-      phone charger.
+- [ ] Power supply, the USB cable and the phone torch are packed. The official supply of the Pi, 5.1 V
+      2.5 A micro USB for a Pi 3B+ or 5.1 V 3 A USB C for a Pi 4, not a phone charger.
 - [ ] Switch the hotspot on, power the Pi and check that the laptop opens `http://brainsol.local:8080`.
 - [ ] On a phone with mobile data only, open the tunnel address and check that the chip says Live.
 - [ ] Unlock the admin tools, so you know the pin still works. Open the Connection tab and look at the QR

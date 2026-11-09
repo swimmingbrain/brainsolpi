@@ -1,6 +1,7 @@
 # Parts
 
-brainSOL is built from the Keyestudio KS0530 solar tracking kit, a Raspberry Pi 3B+ and a 3D printed body.
+brainSOL is built from the Keyestudio KS0530 solar tracking kit, a Raspberry Pi 3B+ or 4 and a 3D printed
+body.
 No extra screws, no glue and no tools besides the two screwdrivers of the kit are needed.
 
 ## From the kit
@@ -32,9 +33,9 @@ No extra screws, no glue and no tools besides the two screwdrivers of the kit ar
 
 | part | note |
 |---|---|
-| Raspberry Pi 3B+ | runs the control loop, the web server and the simulation |
+| Raspberry Pi 3B+ or Pi 4 | runs the control loop, the web server and the simulation. The tray was drawn around the 3B+, a Pi 4 has the same size and the same four holes |
 | micro SD card | 16 GB or more, for Raspberry Pi OS Lite 64 bit |
-| power supply | the official Raspberry Pi 5.1 V 2.5 A micro USB supply or a better one, the Pi powers the UNO and both servos through USB |
+| power supply | the official Raspberry Pi supply or a better one: 5.1 V 2.5 A micro USB for a Pi 3B+, 5.1 V 3 A USB C for a Pi 4. The Pi powers the UNO and both servos through USB. Its plug does not fit through the cable notch of the tray, see step 3 of `hardware/ASSEMBLY.md` |
 | matte PLA, light warm grey or white | about 275 g: tray, lid and the fit test |
 | matte PLA, charcoal | about 175 g: neck halves, head back shell, bezel, both ears, the four feet |
 | copper or bronze PLA | under 1 g of parts for the two caps, a 2 g job with the purge |
