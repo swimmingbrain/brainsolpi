@@ -8,15 +8,17 @@ journalctl -u brainsolpi -n 50
 ```
 
 The first checks the board, the sensors and the servos step by step and ends with the next steps for
-your setup. The second shows the last 50 lines of the tracker service. The event log in the System tab of
-the admin tools shows the same events while you watch.
+your setup. The second shows the last 50 lines of the tracker service, `journalctl -u brainsolpi -p warning`
+only the warnings and errors. The event log in the System tab of the admin tools shows the same events while
+you watch. Raspberry Pi OS keeps the journal in memory, so after a reboot it only holds the new boot.
 
 ## Nothing moves after the first start
 
 **What you see:** the service runs, the page is live, but the head does not move and the state says holding.
 
-**Why:** a board without a saved calibration starts in `hold`. If no pose was ever driven, not even a pulse
-goes out, the servos stay off until the head has to move. The event log says so.
+**Why:** a board without a saved calibration starts in `hold`. If no pose was ever driven on the real board,
+not even a pulse goes out, the servos stay off until the head has to move. The simulation before does not
+count, it keeps a pose of its own. The event log says so.
 
 **Fix:** go through the calibration in the Calibrate tab and press Save calibration, the tracker then goes
 on in auto. Picking a mode in the Control tab ends the hold as well. See `docs/first-start.md`.
@@ -33,12 +35,35 @@ with and never sends the brainSOL identity line. A serial monitor in another win
 
 1. `ls /dev/ttyACM* /dev/ttyUSB*` should show `/dev/ttyACM0` (a clone board shows `/dev/ttyUSB0`). If
    not, try the cable of the kit and another USB port.
-2. Flash the bridge firmware: `brainsolpi flash`.
-3. Close every serial monitor, then run `brainsolpi doctor`.
+2. Look at the log: `journalctl -u brainsolpi -n 50`. For an UNO R3 that does not answer, the service
+   writes the firmware by itself, see the next entry. A board with a CH340 or FTDI chip is left alone, the
+   log says `is no uno r3, it is left alone`.
+3. Flash the bridge firmware by hand: `brainsolpi flash`.
+4. Close every serial monitor, then run `brainsolpi doctor`.
 
 You do not have to restart anything. While the service runs the simulation it looks for a board every 3 s
-and restarts into the real board as soon as one answers. A board without the bridge firmware is left alone,
-`brainsolpi flash` stops and starts the service and then the board is found.
+and restarts into the real board as soon as one answers. `brainsolpi flash` stops and starts the service and
+then the board is found.
+
+## The service flashed the UNO by itself
+
+**What you see:** the event log or the journal says `the uno on /dev/ttyACM0 (usb 2341:0043) does not
+answer the brainsol hello, it still runs other code. writing the bridge firmware to it now`, and about half a
+minute later the service restarts with the board.
+
+**Why:** that is on purpose. An UNO out of the kit carries code of its own and would never answer, so the
+service writes `firmware/brainsol_bridge.hex` with the same avrdude step as `brainsolpi flash`. It does that
+only for an UNO R3 with the ATmega16U2 USB chip that opened fine and stayed silent for several seconds,
+once per plug in or start of the service, never while a board answers, and never twice for a board it
+flashed before. The boards
+it flashed are listed under `flashed` in `~/.config/brainsolpi/state.json`. After the flash the board
+starts in hold with the servos off.
+
+**Fix:** nothing to fix. If you want to keep other code on the UNO, turn the step off: stop the service
+with `sudo systemctl stop brainsolpi`, set `"autoflash": false` in the `serial` part of
+`~/.config/brainsolpi/settings.json`, start it with `sudo systemctl start brainsolpi`. A silent UNO is then
+only reported. If the service says flashing failed, it goes on with the simulation, see Flashing fails
+below.
 
 ## The servos jitter, the board restarts or the Pi reports low voltage
 
@@ -53,8 +78,9 @@ moment. A 9 g servo draws a few hundred mA while it moves and up to 850 mA when 
 
 **Fix:**
 
-1. Use the official 5.1 V 2.5 A micro USB supply of the Pi 3B+ or a better one. A phone charger, a laptop
-   port or a long thin cable is not enough.
+1. Use the official supply of your Pi or a better one: 5.1 V 2.5 A micro USB for a Pi 3B+, 5.1 V 3 A USB C
+   for a Pi 4. A phone charger, a laptop port or a long thin cable is not enough. The doctor and the event
+   log name the supply of the model they run on.
 2. Plug the UNO straight into the Pi, not through a hub.
 3. Check the flag again after a reboot: `vcgencmd get_throttled` should say `throttled=0x0`. A value like
    `0x50005` means low voltage happened since the start.
@@ -173,10 +199,23 @@ the path at login.
 
 ## Flashing fails
 
-**What you see:** avrdude says `not in sync` or `programmer is not responding`.
+**What you see:** avrdude says `not in sync` or `programmer is not responding`. When the service tried it
+by itself, the event log says `writing the bridge firmware to the uno on /dev/ttyACM0 failed, the sim goes
+on` and the journal holds the last lines of avrdude.
 
 **Why:** another program holds the port, the cable has no data wires, or an old bootloader wants another
 speed.
 
 **Fix:** close every serial monitor and run `brainsolpi flash` again, it already tries 115200 and then 57600
-baud. If it still fails, press the reset button of the UNO right when avrdude starts.
+baud. If it still fails, press the reset button of the UNO right when avrdude starts. The service itself
+tries once more only after you plug the board in again or the service starts again, a reboot for example.
+
+## The admin tools cannot be unlocked
+
+**What you see:** the pin field says `no pin is set on the tracker, run brainsolpi setpin on the pi`.
+
+**Why:** no pin is set yet. Without one nobody can unlock the admin tools, also not through a tunnel and
+not with a token from an earlier pin. The live view works for everyone.
+
+**Fix:** on the Pi run `brainsolpi setpin` and type the pin twice. The running service takes it over within
+a few seconds.
