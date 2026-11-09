@@ -13,8 +13,8 @@
   <a href="https://sol.swimmingbrain.dev"><strong>See it live &rarr; sol.swimmingbrain.dev</strong></a>
 </p>
 
-brainSOL turns parts of the Keyestudio KS0530 solar tracking kit, a Raspberry Pi 3B+ and a 3D printed body
-into a tracker that turns its panel toward a lamp or the sun. This repo holds everything on the Pi side: one
+brainSOL turns parts of the Keyestudio KS0530 solar tracking kit, a Raspberry Pi 3B+ or 4 and a 3D printed
+body into a tracker that turns its panel toward a lamp or the sun. This repo holds everything on the Pi side: one
 Python service that runs the control loop at 50 Hz, talks to the UNO over USB and serves the live page, plus
 the firmware for the UNO, the CAD of the body and the scripts that set up the Pi.
 
@@ -51,7 +51,7 @@ When something is off: [docs/troubleshooting.md](docs/troubleshooting.md).
 
 | command | what it does |
 |---|---|
-| `brainsolpi run` | the tracker and the web server on port 8080. `--driver auto` (the default) uses the board when one answers within 6 s, otherwise it runs the sim and keeps looking for a board every 3 s. `--driver sim`, `bridge` or `fake` pick one |
+| `brainsolpi run` | the tracker and the web server on port 8080. `--driver auto` (the default) uses the board when one answers within 6 s, otherwise it runs the sim and keeps looking for a board every 3 s. `--driver sim`, `bridge` or `fake` pick one. `--autoflash`, which the service uses, writes the bridge firmware to an UNO R3 that never answers, `serial.autoflash` false in the settings turns that off |
 | `brainsolpi demo` | the sim on this computer with a pin for the run, nothing is kept |
 | `brainsolpi doctor` | a step by step check of the board, the sensors and the servos, then the exact next steps. `--fake` tries it on a simulated board |
 | `brainsolpi flash` | writes `firmware/brainsol_bridge.hex` to the UNO with avrdude and waits for it to say hello |
@@ -59,7 +59,8 @@ When something is off: [docs/troubleshooting.md](docs/troubleshooting.md).
 | `brainsolpi centre` | holds both servos at 1500 us while the horns go on |
 
 `doctor`, `flash` and `centre` need the board alone, so they stop the `brainsolpi` service while they run
-and start it again at the end.
+and start it again at the end. The service on the Pi writes the bridge firmware to a fresh UNO by itself,
+[docs/setup.md](docs/setup.md) says when it does and how to stop it.
 
 ## How it works
 
@@ -94,7 +95,17 @@ uv run brainsolpi run --driver sim --pin 2468 --config-dir tmp/config --data-dir
 
 The tests run the controller in the simulation from hundreds of poses, drive the bridge driver against a fake
 board that speaks the serial protocol, talk to the server over a real WebSocket and run ten simulated
-minutes of random commands. `--driver fake` runs the real serial code path against that fake board.
+minutes of random commands. On Linux they also run the serial code through a real pseudo terminal.
+`--driver fake` runs the real serial code path against that fake board.
+
+On the Pi the suite runs against the installed environment, without adding anything to it:
+
+```
+cd ~/brainsolpi
+.venv/bin/python -m pip install --target /tmp/bsp-pytest pytest pytest-asyncio
+PYTHONPATH=/tmp/bsp-pytest .venv/bin/python -m pytest -p no:cacheprovider
+rm -rf /tmp/bsp-pytest
+```
 
 ## Tech stack
 
@@ -103,7 +114,7 @@ minutes of random commands. `--driver fake` runs the real serial code path again
 | Service | Python 3.11+, asyncio, aiohttp, pyserial, astral |
 | Firmware | Arduino sketch for the ATmega328P with Servo and Wire |
 | CAD | build123d, manifold3d, trimesh, pyvista for the renders |
-| Pi | Raspberry Pi OS Lite 64 bit, systemd, avrdude |
+| Pi | Raspberry Pi 3B+ or 4, Raspberry Pi OS Lite 64 bit (bookworm or trixie), systemd, avrdude |
 | Web app | SvelteKit in the brainsol repo |
 
 ## License
