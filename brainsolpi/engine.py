@@ -189,6 +189,7 @@ class Engine:
         self.hz: float | None = None
         self.jit: float | None = None
         self.events: deque[dict] = deque(maxlen=20)
+        self.board_note: dict | None = None
         self._caps = self.caps()
         self._times: deque[float] = deque(maxlen=51)
         self._last_us: tuple[int, int] | None = None
@@ -412,6 +413,15 @@ class Engine:
         # an admin who unlocks later still learns why the head holds
         for msg in self.first_start_notes():
             self.event("warn", msg)
+        if self.board_note is not None:
+            # it is in the journal already, so it only goes to the page again
+            self.sink.publish_admins(self.board_note)
+
+    def note(self, lvl: str, msg: str) -> None:
+        # an event about the board on the usb port that an admin who unlocks later still gets,
+        # the newest one replaces the one before
+        self.event(lvl, msg)
+        self.board_note = self.events[-1]
 
     def _link_change(self, link: bool) -> None:
         self.link = link
