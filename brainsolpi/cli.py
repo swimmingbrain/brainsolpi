@@ -36,6 +36,12 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--web", help="folder with the built web app, default web in the repo when it exists")
     run.add_argument("--config-dir", help="folder for settings.json and state.json")
     run.add_argument("--data-dir", help="folder for experiments and recordings")
+    run.add_argument(
+        "--autoflash",
+        action="store_true",
+        help="write the bridge firmware to an uno r3 that does not answer, the service does this, "
+        "serial.autoflash false in the settings turns it off",
+    )
     run.add_argument("-v", "--verbose", action="store_true", help="more log output")
 
     doc = sub.add_parser("doctor", help="check the hardware step by step")

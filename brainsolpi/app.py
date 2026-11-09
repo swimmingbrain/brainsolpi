@@ -12,11 +12,12 @@ from aiohttp import web
 
 from . import paths
 from .auth import Auth, hash_pin
+from .autoflash import AutoFlash
 from .commands import Commands
 from .config import Settings
 from .drivers.base import Driver
 from .drivers.bridge import BridgeDriver
-from .drivers.detect import BoardWatch, candidates, find_board, likely_ports
+from .drivers.detect import BoardWatch, candidates, find_board, likely_ports, probe
 from .drivers.fakeboard import FakeBoard
 from .drivers.sim import SimDriver
 from .engine import Engine
@@ -34,9 +35,15 @@ RESTART_CODE = 75
 
 
 AUTO_WAIT_S = 6.0
+# after a flash the board resets and boots, then it says hello like after any open
+HELLO_S = 6.0
 
 
-async def open_driver(args, settings: Settings) -> Driver:
+async def open_driver(args, settings: Settings, looked: dict | None = None) -> Driver:
+    # looked gets the ports auto probed and the ones that stayed silent, the board watch goes on from there
+    looked = looked if looked is not None else {}
+    looked.setdefault("ports", [])
+    looked.setdefault("silent", set())
     kind = args.driver
     serial_cfg = settings.data["serial"]
     rate, slew = serial_cfg["rate"], serial_cfg["slew"]
@@ -56,7 +63,10 @@ async def open_driver(args, settings: Settings) -> Driver:
         log.warning("no serial port found, falling back to the sim driver")
         return SimDriver(rate=rate)
     log.info("looking for a board on %s for up to %.0f s", ", ".join(ports), AUTO_WAIT_S)
-    found = await asyncio.get_running_loop().run_in_executor(None, lambda: find_board(AUTO_WAIT_S, ports=ports))
+    looked["ports"] = list(ports)
+    silent = looked["silent"]
+    found = await asyncio.get_running_loop().run_in_executor(
+        None, lambda: find_board(AUTO_WAIT_S, ports=ports, silent=silent))
     if found is not None:
         port, _, ident = found
         log.info("found the board on %s, firmware %s", port, ident.fw)
@@ -68,16 +78,62 @@ async def open_driver(args, settings: Settings) -> Driver:
 BOARD_WATCH_S = 3.0
 
 
-def board_watch(args) -> BoardWatch:
+def board_watch(args, looked: dict | None = None) -> BoardWatch:
+    # the watch goes on from the ports auto already probed at the start
+    start = looked.get("ports") if looked else None
+    silent = looked.get("silent", ()) if looked else ()
     if not args.port:
-        return BoardWatch()
+        return BoardWatch(start=start, silent=silent)
     # with a port given only that one counts, a /dev/serial/by-id link is not in the list
     port = args.port
-    return BoardWatch(lister=lambda: [port] if port in likely_ports() or os.path.exists(port) else [])
+    return BoardWatch(lister=lambda: [port] if port in likely_ports() or os.path.exists(port) else [],
+                      start=start, silent=silent)
+
+
+def autoflash(args, settings: Settings, state: StateStore) -> AutoFlash | None:
+    # only the service asks for it with --autoflash, a run by hand on a computer with an arduino
+    # for something else never writes to it. serial.autoflash false in the settings turns it off
+    if args.driver != "auto" or not getattr(args, "autoflash", False) or not settings.data["serial"]["autoflash"]:
+        return None
+    return AutoFlash(state)
+
+
+async def _silent_board(item, watch: BoardWatch, engine: Engine, flasher: AutoFlash | None) -> tuple | None:
+    # a port that opened fine and never said hello, perhaps an uno that still runs other code.
+    # returns the board when it answers after the firmware went on
+    port, info = item
+    what = f"{port} (usb {info.ids})" if info is not None else port
+    if info is None or not info.uno:
+        # a ch340 or ftdi adapter can sit in front of anything, that is no job for avrdude
+        log.info("%s does not answer the brainsol hello and is no uno r3, it is left alone", what)
+        return None
+    hello = f"the uno on {what} does not answer the brainsol hello, it still runs other code"
+    if flasher is None:
+        engine.note("info", f"{hello}. flash the bridge firmware with: brainsolpi flash")
+        return None
+    why = flasher.refuse(port, info)
+    if why is not None:
+        engine.note("warn", f"{hello}. {why}, flash it by hand with: brainsolpi flash")
+        return None
+    engine.note("info", f"{hello}. writing the bridge firmware to it now, that takes about half a minute, "
+                        "serial.autoflash false in the settings turns this off")
+    loop = asyncio.get_running_loop()
+    if not await loop.run_in_executor(None, flasher.flash, port, info):
+        engine.note("warn", f"writing the bridge firmware to the uno on {port} failed, the sim goes on. "
+                            "the journal has the output of avrdude, try again by hand with: brainsolpi flash")
+        return None
+    # the board is marked as flashed right away, a restart must not start it again
+    flasher.state.save()
+    found = await loop.run_in_executor(None, lambda: probe(port, watch.opener, HELLO_S, watch.halt))
+    if found is None:
+        engine.note("warn", f"the bridge firmware is on the uno on {port}, but it does not say hello, the sim "
+                            "goes on. check it with: brainsolpi doctor")
+        return None
+    return found
 
 
 async def _watch_board(watch: BoardWatch, engine: Engine, stop: asyncio.Event, after: dict,
-                       can_restart: bool, every: float = BOARD_WATCH_S) -> None:
+                       can_restart: bool, every: float = BOARD_WATCH_S, flasher: AutoFlash | None = None) -> None:
     # auto started the sim because no board answered, a board plugged in later takes over
     loop = asyncio.get_running_loop()
     try:
@@ -85,7 +141,12 @@ async def _watch_board(watch: BoardWatch, engine: Engine, stop: asyncio.Event, a
             await asyncio.sleep(every)
             found = await loop.run_in_executor(None, watch.check)
             if found is None:
-                continue
+                item = watch.next_silent()
+                if item is None or stop.is_set():
+                    continue
+                found = await _silent_board(item, watch, engine, flasher)
+                if found is None:
+                    continue
             port, ser, ident = found
             # the new process opens it again, nothing may hold it meanwhile
             try:
@@ -167,7 +228,8 @@ async def serve(args) -> int:
     elif not pin_hash:
         log.warning("no admin pin is set, admin login is refused until you run brainsolpi setpin")
 
-    driver = await open_driver(args, settings)
+    looked: dict = {}
+    driver = await open_driver(args, settings, looked)
     hub = Hub()
     store = ExperimentStore(data_dir / "experiments", writer)
     engine = Engine(settings, state, driver, store=store, data_dir=data_dir, sink=hub, sysinfo=SysInfo())
@@ -229,7 +291,12 @@ async def serve(args) -> int:
             "info",
             f"the sim runs until a board shows up, the tracker looks for one every {BOARD_WATCH_S:.0f} s",
         )
-        board_task = asyncio.create_task(_watch_board(board_watch(args), engine, stop, after, can_restart))
+        flasher = autoflash(args, settings, state)
+        if flasher is not None:
+            log.info("an uno r3 that does not answer gets the bridge firmware by itself, "
+                     "serial.autoflash false in %s turns that off", settings.path)
+        board_task = asyncio.create_task(
+            _watch_board(board_watch(args, looked), engine, stop, after, can_restart, flasher=flasher))
     try:
         await asyncio.wait({loop_task, stop_task}, return_when=asyncio.FIRST_COMPLETED)
         stop.set()
