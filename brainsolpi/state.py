@@ -12,6 +12,8 @@ log = logging.getLogger(__name__)
 MODES = ("auto", "manual", "sun", "hold", "park", "demo")
 
 DEFAULT_SIM = {"az": 25.0, "el": 40.0, "on": True, "lux": 900.0, "amb": 60.0}
+# a handful of boards is plenty, the list stays small
+FLASHED_MAX = 20
 
 
 def _is_num(v: Any) -> bool:
@@ -40,6 +42,8 @@ class StateStore:
         self.mode = "auto"
         self.sim = dict(DEFAULT_SIM)
         self.tokens: list[list] = []
+        # the boards the service wrote the bridge firmware to by itself, by usb ids and serial number
+        self.flashed: list[str] = []
         self._saved: dict | None = None
         # set by the service so saves never block the control loop
         self.writer = None
@@ -80,6 +84,9 @@ class StateStore:
                     if isinstance(t, list) and len(t) == 2 and isinstance(t[0], str)
                     and isinstance(t[1], (int, float))
                 ]
+            flashed = raw.get("flashed")
+            if isinstance(flashed, list):
+                s.flashed = [k for k in flashed if isinstance(k, str) and len(k) <= 200][-FLASHED_MAX:]
         s._saved = s.as_dict()
         return s
 
@@ -93,6 +100,7 @@ class StateStore:
             "mode": self.mode,
             "sim": dict(self.sim),
             "tokens": [list(t) for t in self.tokens],
+            "flashed": list(self.flashed[-FLASHED_MAX:]),
         }
 
     @property
