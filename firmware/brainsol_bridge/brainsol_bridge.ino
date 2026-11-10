@@ -2,7 +2,11 @@
 //
 // the raspberry pi runs the control loop, this board only reads the sensors,
 // drives the two servos and talks a small line protocol over the usb serial port.
-// the protocol and the pin map are described in firmware/README.md
+// the pi side of the protocol is brainsolpi/drivers/protocol.py, the pins are in docs/wiring.pdf
+//
+// firmware/brainsol_bridge.hex is this sketch built with arduino-cli 1.6.0 and the arduino:avr 1.8.8 core:
+//   arduino-cli compile --fqbn arduino:avr:uno --output-dir <dir> firmware/brainsol_bridge
+// then <dir>/brainsol_bridge.ino.hex with lf line endings. firmware/test/run.sh runs it on a pc
 
 #include <Servo.h>
 #include <Wire.h>
