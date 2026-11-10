@@ -163,6 +163,10 @@ tailscale funnel status
 shows the exact address. In the app open
 `https://sol.swimmingbrain.dev/?pi=brainsol.<tailnet>.ts.net` with your own tailnet name.
 
+From now on the tracker is on the internet whenever the service runs, also right after a boot. The live
+view is meant to be public, the admin tools are not: set the pin with `brainsolpi setpin` first. Without a
+pin nobody can unlock them at all.
+
 To switch it off again: `sudo tailscale funnel reset`.
 
 ## Way 3: same network only
