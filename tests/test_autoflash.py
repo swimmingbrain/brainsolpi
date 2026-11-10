@@ -260,25 +260,33 @@ def test_avrdude_and_the_hex_have_to_be_there(tmp_path):
     assert "no firmware file" in no_hex.refuse(PORT, UNO)
 
 
-def test_only_the_service_asks_for_it_and_the_setting_turns_it_off():
-    run = build_parser().parse_args(["run"])
+def test_the_service_does_it_by_itself_a_run_by_hand_only_with_the_flag():
     settings, state = Settings(), StateStore(None)
-    assert run.autoflash is False and app.autoflash(run, settings, state) is None
-    on = build_parser().parse_args(["run", "--autoflash"])
-    assert isinstance(app.autoflash(on, settings, state), AutoFlash)
+    run = build_parser().parse_args(["run"])
+    assert run.autoflash is False
+    assert app.autoflash(run, settings, state, inside=lambda: False) is None
+    assert isinstance(app.autoflash(run, settings, state, inside=lambda: True), AutoFlash)
+    by_hand = build_parser().parse_args(["run", "--autoflash"])
+    assert isinstance(app.autoflash(by_hand, settings, state, inside=lambda: False), AutoFlash)
     for driver in ("sim", "bridge", "fake"):
-        assert app.autoflash(build_parser().parse_args(["run", "--autoflash", "--driver", driver]), settings, state) is None
+        args = build_parser().parse_args(["run", "--autoflash", "--driver", driver])
+        assert app.autoflash(args, settings, state, inside=lambda: True) is None
+
+
+def test_the_setting_turns_it_off_for_the_service_and_by_hand():
+    assert Settings().data["serial"]["autoflash"] is True
     off = Settings(None, {"serial": {"autoflash": False}})
     assert off.data["serial"] == {"rate": 50, "slew": 30, "autoflash": False}
-    assert app.autoflash(on, off, state) is None
-    assert Settings().data["serial"]["autoflash"] is True
+    for argv in (["run"], ["run", "--autoflash"]):
+        assert app.autoflash(build_parser().parse_args(argv), off, StateStore(None), inside=lambda: True) is None
 
 
-def test_the_service_unit_runs_auto_with_the_firmware_step():
+def test_the_service_unit_runs_auto_and_needs_no_new_line_for_it():
+    # an installed unit stays as it is, so deploy/update.sh brings the step without sudo
     unit = (repo_root() / "deploy" / "brainsolpi.service").read_text(encoding="utf-8")
     line = next(x for x in unit.splitlines() if x.startswith("ExecStart="))
     args = build_parser().parse_args(line.split("/bin/brainsolpi ", 1)[1].split())
-    assert (args.command, args.driver, args.autoflash) == ("run", "auto", True)
+    assert (args.command, args.driver, args.autoflash) == ("run", "auto", False)
 
 
 def test_the_boards_the_service_flashed_survive_a_restart(tmp_path):
