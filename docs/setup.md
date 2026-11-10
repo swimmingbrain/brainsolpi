@@ -73,7 +73,8 @@ cd ~/brainsolpi
 deploy/install.sh
 ```
 
-Run it as your normal user, it asks for sudo where it needs it. Running it again later is safe. On a Pi 3B+
+Run it as your normal user, it asks for your sudo password once at the start if sudo wants one. Running it
+again later is safe. On a Pi 3B+
 with a good network it takes about two minutes, most of it for the Python libraries. It walks through these
 steps and prints each one:
 
@@ -110,8 +111,8 @@ done, open one of these addresses in a browser
 
 Open one of them on a computer or phone in the same network. The page shows the 3D twin of the tracker.
 The chip in the top bar says Live, and in the System tab of the admin tools the driver is simulation as long
-as no board is plugged in. With a tunnel there is one more address, a Tailscale address for example, that
-is fine.
+as no board is plugged in. With Tailscale on the Pi the list also holds its `100.x.y.z` address, that one
+works from your other devices in the tailnet.
 
 Until a pin is set, nobody can unlock the admin tools, not even with a token from an earlier pin. The end of
 the install says so. Everything else, the live view and the numbers, is open to everyone who has the
