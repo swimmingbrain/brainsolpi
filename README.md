@@ -51,7 +51,7 @@ When something is off: [docs/troubleshooting.md](docs/troubleshooting.md).
 
 | command | what it does |
 |---|---|
-| `brainsolpi run` | the tracker and the web server on port 8080. `--driver auto` (the default) uses the board when one answers within 6 s, otherwise it runs the sim and keeps looking for a board every 3 s. `--driver sim`, `bridge` or `fake` pick one. `--autoflash`, which the service uses, writes the bridge firmware to an UNO R3 that never answers, `serial.autoflash` false in the settings turns that off |
+| `brainsolpi run` | the tracker and the web server on port 8080. `--driver auto` (the default) uses the board when one answers within 6 s, otherwise it runs the sim and keeps looking for a board every 3 s. `--driver sim`, `bridge` or `fake` pick one. The service writes the bridge firmware to an UNO R3 that never answers, a run by hand only with `--autoflash`, `serial.autoflash` false in the settings turns that off |
 | `brainsolpi demo` | the sim on this computer with a pin for the run, nothing is kept |
 | `brainsolpi doctor` | a step by step check of the board, the sensors and the servos, then the exact next steps. `--fake` tries it on a simulated board |
 | `brainsolpi flash` | writes `firmware/brainsol_bridge.hex` to the UNO with avrdude and waits for it to say hello |
