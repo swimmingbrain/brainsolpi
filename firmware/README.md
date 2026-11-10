@@ -110,7 +110,10 @@ range.
 
 ## Flash it from the Pi
 
-The install script offers this when a board is plugged in. By hand:
+The tracker service does it by itself: an UNO R3 with the ATmega16U2 USB chip that opens fine but never
+answers gets this hex once, with the same avrdude command as below, and the service restarts with it.
+`docs/setup.md` says when exactly and how to turn that off. The install script offers it too when a board is
+plugged in. By hand:
 
 ```
 cd ~/brainsolpi
@@ -198,7 +201,8 @@ check what only real hardware shows, see the list below.
 ## Things to keep in mind on the real hardware
 
 - The Pi powers the UNO and both servos through the USB cable, there is no second supply. That
-  needs the official 5.1 V 2.5 A micro USB supply of the Pi 3B+ or a better one. A 9 g servo draws
+  needs the official supply of the Pi or a better one, 5.1 V 2.5 A micro USB for a Pi 3B+ and 5.1 V 3 A
+  USB C for a Pi 4. A 9 g servo draws
   a few hundred mA while it moves and up to 850 mA when it stalls. The tracker keeps that low: the
   Pi caps speed and acceleration, the board moves a pulse by at most 30 us every 10 ms, so a servo
   never gets a big jump, and the soft limits stop the head 2 degrees before the ends of its range.
