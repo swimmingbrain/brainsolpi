@@ -15,5 +15,11 @@ dist/
 # settings and data of development runs, the readme uses these folders
 /tmp/
 
+# hardware/build.py writes the reports and the renders again at every run, the repo keeps only
+# the render the readme shows
+/hardware/reports/
+/hardware/renders/*
+!/hardware/renders/front_three_quarter.png
+
 .DS_Store
 Thumbs.db
