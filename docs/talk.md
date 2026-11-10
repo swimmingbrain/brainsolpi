@@ -48,8 +48,8 @@ not work. So the Pi and the laptop do not use it at all.
 - [ ] Run the calibration again under light like in the room, if you can. Capture bright with the torch
       close.
 - [ ] Try presentation mode on the projector or a big screen, the button is in the top bar.
-- [ ] Run a sky scan and the Cosine law experiment once, so the results section already has something to
-      show.
+- [ ] Run a sky scan and the Cosine law experiment once, so the Scan tab already has a map and Results in
+      the Experiments tab of the admin tools already has a curve to show, in case the live run is cut short.
 - [ ] Charge the phone that makes the hotspot and the phone that is the light. Switch off the auto lock of
       the light phone.
 
@@ -63,8 +63,8 @@ not work. So the Pi and the laptop do not use it at all.
 | 1:45 | Point at the Light balance | the dot drifts to the brighter side, the tracker turns until it sits in the middle, the dead band stops it from hunting |
 | 2:15 | Scan tab, grid step 30 degrees, Start scan | the head visits the sky and maps the light, about a minute, then it points at the brightest spot |
 | 3:15 | Experiments tab, Cosine law, Start | it locks on the light and tilts away in steps of 5 degrees: 25 degrees off still gives 91 %, 60 degrees off only half |
-| 4:00 | Control tab, Sun group, time lapse One hour per second, Go | sun mode does not measure, it computes where the sun is for this place and follows it, a day in a few seconds |
-| 4:30 | Scroll to A day in the sun | the day simulator: how much more a tracker catches than a fixed panel, single axis against dual axis, for a place and a day |
+| 4:00 | Once the experiment says done, it takes well under a minute: Control tab, Sun group, time lapse One hour per second, Go. A mode change would stop a running experiment | sun mode does not measure, it computes where the sun is for this place and follows it, a day in a few seconds |
+| 4:30 | Experiments tab, Show its curve and the CSV under Last experiment | the cosine law result: the measured points, the fitted curve and its R squared, the same numbers as a CSV for the paper |
 
 While the scan and the experiment run, talk about the parts: the UNO only reads sensors and drives servos,
 the Pi runs the control loop at 50 Hz and the web server, and the page is the same everywhere.
