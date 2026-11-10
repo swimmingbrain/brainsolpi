@@ -90,9 +90,11 @@ steps and prints each one:
 10. downloads the web app into `~/brainsolpi/web`, so the Pi serves the page itself
 11. starts the service and checks the power supply
 
-The questions in steps 7 to 9 need a terminal. Without one, for example when you start the script with
-`ssh <user>@brainsol.local 'cd brainsolpi && deploy/install.sh'`, it takes the safe answer and goes on:
-the name stays, nothing is flashed and no pin is set. Set the pin afterwards:
+The questions in steps 7 to 9 need a terminal, and so does sudo when it wants your password. Without a
+terminal, for example when you start the script with
+`ssh <user>@brainsol.local 'cd brainsolpi && deploy/install.sh'`, it only runs if sudo needs no password,
+otherwise it stops right at the start and says so. When it runs, it takes the safe answer to every question
+and goes on: the name stays, nothing is flashed and no pin is set. Set the pin afterwards:
 
 ```
 ~/brainsolpi/.venv/bin/brainsolpi setpin
@@ -164,7 +166,8 @@ deploy/update.sh
 ```
 
 It pulls the new version, installs it, brings the service unit up to date, refreshes the web app and
-restarts the service. When the bridge firmware changed it says so, then run `brainsolpi flash`. The service
+restarts the service. It needs no password, the sudo rules of the install cover the restart. Only a new
+service unit needs sudo with your password, then run it in a terminal. When the bridge firmware changed it says so, then run `brainsolpi flash`. The service
 does not write a newer firmware to a board that already answers. A copy without git is updated by copying
 the new version over it and running `deploy/install.sh` again.
 
