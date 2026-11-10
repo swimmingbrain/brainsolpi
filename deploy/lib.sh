@@ -32,6 +32,18 @@ fail() {
   exit 1
 }
 
+# makes sure sudo works for the step named in $1. without a terminal sudo cannot ask for the
+# password, then this says so instead of the bare error of sudo
+need_sudo() {
+  if sudo -n true 2>/dev/null; then
+    return 0
+  fi
+  if [ -t 0 ] && sudo -v; then
+    return 0
+  fi
+  fail "$1 needs sudo and sudo wants your password, run the script again in a terminal"
+}
+
 # asks a yes or no question. the second argument is the answer for a plain enter, y or n.
 # without a terminal nobody can answer, then the answer is always no
 ask() {
@@ -105,6 +117,7 @@ install_unit() {
     info "the service unit is up to date"
     return 0
   fi
+  need_sudo "installing the new service unit"
   sudo install -m 0644 -o root -g root "$tmp" "$unit_file"
   rm -f "$tmp"
   sudo systemctl daemon-reload

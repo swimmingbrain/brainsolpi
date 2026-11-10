@@ -11,7 +11,7 @@ set -euo pipefail
 if [ "$(id -u)" = 0 ]; then
   fail "run this as your normal user, not with sudo"
 fi
-sudo -v
+need_sudo "removing the service"
 
 step "service"
 if [ -f "$unit_file" ]; then

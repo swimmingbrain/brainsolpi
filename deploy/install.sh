@@ -23,7 +23,7 @@ esac
 info "repo: $repo"
 info "user: $(id -un)"
 # ask for the password once up front, so the questions later are not mixed with sudo prompts
-sudo -v
+need_sudo "the install"
 
 step "installing system packages"
 packages="python3 python3-venv avrdude git"
