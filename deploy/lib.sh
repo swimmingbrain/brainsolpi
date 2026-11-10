@@ -33,15 +33,19 @@ fail() {
 }
 
 # makes sure sudo works for the step named in $1. without a terminal sudo cannot ask for the
-# password, then this says so instead of the bare error of sudo
+# password, then this says so instead of the bare error of sudo. the files after $1 are temp
+# files of the caller, they go before it stops
 need_sudo() {
+  local what="$1"
+  shift
   if sudo -n true 2>/dev/null; then
     return 0
   fi
   if [ -t 0 ] && sudo -v; then
     return 0
   fi
-  fail "$1 needs sudo and sudo wants your password, run the script again in a terminal"
+  rm -f -- "$@"
+  fail "$what needs sudo and sudo wants your password, run the script again in a terminal"
 }
 
 # asks a yes or no question. the second argument is the answer for a plain enter, y or n.
@@ -117,8 +121,11 @@ install_unit() {
     info "the service unit is up to date"
     return 0
   fi
-  need_sudo "installing the new service unit"
-  sudo install -m 0644 -o root -g root "$tmp" "$unit_file"
+  need_sudo "installing the new service unit" "$tmp"
+  if ! sudo install -m 0644 -o root -g root "$tmp" "$unit_file"; then
+    rm -f "$tmp"
+    fail "could not install $unit_file"
+  fi
   rm -f "$tmp"
   sudo systemctl daemon-reload
   info "installed $unit_file"
