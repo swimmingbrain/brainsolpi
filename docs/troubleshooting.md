@@ -55,9 +55,8 @@ minute later the service restarts with the board.
 service writes `firmware/brainsol_bridge.hex` with the same avrdude step as `brainsolpi flash`. It does that
 only for an UNO R3 with the ATmega16U2 USB chip that opened fine and stayed silent for several seconds,
 once per plug in or start of the service, never while a board answers, and never twice for a board it
-flashed before. The boards
-it flashed are listed under `flashed` in `~/.config/brainsolpi/state.json`. After the flash the board
-starts in hold with the servos off.
+flashed before. The boards it flashed are listed under `flashed` in `~/.config/brainsolpi/state.json`.
+After the flash the board starts in hold with the servos off.
 
 **Fix:** nothing to fix. If you want to keep other code on the UNO, turn the step off: stop the service
 with `sudo systemctl stop brainsolpi`, set `"autoflash": false` in the `serial` part of

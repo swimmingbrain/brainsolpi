@@ -141,9 +141,10 @@ An UNO straight out of the kit still runs the code it came with and never answer
 the bridge firmware to it by itself, with the same avrdude step as `brainsolpi flash`, and restarts with the
 board. It only does that for a port that opened fine and stayed silent for several seconds, only for an UNO
 R3 with the ATmega16U2 USB chip (USB ids `2341:0043`, `2a03:0043` or `2341:0243`, the Keyestudio board of the
-kit is sold as one), once per plug in or start of the service, and never twice for a board it flashed before. A CH340 or FTDI
-adapter is never touched, it can sit in front of anything. The event log and the journal say what happens.
-The board then starts in hold with its servos off, nothing moves before you centre and calibrate.
+kit is sold as one), once per plug in or start of the service, and never twice for a board it flashed
+before. A CH340 or FTDI adapter is never touched, it can sit in front of anything. The event log and the
+journal say what happens. The board then starts in hold with its servos off, nothing moves before you
+centre and calibrate.
 
 To keep the service away from the UNO, stop the service, set `"autoflash": false` in the `serial` part of
 `~/.config/brainsolpi/settings.json` and start it again. Then a silent UNO is only reported, flash it with
