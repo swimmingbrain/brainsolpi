@@ -39,7 +39,8 @@ def run_logged(cmd: list[str], cwd: str) -> int:
         return 1
     lines = [line.strip() for line in (p.stdout + "\n" + p.stderr).splitlines() if line.strip()]
     for line in lines[-TAIL:] if p.returncode != 0 else lines[-2:]:
-        log.info("avrdude: %s", line)
+        # avrdude starts most lines with its own name already
+        log.info("avrdude: %s", line.removeprefix("avrdude: ").removeprefix("avrdude "))
     return p.returncode
 
 
