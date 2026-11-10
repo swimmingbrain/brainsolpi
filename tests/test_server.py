@@ -94,6 +94,8 @@ async def test_http_endpoints(tmp_path):
         # the folder it looks in and the way the hosted page gets here
         assert "web" in text and "tunnel" in text and "/api/info" in text
         assert "deploy/web.sh" in text
+        # the guides are gone, the hint stands on its own and names the readme
+        assert "Funnel" in text and "readme" in text and ".md" not in text
 
 
 async def test_websocket_session(tmp_path):
