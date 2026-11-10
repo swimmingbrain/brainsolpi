@@ -163,6 +163,13 @@ tailscale funnel status
 shows the exact address. In the app open
 `https://sol.swimmingbrain.dev/?pi=brainsol.<tailnet>.ts.net` with your own tailnet name.
 
+Test it from a device that is not in your tailnet, a phone on mobile data for example. On a computer that
+is in the tailnet itself, the name points to the tailnet address of the Pi, a `100.x.y.z` address. Chrome
+and Edge count that as the local network and may block the connection from the public page, the page then
+stays on the simulation and the console of the browser says `ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS`.
+That happened in a headless Edge on such a computer. The audience is not in your tailnet and does not
+meet it. On your own computer open the page the Pi serves, `http://brainsol:8080`, instead.
+
 From now on the tracker is on the internet whenever the service runs, also right after a boot. The live
 view is meant to be public, the admin tools are not: set the pin with `brainsolpi setpin` first. Without a
 pin nobody can unlock them at all.
