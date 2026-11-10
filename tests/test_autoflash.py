@@ -305,7 +305,9 @@ def test_avrdude_output_goes_to_the_journal_when_it_fails(caplog):
     code = "import sys; print('avrdude: stk500_recv(): programmer is not responding'); sys.exit(1)"
     with caplog.at_level(logging.INFO, logger="brainsolpi"):
         assert run_logged([sys.executable, "-c", code], ".") == 1
-    assert any("programmer is not responding" in r.getMessage() for r in caplog.records)
+    lines = [r.getMessage() for r in caplog.records]
+    assert "avrdude: stk500_recv(): programmer is not responding" in lines
+    assert not any(line.startswith("avrdude: avrdude") for line in lines)
 
 
 def test_an_admin_who_unlocks_later_still_reads_the_last_note_about_the_board():
