@@ -215,7 +215,7 @@ def no_web_text(root: Path | None) -> str:
         f"Run deploy/web.sh in the repo, it puts the built web app into {where}, then reload. "
         "Or start the service with --web and the folder of a build.\n"
         "The hosted page at https://sol.swimmingbrain.dev reaches this Pi only through a tunnel "
-        "address with https, see deploy/tunnel.md.\n"
+        "address with https, a Tailscale Funnel for example, the readme shows how.\n"
         "The live data is at /api/info and /ws.\n"
     )
 
