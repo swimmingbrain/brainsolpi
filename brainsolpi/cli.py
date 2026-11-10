@@ -39,8 +39,8 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument(
         "--autoflash",
         action="store_true",
-        help="write the bridge firmware to an uno r3 that does not answer, the service does this, "
-        "serial.autoflash false in the settings turns it off",
+        help="write the bridge firmware to an uno r3 that does not answer, the brainsolpi service does "
+        "this without the flag, serial.autoflash false in the settings turns it off",
     )
     run.add_argument("-v", "--verbose", action="store_true", help="more log output")
 

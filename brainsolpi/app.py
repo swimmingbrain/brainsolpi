@@ -7,10 +7,11 @@ import signal
 import subprocess
 import sys
 from pathlib import Path
+from typing import Callable
 
 from aiohttp import web
 
-from . import paths
+from . import paths, service
 from .auth import Auth, hash_pin
 from .autoflash import AutoFlash
 from .commands import Commands
@@ -90,10 +91,13 @@ def board_watch(args, looked: dict | None = None) -> BoardWatch:
                       start=start, silent=silent)
 
 
-def autoflash(args, settings: Settings, state: StateStore) -> AutoFlash | None:
-    # only the service asks for it with the autoflash flag, a run by hand on a computer with an arduino
-    # for something else never writes to it. serial.autoflash false in the settings turns it off
-    if args.driver != "auto" or not getattr(args, "autoflash", False) or not settings.data["serial"]["autoflash"]:
+def autoflash(args, settings: Settings, state: StateStore, inside: Callable[[], bool] = service.inside):
+    # the brainsolpi service does it by itself, a run by hand only with the autoflash flag, so a
+    # computer with an arduino for something else never writes to it. serial.autoflash false in
+    # the settings turns it off for both
+    if args.driver != "auto" or not settings.data["serial"]["autoflash"]:
+        return None
+    if not (getattr(args, "autoflash", False) or inside()):
         return None
     return AutoFlash(state)
 
