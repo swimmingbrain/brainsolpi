@@ -156,7 +156,7 @@ check_power() {
   esac
   if [ $((bits & 0x10001)) -ne 0 ]; then
     warn "the pi saw low voltage since it started ($out). it powers the uno and both servos through usb,"
-    warn "so it needs $(supply_text) or a better one, see docs/troubleshooting.md"
+    warn "so it needs $(supply_text) or a better one, with the uno plugged straight into the pi"
   else
     info "power: no low voltage seen since the start ($out)"
   fi
@@ -179,7 +179,7 @@ install_web() {
     info "try again later with: deploy/web.sh"
   else
     info "the tracker works anyway. the hosted page https://sol.swimmingbrain.dev shows it"
-    info "through a tunnel address, see deploy/tunnel.md"
+    info "through a tunnel address with https, a tailscale funnel for example, the readme shows how"
     info "add the local copy later with: deploy/web.sh"
     info "or copy a site.zip of the web app to the pi and run: deploy/web.sh site.zip"
   fi

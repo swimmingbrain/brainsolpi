@@ -227,7 +227,7 @@ if [ ! -f "$repo/web/index.html" ]; then
   info "without the web app these show a short text page, deploy/web.sh puts the app in place"
 fi
 info ""
-info "the public page https://sol.swimmingbrain.dev needs a tunnel to reach the pi, see deploy/tunnel.md"
+info "the public page https://sol.swimmingbrain.dev needs a tunnel to reach the pi, the readme shows a tailscale funnel"
 info "live log of the service: journalctl -u brainsolpi -f"
 if ! "$venv/bin/brainsolpi" setpin --check >/dev/null 2>&1; then
   info "no admin pin yet, the admin tools stay locked for everyone until you run: $venv/bin/brainsolpi setpin"

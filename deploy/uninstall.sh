@@ -76,4 +76,4 @@ info "the dialout group membership, remove it with: sudo gpasswd -d $(id -un) di
 info "the host name $(hostname), change it with: sudo hostnamectl set-hostname <name>"
 info "  and fix the 127.0.1.1 line in /etc/hosts to match"
 info "the firmware on the uno and the repo itself"
-info "a cloudflare tunnel or a tailscale funnel, deploy/tunnel.md says how to remove them"
+info "a tailscale funnel, switch it off with: sudo tailscale funnel reset"
