@@ -170,6 +170,12 @@ and Tailscale Funnel, or open the copy of the page that the Pi serves itself at 
 That page is plain http, so it may talk `ws://`. It needs the web app on the Pi, `deploy/web.sh` puts it
 there.
 
+With a Tailscale Funnel there is one more case: the status bar says `simulation, brainsol.<tailnet>.ts.net
+does not answer` on a computer that is in the tailnet itself, while a phone on mobile data shows Live. The
+name then points to the tailnet address of the Pi, and Chrome and Edge may block that from a public page as
+local network access, the console says `ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS`. Use
+`http://brainsol:8080` on that computer, the audience is not affected.
+
 ## The pin is locked
 
 **What you see:** `Too many wrong tries. The next try is possible in ...`.
