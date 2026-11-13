@@ -206,7 +206,7 @@ def terminal(pen, x, y, w, h):
     x0, y0 = x + (w - tw) / 2, y + (h - th) / 2
     pen.rect(x0, y0, x0 + tw, y0 + th, fill=PAPER)
     pen.line([(x0, y0 + 46), (x0 + tw, y0 + 46)], width=THIN_W)
-    pen.text(x0 + 20, y0 + 32, "pi@brainsol", "small")
+    pen.text(x0 + 20, y0 + 32, "you@brainsol", "small")
     lines = ["$ deploy/install.sh", "[sudo] password:", "new admin pin:", "done, open in a browser",
              "http://brainsol.local:8080"]
     ty = y0 + 104
