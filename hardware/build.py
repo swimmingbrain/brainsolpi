@@ -3,6 +3,7 @@
     uv run build.py              everything, takes a few minutes
     uv run build.py --quick      coarse sweep and no renders, for trying a parameter
     uv run build.py --no-renders everything except the PNG files
+    uv run build.py --drawings   only the technical drawings in ../docs/drawings.pdf
 
 the exit code is 1 when a check fails, the report in reports/checks.md says which one
 """
@@ -16,7 +17,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-from cad import assembly, cables, checks, estimate, exporting, fasteners, kit, views  # noqa: E402
+from cad import assembly, cables, checks, drawings, estimate, exporting, fasteners, kit, views  # noqa: E402
 from cad import params as P  # noqa: E402
 
 LF = chr(10)  # write unix line ends on windows too, the repo keeps lf
@@ -174,12 +175,26 @@ def update_printing_table(path, parts_rep, est):
     path.write_text(new, encoding="utf-8", newline=LF)
 
 
+def make_drawings(parts, path, t0):
+    """the drawings pdf, a text that runs into a line is reported but does not fail the build"""
+    findings = drawings.make(parts, path, log=lambda msg: log(msg, t0))
+    for sheet, bad in findings.items():
+        for text, what in bad:
+            print(f"  drawing {sheet}: {text} touches {what}")
+    log(f"drawings in {path.name}", t0)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--quick", action="store_true", help="coarse sweep, no renders, no 3mf")
     ap.add_argument("--no-renders", action="store_true", help="skip the PNG renders")
+    ap.add_argument("--drawings", action="store_true", help="only the technical drawings, no checks and no exports")
     args = ap.parse_args()
     t0 = time.time()
+    drawing_pdf = HERE.parent / "docs" / "drawings.pdf"
+    if args.drawings:
+        make_drawings(assembly.build_parts(), drawing_pdf, t0)
+        return 0
     export_dir = HERE / "export"
     render_dir = HERE / "renders"
     report_dir = HERE / "reports"
@@ -269,6 +284,8 @@ def main():
         views.all_views(parts, elec, render_dir)
         views.print_views([fit], render_dir)
         log("renders", t0)
+    if not args.quick:
+        make_drawings(parts, drawing_pdf, t0)
 
     if failures:
         print("checks failed:")
