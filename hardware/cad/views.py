@@ -13,7 +13,7 @@ import numpy as np
 from . import assembly as A
 from . import cables
 from . import params as P
-from .render import FILAMENT, KIT_COLORS, MODULE_COLOR, ORANGE, SENSOR_COLOR, camera, drawing, render
+from .render import FILAMENT, KIT_COLORS, MODULE_COLOR, ORANGE, SENSOR_COLOR, camera, drawing, lamp_ray, render
 
 ROLE = FILAMENT
 TARGET = (0.0, -12.0, 78.0)
@@ -76,7 +76,7 @@ def lamp_point(pan, tilt, dist=260.0):
 
 def product_views(parts, elec, out):
     shots = [
-        ("front_three_quarter", 15, 35, camera(TARGET, 36, 22, 520)),
+        ("front_three_quarter", 75, 45, camera(TARGET, 36, 22, 600)),
         ("rear_three_quarter", -20, 55, camera(TARGET, 215, 24, 470)),
         ("side", 0, 45, camera(TARGET, 90, 2, 520)),
         ("top", 0, 10, camera((0, -5, 60), 0, 89.5, 520, up=(0, 1, 0))),
@@ -90,10 +90,13 @@ def product_views(parts, elec, out):
     for name, pan, tilt, cam in shots:
         par = name in ("side", "top")
         loop = [(cables.loop_points(pan, tilt), CABLE, 2.6)]
-        marks = {"notch": notch, "panel": panel_centre(pan, tilt)}
+        marks = {"notch": notch, "panel": panel_centre(pan, tilt), "lamp": lamp_point(pan, tilt)}
         written.append(shot(name, out, scene_items(parts, pan, tilt, kit_vis), cam,
                             panels=[A.panel_corners(pan, tilt)], parallel=par, zoom=1.0 if not par else 1.15,
                             lines=loop, marks=marks))
+        if name == "front_three_quarter":
+            # the picture at the top of the readme says what the tracker does, it faces a lamp
+            lamp_ray(written[-1], MARKS[name]["lamp"], MARKS[name]["panel"], scale=1.2)
     return written
 
 

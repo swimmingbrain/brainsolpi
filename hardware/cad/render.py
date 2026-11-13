@@ -462,3 +462,38 @@ def drawing(items, path, cam, size=(1200, 900), parallel=False, zoom=1.0, line=1
     img[ring] = rgb(INK)
     save(img, path, size)
     return pixels(marks, m_cam, size)
+
+
+def lamp_ray(path, lamp, panel, area=None, scale=1.0):
+    """a small lamp drawn in ink and one orange ray from it to the panel, on a finished render
+
+    lamp and panel are pixels from marks, the lamp is drawn where the line from the panel toward
+    it leaves the area (x0, y0, x1, y1), so the ray is as long as the picture allows
+    """
+    from PIL import ImageDraw
+    img = Image.open(path).convert("RGB")
+    k = 4  # drawn larger and scaled down for smooth lines
+    big = img.resize((img.width * k, img.height * k), Image.LANCZOS)
+    d = ImageDraw.Draw(big)
+    x0, y0, x1, y1 = area or (70, 70, img.width - 70, img.height - 70)
+    (lx, ly), (px, py) = lamp, panel
+    t = math.inf
+    for dv, p, lo, hi in ((lx - px, px, x0, x1), (ly - py, py, y0, y1)):
+        if dv > 1e-9:
+            t = min(t, (hi - p) / dv)
+        if dv < -1e-9:
+            t = min(t, (lo - p) / dv)
+    lx, ly = px + (lx - px) * t, py + (ly - py) * t
+    ink, orange = tuple(round(c * 255) for c in rgb(INK)), tuple(round(c * 255) for c in rgb(ORANGE))
+    r, w = 16 * scale, 3 * scale
+    L = math.hypot(px - lx, py - ly)
+    sx, sy = lx + (px - lx) / L * (r + 18 * scale), ly + (py - ly) / L * (r + 18 * scale)
+    d.line([(sx * k, sy * k), (px * k, py * k)], fill=orange, width=round(w * 1.3 * k))
+    d.ellipse(((px - 6 * scale) * k, (py - 6 * scale) * k, (px + 6 * scale) * k, (py + 6 * scale) * k), fill=orange)
+    d.ellipse(((lx - r) * k, (ly - r) * k, (lx + r) * k, (ly + r) * k), outline=ink, width=round(w * k))
+    for i in range(8):
+        a = i * math.pi / 4
+        d.line([((lx + (r + 7 * scale) * math.cos(a)) * k, (ly + (r + 7 * scale) * math.sin(a)) * k),
+                ((lx + (r + 16 * scale) * math.cos(a)) * k, (ly + (r + 16 * scale) * math.sin(a)) * k)],
+               fill=ink, width=round(w * k))
+    big.resize(img.size, Image.LANCZOS).save(str(path), optimize=True)
