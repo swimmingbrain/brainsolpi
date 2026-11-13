@@ -20,8 +20,9 @@ pv.OFF_SCREEN = True
 PAPER = "#f2efe8"
 INK = "#26241f"
 ORANGE = "#ff8b4b"
-# filament colours of the printed parts
-FILAMENT = {"body": "#d6d3cc", "dark": "#3b3b3e", "accent": ORANGE}
+# colours of the printed parts as the renderer takes them, the light grey is set lower than the
+# filament because the room light adds on top, its lit top comes out about #e4e1da
+FILAMENT = {"body": "#cdc9c3", "dark": "#3b3b3e", "accent": ORANGE}
 # the bought parts stay neutral, so the orange keeps its meaning on the sheets
 KIT_COLORS = {
     "pi": "#5f6862", "uno": "#5a616b", "pan_horn": "#e4e1da", "tilt_horn": "#e4e1da",
@@ -30,14 +31,16 @@ KIT_COLORS = {
 MODULE_COLOR = "#45484f"
 SENSOR_COLOR = "#a39782"
 
-# matte plastic that still shows its form: diffuse, specular, its power and extra room light,
-# the panel a little glossy and the orange a little brighter so it reads as the orange of the sheets
+# matte plastic that still shows its form: diffuse, specular and its power, extra room light and
+# how much of the key lamp it takes, the light grey plastic scatters light inside and picks up the
+# bounce from the paper so it gets more room light and less lamp, its shaded sides stay light,
+# the panel is a little glossy and the orange a little brighter so it reads as the orange of the sheets
 LOOK = {
-    "body": (0.86, 0.07, 8, 0.0),
-    "dark": (0.86, 0.22, 8, 0.0),
-    "accent": (0.86, 0.12, 12, 0.22),
-    "kit": (0.86, 0.10, 10, 0.0),
-    "panel": (0.60, 0.22, 3, 0.0),
+    "body": (0.86, 0.07, 8, 0.5, 0.5),
+    "dark": (0.86, 0.22, 8, 0.0, 1.0),
+    "accent": (0.86, 0.12, 12, 0.22, 1.0),
+    "kit": (0.86, 0.10, 10, 0.0, 1.0),
+    "panel": (0.60, 0.22, 3, 0.0, 1.0),
 }
 
 # the lights in the frame of the camera: to the right, up and toward the camera, then the strength
@@ -230,7 +233,7 @@ def light_and_shadow(pl, pts, valid, obj, cam_pos, key, mid, radius):
     nrm = np.where(part[..., None], surface_normals(sub, cam_pos), np.float32([0, 0, 1]))[ok]
     out = []
     # the parts keep sharper detail than the wide soft shadows on the floor
-    for dirs, weigh, jitter, blur in ((lamp_dirs(key, 96), False, 2.0, (3, 11)), (sky_dirs(64), True, 5.0, (7, 25))):
+    for dirs, weigh, jitter, blur in ((lamp_dirs(key, 96), False, 2.0, (3, 11)), (sky_dirs(96), True, 5.0, (11, 25))):
         v = np.ones(ok.shape, np.float32)
         v[ok] = visibility(pl, p, nrm, dirs, mid, radius, weigh, jitter=jitter)
         v = np.where(part, masked_blur(v, part, blur[0]), np.where(ok, masked_blur(v, ok & ~part, blur[1]), 1.0))
@@ -332,7 +335,7 @@ def render(items, path, cam, size=(1600, 1200), panels=(), parallel=False, zoom=
         # any grey, the paper colour is put in later from how much light reaches the floor
         disc = pv.Disc(center=(mid[0], mid[1], bounds[2, 0] - 0.02), inner=0, outer=radius * 12, c_res=180, r_res=8)
         floor_actor = pl.add_mesh(disc, color="#c0c0c0")
-        parts.append((floor_actor, (LOOK["body"][0], 0.0, 1, 0.0)))
+        parts.append((floor_actor, (LOOK["body"][0], 0.0, 1, 0.0, 1.0)))
 
     pl.camera_position = cam
     if parallel:
@@ -346,9 +349,9 @@ def render(items, path, cam, size=(1600, 1200), panels=(), parallel=False, zoom=
                                   color=col, light_type="scene light"))
 
     def material(ambient, key_pass):
-        for a, (dif, spec, power, extra) in parts:
-            a.prop.SetAmbient(ambient + extra if ambient else 0.0)
-            a.prop.SetDiffuse(dif)
+        for a, (dif, spec, power, room, lamp) in parts:
+            a.prop.SetAmbient(ambient + room if ambient else 0.0)
+            a.prop.SetDiffuse(dif * lamp if key_pass else dif)
             # the soft lights give a weaker gloss, the key light the real highlight
             a.prop.SetSpecular(spec if key_pass else spec * 0.35)
             a.prop.SetSpecularPower(power)
