@@ -13,7 +13,7 @@ import numpy as np
 from . import assembly as A
 from . import cables
 from . import params as P
-from .render import FILAMENT, KIT_COLORS, MODULE_COLOR, ORANGE, SENSOR_COLOR, camera, render
+from .render import FILAMENT, KIT_COLORS, MODULE_COLOR, ORANGE, SENSOR_COLOR, camera, drawing, render
 
 ROLE = FILAMENT
 TARGET = (0.0, -12.0, 78.0)
@@ -65,6 +65,13 @@ def shot(name, out, items, cam, **kw):
 
 def panel_centre(pan, tilt):
     return tuple(np.mean(A.panel_corners(pan, tilt), axis=0))
+
+
+def lamp_point(pan, tilt, dist=260.0):
+    """a point straight out in front of the panel, where the lamp it turned to would stand"""
+    c = np.asarray(A.panel_corners(pan, tilt))
+    n = np.cross(c[3] - c[0], c[1] - c[0])
+    return tuple(c.mean(0) + n / np.linalg.norm(n) * dist)
 
 
 def product_views(parts, elec, out):
@@ -225,6 +232,60 @@ def print_views(parts, out):
     return written
 
 
+# the six plates of hardware/export/3mf, in the order of the files, laid out in three colours
+PLATES = [["tray"], ["lid"], ["neck_front", "neck_back", "ear_horn", "ear_pivot", "foot"], ["head_back"],
+          ["head_bezel"], ["cap"]]
+
+
+def plates_view(parts, out):
+    """every printed part as it comes off the printer, one group per plate, on the paper"""
+    by = {p.name: p for p in parts}
+    items = []
+    # two rows of three plates, plate 1 at the far left, each in a cell of this size in mm,
+    # the camera looks from the front so x runs to the left and the far row has the lower y
+    cell = 190.0
+    marks = {}
+    for i, names in enumerate(PLATES):
+        cx, cy = (1 - i % 3) * cell, (i // 3 - 0.5) * cell
+        group = [(by[n].print_mesh(), by[n].role) for n in names for _ in range(by[n].count)]
+        # small parts of one plate in rows that fit the cell
+        rows, row, width = [], [], 0.0
+        for m, role in group:
+            wd = float(m.extents[0])
+            if row and width + wd > cell * 0.85:
+                rows.append(row)
+                row, width = [], 0.0
+            row.append((m, role))
+            width += wd + 8.0
+        rows.append(row)
+        depth = [max(float(m.extents[1]) for m, _ in r) for r in rows]
+        y = cy - (sum(depth) + 10.0 * (len(rows) - 1)) / 2
+        for r, dep in zip(rows, depth):
+            total = sum(float(m.extents[0]) for m, _ in r) + 8.0 * (len(r) - 1)
+            x = cx + total / 2
+            for m, role in r:
+                m = m.copy()
+                lo, hi = m.bounds
+                # placed from right to left, so the order reads left to right from the camera
+                m.apply_translation((x - hi[0], y + dep / 2 - (lo[1] + hi[1]) / 2, -lo[2]))
+                items.append((m, ROLE[role], 1.0, role))
+                x -= float(m.extents[0]) + 8.0
+            y += dep + 10.0
+        # the balloon with the plate number sits just in front of the plate
+        marks[f"plate_{i + 1}"] = (cx, y + 8.0, 0.0)
+    return [shot("print/plates", out, items, camera((0.0, 10.0, 0.0), 0, 58, 860), size=(1600, 1100), marks=marks)]
+
+
+def twin_view(parts, out):
+    """the tracker as a line drawing, for the page of the pi on the sheets, turned to a lamp on the left"""
+    pan, tilt = 70, 20
+    path = Path(out) / "page_twin.png"
+    MARKS["page_twin"] = drawing(scene_items(parts, pan, tilt), path, camera(TARGET, 45, 15, 520), size=(1000, 750),
+                                 panels=[A.panel_corners(pan, tilt)],
+                                 marks={"panel": panel_centre(pan, tilt), "lamp": lamp_point(pan, tilt)})
+    return [path]
+
+
 def all_views(parts, elec, out):
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
@@ -235,6 +296,8 @@ def all_views(parts, elec, out):
     w += cable_view(parts, elec, out)
     w += signature_view(parts, elec, out)
     w += print_views(parts, out)
+    w += plates_view(parts, out)
+    w += twin_view(parts, out)
     w += first_layer_view(parts, out)
     (out / "marks.json").write_text(json.dumps(MARKS, indent=1) + "\n", encoding="utf-8")
     return w

@@ -424,3 +424,41 @@ def surface_normals(pts, cam_pos):
     flip = np.sum(n * (cam_pos - pts), -1) < 0
     n[flip] *= -1
     return n.astype(np.float32)
+
+
+def drawing(items, path, cam, size=(1200, 900), parallel=False, zoom=1.0, line=1.2, feature_angle=40.0, panels=(),
+            marks=None):
+    """the parts as a line drawing in ink on the paper, edges where faces meet at more than
+    feature_angle and the outline, hidden lines are left out
+    """
+    w, h = size[0] * SS, size[1] * SS
+    pl = pv.Plotter(off_screen=True, window_size=(w, h))
+    pl.set_background(PAPER)
+    for it in items:
+        # the cad faces come as separate patches, merged so only real edges are found
+        pd = to_pv(it[0]).clean(tolerance=1e-6)
+        # the faces only hide what lies behind them, pushed back a little so the edges win
+        a = pl.add_mesh(pd, color=PAPER, lighting=False)
+        a.mapper.SetResolveCoincidentTopologyToPolygonOffset()
+        a.mapper.SetRelativeCoincidentTopologyPolygonOffsetParameters(2, 2)
+        edges = pd.extract_feature_edges(feature_angle, boundary_edges=True, non_manifold_edges=False,
+                                         manifold_edges=False)
+        if edges.n_points:
+            pl.add_mesh(edges, color=INK, line_width=line * SS, lighting=False, render_lines_as_tubes=False)
+    for corners in panels:
+        quad = panel_face(corners)
+        pl.add_mesh(quad, color=PAPER, lighting=False)
+        pl.add_mesh(quad.extract_feature_edges(boundary_edges=True), color=INK, line_width=line * SS, lighting=False)
+    pl.camera_position = cam
+    if parallel:
+        pl.enable_parallel_projection()
+    pl.camera.zoom(zoom)
+    img = screenshot(pl)
+    obj = zbuffer(pl) < 1.0
+    m_cam = matrix(pl)
+    pl.close()
+    # the silhouette, the feature edges do not find it on round faces
+    ring = dilate(obj, line * SS / 2 + 0.5) & ~obj
+    img[ring] = rgb(INK)
+    save(img, path, size)
+    return pixels(marks, m_cam, size)
