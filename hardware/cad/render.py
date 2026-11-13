@@ -1,30 +1,66 @@
-"""off screen renders with pyvista, in the colour roles of params.py"""
+"""off screen renders with pyvista, lit like a small product photo on a sheet of paper
+
+each picture is drawn at twice its size in a few passes that numpy adds up: the soft light
+(fill, rim and the room) dimmed where the parts hide the sky, the key light with a soft
+shadow, both worked out from depth maps of the parts seen from many directions, the floor
+turned into the paper with only its shadow left, and a thin ink outline around the parts
+"""
 
 import math
 
 import numpy as np
 import pyvista as pv
-
-from . import params as P
+from PIL import Image
+from vtkmodules.util.numpy_support import vtk_to_numpy
+from vtkmodules.vtkCommonCore import vtkFloatArray
 
 pv.OFF_SCREEN = True
 
+# the paper of the sheets, sheets.py uses the same one so a render sits on the page without a seam
+PAPER = "#f2efe8"
+INK = "#26241f"
+ORANGE = "#ff8b4b"
+# filament colours of the printed parts
+FILAMENT = {"body": "#d6d3cc", "dark": "#3b3b3e", "accent": ORANGE}
+# the bought parts stay neutral, so the orange keeps its meaning on the sheets
 KIT_COLORS = {
-    "pi": "#3e6b52", "uno": "#2e4a74", "pan_horn": "#d8d6d0", "tilt_horn": "#d8d6d0",
-    "pan_servo": "#33558a", "tilt_servo": "#33558a", "panel": "#141a2a",
+    "pi": "#5f6862", "uno": "#5a616b", "pan_horn": "#e4e1da", "tilt_horn": "#e4e1da",
+    "pan_servo": "#64666c", "tilt_servo": "#64666c", "panel": "#141a2a",
 }
-MODULE_COLOR = "#20283a"
+MODULE_COLOR = "#45484f"
+SENSOR_COLOR = "#a39782"
+
+# matte plastic that still shows its form: diffuse, specular, its power and extra room light,
+# the panel a little glossy and the orange a little brighter so it reads as the orange of the sheets
 LOOK = {
-    "body": dict(ambient=0.14, diffuse=0.78, specular=0.10, specular_power=12),
-    "dark": dict(ambient=0.30, diffuse=0.85, specular=0.30, specular_power=22),
-    "accent": dict(ambient=0.22, diffuse=0.80, specular=0.45, specular_power=30),
-    "kit": dict(ambient=0.25, diffuse=0.80, specular=0.15, specular_power=15),
+    "body": (0.86, 0.07, 8, 0.0),
+    "dark": (0.86, 0.22, 8, 0.0),
+    "accent": (0.86, 0.12, 12, 0.22),
+    "kit": (0.86, 0.10, 10, 0.0),
+    "panel": (0.60, 0.22, 3, 0.0),
 }
+
+# the lights in the frame of the camera: to the right, up and toward the camera, then the strength
+# and a slightly warm key against a slightly cool fill, like a lamp by a window
+KEY = ((-1.0, 1.1, 0.35), 0.70, "#fffaf2")
+FILL = ((0.9, 0.25, 0.7), 0.30, "#f2f6ff")
+RIM = ((0.45, 0.9, -0.9), 0.35, "#ffffff")
+AMBIENT = 0.30
+# tan of the half angle of the key light seen from the parts, a larger lamp gives a softer shadow
+SOFT = 0.18
+# how much the parts take away of the soft light around them, 1 would be a dark room with one window
+SKY = 0.6
+SS = 2  # drawn at twice the size and scaled down, for smooth edges
 
 
 def to_pv(mesh):
     faces = np.hstack([np.full((len(mesh.faces), 1), 3), mesh.faces]).astype(np.int64).ravel()
     return pv.PolyData(np.asarray(mesh.vertices, float), faces)
+
+
+def rgb(c):
+    c = c.lstrip("#")
+    return np.array([int(c[i:i + 2], 16) for i in (0, 2, 4)], float) / 255
 
 
 def panel_texture(w_px=1024, h_px=700, cells=(6, 4)):
@@ -48,36 +84,15 @@ def panel_texture(w_px=1024, h_px=700, cells=(6, 4)):
     return pv.Texture(np.clip(img, 0, 255).astype(np.uint8))
 
 
-def add_panel_face(pl, corners):
+def panel_face(corners):
     """corners: lower left, lower right, upper right, upper left of the visible panel face"""
     quad = pv.Quadrilateral(np.asarray(corners, float))
-    quad = quad.texture_map_to_plane(origin=corners[0], point_u=corners[1], point_v=corners[3])
-    pl.add_mesh(quad, texture=panel_texture(), ambient=0.3, diffuse=0.7, specular=0.5, specular_power=50)
-
-
-def setup_lights(pl, center):
-    pl.remove_all_lights()
-    c = np.asarray(center, float)
-    lights = [
-        ((-0.7, 1.0, 1.2), 0.75),   # key, front left and high
-        ((1.0, 0.6, 0.5), 0.35),    # fill from the right
-        ((-0.3, -1.0, 0.8), 0.55),  # rim from behind
-        ((0.0, 0.0, 1.0), 0.20),    # soft top
-    ]
-    for d, k in lights:
-        d = np.asarray(d, float)
-        d /= np.linalg.norm(d)
-        pl.add_light(pv.Light(position=tuple(c + d * 1500), focal_point=tuple(c), intensity=k,
-                              light_type="scene light"))
+    return quad.texture_map_to_plane(origin=corners[0], point_u=corners[1], point_v=corners[3])
 
 
 def shade_mesh(mesh, feature_angle=32):
     pd = to_pv(mesh)
     return pd.compute_normals(split_vertices=True, feature_angle=feature_angle, auto_orient_normals=False)
-
-
-def floor_disc(z=0.0, r=420.0):
-    return pv.Disc(center=(0, 0, z - 0.05), inner=0.0, outer=r, normal=(0, 0, 1), c_res=96)
 
 
 def camera(target, az, el, dist, up=(0, 0, 1)):
@@ -88,32 +103,324 @@ def camera(target, az, el, dist, up=(0, 0, 1)):
     return [tuple(pos), tuple(target), up]
 
 
-def render(items, path, cam, size=(1600, 1200), panels=(), parallel=False, zoom=1.0, floor=True,
-           lines=(), center=(0, -10, 60), occlusion=False):
-    """items: list of (trimesh, colour, opacity, role), cam: (position, focal point, up)
+def unit(v):
+    v = np.asarray(v, float)
+    return v / np.linalg.norm(v)
 
-    occlusion shades the floor of shallow recesses like the engraving on the lid, close ups only
+
+def light_dirs(cam):
+    """directions from the scene toward each light, they turn with the camera"""
+    pos, tgt, up = (np.asarray(c, float) for c in cam)
+    f = unit(tgt - pos)
+    r = unit(np.cross(f, up))
+    z = np.array([0, 0, 1.0])
+    return [(unit(a * r + b * z - c * f), k, col) for (a, b, c), k, col in (KEY, FILL, RIM)]
+
+
+def zbuffer(pl):
+    w, h = pl.window_size
+    pl.render_window.Render()
+    arr = vtkFloatArray()
+    pl.render_window.GetZbufferData(0, 0, w - 1, h - 1, arr)
+    return vtk_to_numpy(arr).reshape(h, w)[::-1].astype(np.float32)
+
+
+def matrix(pl):
+    w, h = pl.window_size
+    m = pl.camera.GetCompositeProjectionTransformMatrix(w / h, -1, 1)
+    return np.array([[m.GetElement(i, j) for j in range(4)] for i in range(4)])
+
+
+def unproject(z, m):
+    """world points of every pixel from the depth buffer, a band of rows at a time to save memory"""
+    h, w = z.shape
+    inv = np.linalg.inv(m)
+    x = (np.arange(w) + 0.5) / w * 2 - 1
+    out = np.empty((h, w, 3), np.float32)
+    for r0 in range(0, h, 256):
+        r1 = min(h, r0 + 256)
+        y = 1 - (np.arange(r0, r1) + 0.5) / h * 2
+        X, Y = np.meshgrid(x, y)
+        ndc = np.stack([X, Y, z[r0:r1].astype(np.float64) * 2 - 1, np.ones_like(X)], -1)
+        p = ndc @ inv.T
+        out[r0:r1] = p[..., :3] / p[..., 3:]
+    return out
+
+
+def screenshot(pl):
+    pl.render()
+    return np.asarray(pl.screenshot(return_img=True))[..., :3].astype(np.float32) / 255
+
+
+def vogel(n):
+    """n points on a disc of radius 1, radius and angle"""
+    i = np.arange(n) + 0.5
+    return np.sqrt(i / n), i * 2.39996323
+
+
+def lamp_dirs(key, n):
+    """n directions spread over the round key lamp"""
+    side = np.cross(key, (0, 0, 1.0))
+    side = unit(side if np.linalg.norm(side) > 1e-6 else (1.0, 0, 0))
+    up = np.cross(side, key)
+    rr, aa = vogel(n)
+    return [unit(key + SOFT * r * (math.cos(a) * side + math.sin(a) * up)) for r, a in zip(rr, aa)]
+
+
+def sky_dirs(n):
+    """n directions over the half sphere above the table, more of them high up like a soft room light"""
+    rr, aa = vogel(n)
+    return [np.array([r * math.cos(a), r * math.sin(a), math.sqrt(1 - r * r)]) for r, a in zip(rr, aa)]
+
+
+def visibility(pl, pts, normals, dirs, mid, radius, weigh=False, size=1024, jitter=3.0):
+    """share of the directions in which a point sees past the parts
+
+    the parts are seen from each direction as a depth map, a point is lit from there when nothing
+    in the map lies in front of it, weigh counts each direction by how much the face turns to it
     """
-    pl = pv.Plotter(off_screen=True, window_size=size)
-    pl.set_background(P.COLORS["background"])
-    if floor:
-        pl.add_mesh(floor_disc(), color="#17171a", ambient=0.6, diffuse=0.3, specular=0.0)
+    pl.window_size = (size, size)
+    pl.enable_parallel_projection()
+    p4 = np.concatenate([pts, np.ones((len(pts), 1), np.float32)], -1)
+    texel = 2 * radius * 1.05 / size
+    dist = radius * 4
+    acc = np.zeros(len(pts), np.float32)
+    wsum = np.zeros(len(pts), np.float32)
+    # each point looks a few texels off at random, so the edges of the single shadows turn into
+    # fine noise that the blur takes away instead of lines
+    rng = np.random.default_rng(7)
+    for d in dirs:
+        ju, jv = (rng.random((2, len(pts)), np.float32) - 0.5) * 2 * jitter
+        up = np.cross(np.cross(d, (0, 0, 1.0)), d)
+        up = unit(up if np.linalg.norm(up) > 1e-6 else (0, 1.0, 0))
+        pl.camera_position = [tuple(mid + d * dist), tuple(mid), tuple(up)]
+        pl.camera.parallel_scale = radius * 1.05
+        pl.camera.clipping_range = (dist - radius * 1.1, dist + radius * 1.1)
+        lmap = zbuffer(pl)
+        m = matrix(pl).astype(np.float32)
+        near, far = pl.camera.clipping_range
+        q = p4 @ m.T
+        u = np.clip(np.rint((q[:, 0] + 1) / 2 * size - 0.5 + ju), 0, size - 1).astype(np.int32)
+        v = np.clip(np.rint((1 - (q[:, 1] + 1) / 2) * size - 0.5 + jv), 0, size - 1).astype(np.int32)
+        # a face turned away from the light needs a larger margin against shading itself, and
+        # nothing shallower than the engraving on the lid casts a shadow
+        c = normals @ d.astype(np.float32)
+        ca = np.clip(np.abs(c), 0.1, 1.0)
+        bias = np.maximum(texel * (1.0 + 1.5 * np.sqrt(1 - ca * ca) / ca), 0.8) / (far - near)
+        z = lmap[v, u]
+        # 1 is the empty background of the map, nothing there casts a shadow
+        lit = (z >= (q[:, 2] + 1) / 2 - bias) | (z >= 1.0)
+        wt = np.clip(c, 0, None) if weigh else 1.0
+        acc += lit * wt
+        wsum += wt
+    return acc / np.maximum(wsum, 1e-6)
+
+
+def light_and_shadow(pl, pts, valid, obj, cam_pos, key, mid, radius):
+    """key light shadow and sky light of every pixel, worked out on every second pixel
+
+    both get a blur that stays on its side of the edge between the parts and the floor
+    """
+    h, w = valid.shape
+    sub = pts[::2, ::2]
+    ok = valid[::2, ::2]
+    part = obj[::2, ::2]
+    p = sub[ok]
+    # the floor is flat, its normal from the depth buffer would only add noise
+    nrm = np.where(part[..., None], surface_normals(sub, cam_pos), np.float32([0, 0, 1]))[ok]
+    out = []
+    # the parts keep sharper detail than the wide soft shadows on the floor
+    for dirs, weigh, jitter, blur in ((lamp_dirs(key, 96), False, 2.0, (3, 11)), (sky_dirs(64), True, 5.0, (7, 25))):
+        v = np.ones(ok.shape, np.float32)
+        v[ok] = visibility(pl, p, nrm, dirs, mid, radius, weigh, jitter=jitter)
+        v = np.where(part, masked_blur(v, part, blur[0]), np.where(ok, masked_blur(v, ok & ~part, blur[1]), 1.0))
+        out.append(box(np.repeat(np.repeat(v, 2, 0), 2, 1)[:h, :w], 3))
+    return out
+
+
+def masked_blur(v, mask, k):
+    m = mask.astype(np.float32)
+    return box(v * m, k) / np.maximum(box(m, k), 1e-6)
+
+
+def box(img, k):
+    """mean over k by k pixels around each pixel, edges repeat, one axis at a time in float64 so
+    the running sums keep their precision on a large picture
+    """
+    out = np.asarray(img, np.float64)
+    pad = k // 2
+    for ax in (0, 1):
+        widths = [(0, 0)] * out.ndim
+        widths[ax] = (pad + 1, k - 1 - pad)
+        c = np.pad(out, widths, mode="edge").cumsum(ax)
+        n = out.shape[ax]
+        out = (np.take(c, np.arange(k, k + n), ax) - np.take(c, np.arange(0, n), ax)) / k
+    return out.astype(np.float32)
+
+
+def shift(a, dy, dx, fill):
+    """a moved by dy rows and dx columns, the uncovered border gets fill"""
+    h, w = a.shape[:2]
+    out = np.full_like(a, fill)
+    out[max(dy, 0):h + min(dy, 0), max(dx, 0):w + min(dx, 0)] = a[max(-dy, 0):h - max(dy, 0), max(-dx, 0):w - max(dx, 0)]
+    return out
+
+
+def dilate(mask, r):
+    out = mask.copy()
+    ri = int(math.ceil(r))
+    for dy in range(-ri, ri + 1):
+        for dx in range(-ri, ri + 1):
+            if dx * dx + dy * dy <= r * r and (dx or dy):
+                out |= shift(mask, dy, dx, False)
+    return out
+
+
+def outline(mask, pts, cam_pos, width):
+    """ink around the silhouette and along steps in depth between parts"""
+    ring = dilate(mask, width) & ~mask
+    dist = np.where(mask, np.linalg.norm(pts - cam_pos, axis=-1), np.inf)
+    # a jump in depth of a few percent between neighbours is an edge in front of something,
+    # the far side gets the line so the near part keeps its clean edge
+    jump = np.zeros_like(mask)
+    for dy, dx in ((1, 0), (0, 1), (-1, 0), (0, -1)):
+        near = shift(dist, dy, dx, np.inf)
+        both = mask & np.isfinite(near)
+        rel = np.where(both, (dist - near) / np.where(both, near, 1.0), 0.0)
+        jump |= both & (rel > 0.035)
+    inner = dilate(jump, max(width - 1.0, 0.0)) & mask
+    return ring | inner
+
+
+def render(items, path, cam, size=(1600, 1200), panels=(), parallel=False, zoom=1.0, floor=True,
+           lines=(), lines_role="dark", ink=0.8, marks=None, cast=True):
+    """items: list of (trimesh, colour, opacity, role), cam: (position, focal point, up),
+    lines: list of (points, colour, radius) with an optional role, else lines_role
+
+    floor puts the parts on the paper with their shadow, ink is the outline width in pixels of
+    the final picture, 0 leaves it out, marks are named points in mm, the pixel of each comes back,
+    cast False leaves out the shadows and the occlusion
+    """
+    w, h = size[0] * SS, size[1] * SS
+    # no multisampling, a pixel is either a surface or not so the passes add up exactly, the
+    # drawing at twice the size already smooths the edges
+    pl = pv.Plotter(off_screen=True, window_size=(w, h))
+    pl.render_window.SetMultiSamples(0)
+    dirs = light_dirs(cam)
+    key, soft_lights = dirs[0], dirs[1:]
+
+    parts = []  # actor and its look
     for it in items:
         mesh, color, opacity = it[0], it[1], it[2]
         role = it[3] if len(it) > 3 else "body"
-        pl.add_mesh(shade_mesh(mesh), color=color, opacity=opacity, smooth_shading=True, **LOOK.get(role, LOOK["kit"]))
+        a = pl.add_mesh(shade_mesh(mesh), color=color, opacity=opacity, smooth_shading=True)
+        parts.append((a, LOOK.get(role, LOOK["kit"])))
     for corners in panels:
-        add_panel_face(pl, corners)
-    for pts, color, radius in lines:
+        a = pl.add_mesh(panel_face(corners), texture=panel_texture())
+        parts.append((a, LOOK["panel"]))
+    for ln in lines:
+        pts, color, r = ln[:3]
         spline = pv.Spline(np.asarray(pts, float), max(len(pts) * 8, 40))
-        pl.add_mesh(spline.tube(radius=radius), color=color, ambient=0.3, diffuse=0.8)
-    setup_lights(pl, center)
+        a = pl.add_mesh(spline.tube(radius=r, n_sides=16), color=color, smooth_shading=True)
+        parts.append((a, LOOK[ln[3] if len(ln) > 3 else lines_role]))
+    bounds = np.array(pl.bounds).reshape(3, 2)
+    mid = bounds.mean(1)
+    radius = np.linalg.norm(bounds[:, 1] - bounds[:, 0]) / 2
+
+    floor_actor = None
+    if floor:
+        # any grey, the paper colour is put in later from how much light reaches the floor
+        disc = pv.Disc(center=(mid[0], mid[1], bounds[2, 0] - 0.02), inner=0, outer=radius * 12, c_res=180, r_res=8)
+        floor_actor = pl.add_mesh(disc, color="#c0c0c0")
+        parts.append((floor_actor, (LOOK["body"][0], 0.0, 1, 0.0)))
+
     pl.camera_position = cam
     if parallel:
         pl.enable_parallel_projection()
     pl.camera.zoom(zoom)
-    if occlusion:
-        pl.enable_ssao(radius=0.8, bias=0.1, kernel_size=256, blur=True)
-    pl.enable_anti_aliasing("ssaa")
-    pl.screenshot(str(path))
+
+    def lights(which):
+        pl.remove_all_lights()
+        for d, k, col in which:
+            pl.add_light(pv.Light(position=tuple(mid + d * radius * 20), focal_point=tuple(mid), intensity=k,
+                                  color=col, light_type="scene light"))
+
+    def material(ambient, key_pass):
+        for a, (dif, spec, power, extra) in parts:
+            a.prop.SetAmbient(ambient + extra if ambient else 0.0)
+            a.prop.SetDiffuse(dif)
+            # the soft lights give a weaker gloss, the key light the real highlight
+            a.prop.SetSpecular(spec if key_pass else spec * 0.35)
+            a.prop.SetSpecularPower(power)
+
+    # soft light from the sides and the room, on the paper so a see through part shows it
+    lights(soft_lights)
+    material(AMBIENT, False)
+    pl.set_background(PAPER)
+    soft_img = screenshot(pl)
+
+    # key light alone on black, it adds to the soft light, and the depth of every pixel
+    lights([key])
+    material(0.0, True)
+    pl.set_background("black")
+    key_img = screenshot(pl)
+    zb = zbuffer(pl)
+    m_cam = matrix(pl)
+    pts = unproject(zb, m_cam)
+    valid = zb < 1.0
+    del zb
+    cam_pos = np.array(pl.camera.position)
+    # the parts alone, for the outline
+    if floor_actor is not None:
+        floor_actor.visibility = False
+    obj = zbuffer(pl) < 1.0
+    if cast:
+        vis, sky = light_and_shadow(pl, pts, valid, obj, cam_pos, key[0], mid, radius)
+    else:
+        vis = sky = np.ones(valid.shape, np.float32)
     pl.close()
+
+    full = (soft_img + key_img).mean(-1)
+    img = soft_img * (1 - SKY * (1 - sky))[..., None]
+    del soft_img, sky
+    img += key_img * vis[..., None]
+    del key_img, vis
+    # the floor is the paper, darkened by the share of light it lost, and far from the parts it
+    # runs out into the plain paper so the edge of the floor never shows
+    share = np.clip(img.mean(-1) / np.maximum(full, 1e-3), 0, 1)
+    ground = valid & ~obj
+    far = np.hypot(pts[..., 0] - mid[0], pts[..., 1] - mid[1])
+    share = 1 - (1 - share) * np.clip((6 * radius - far) / (4 * radius), 0, 1)
+    # a loss below half a percent is only noise, the plain paper stays plain
+    share = 1 - np.clip((1 - share) - 0.005, 0, None) / 0.995
+    img[ground] = rgb(PAPER) * share[ground, None]
+    del full, share, ground, far
+    if ink:
+        line = outline(obj, pts, cam_pos, ink * SS)
+        img[line] = rgb(INK)
+    save(img, path, size)
+    return pixels(marks, m_cam, size)
+
+
+def save(img, path, size):
+    out = Image.fromarray((np.clip(img, 0, 1) * 255 + 0.5).astype(np.uint8)).resize(size, Image.LANCZOS)
+    out.save(str(path), optimize=True)
+
+
+def pixels(marks, m, size):
+    """where each named point lands in the final picture"""
+    px = {}
+    for name, xyz in (marks or {}).items():
+        q = m @ np.append(np.asarray(xyz, float), 1.0)
+        q = q[:3] / q[3]
+        px[name] = [round((q[0] + 1) / 2 * size[0], 1), round((1 - q[1]) / 2 * size[1], 1)]
+    return px
+
+
+def surface_normals(pts, cam_pos):
+    """normals from the world points of neighbouring pixels, turned toward the camera"""
+    n = np.cross(np.gradient(pts, axis=1), np.gradient(pts, axis=0))
+    n /= np.linalg.norm(n, axis=-1, keepdims=True) + 1e-12
+    flip = np.sum(n * (cam_pos - pts), -1) < 0
+    n[flip] *= -1
+    return n.astype(np.float32)
