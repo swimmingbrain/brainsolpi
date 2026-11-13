@@ -54,6 +54,9 @@ SOFT = 0.18
 # how much the parts take away of the soft light around them, 1 would be a dark room with one window
 SKY = 0.6
 SS = 2  # drawn at twice the size and scaled down, for smooth edges
+# the hair thin grey of fine detail in the line drawings
+QUIET = "#c4c0b8"
+QUIET_W = 0.5
 
 
 def to_pv(mesh):
@@ -437,9 +440,12 @@ def surface_normals(pts, cam_pos):
 
 
 def drawing(items, path, cam, size=(1200, 900), parallel=False, zoom=1.0, line=1.2, feature_angle=40.0, panels=(),
-            marks=None):
+            marks=None, quiet=None):
     """the parts as a line drawing in ink on the paper, edges where faces meet at more than
     feature_angle and the outline, hidden lines are left out
+
+    quiet is a box (x0, y0, x1, y1, z0) in mm, edges in it above z0 are drawn hair thin and grey,
+    so fine detail like the engraving on the lid reads as a texture and not as a smear
     """
     w, h = size[0] * SS, size[1] * SS
     pl = pv.Plotter(off_screen=True, window_size=(w, h))
@@ -453,8 +459,17 @@ def drawing(items, path, cam, size=(1200, 900), parallel=False, zoom=1.0, line=1
         a.mapper.SetRelativeCoincidentTopologyPolygonOffsetParameters(2, 2)
         edges = pd.extract_feature_edges(feature_angle, boundary_edges=True, non_manifold_edges=False,
                                          manifold_edges=False)
-        if edges.n_points:
-            pl.add_mesh(edges, color=INK, line_width=line * SS, lighting=False, render_lines_as_tubes=False)
+        if not edges.n_cells:
+            continue
+        soft = np.zeros(edges.n_cells, bool)
+        if quiet is not None:
+            c = edges.cell_centers().points
+            x0, y0, x1, y1, z0 = quiet
+            soft = (c[:, 0] > x0) & (c[:, 0] < x1) & (c[:, 1] > y0) & (c[:, 1] < y1) & (c[:, 2] > z0)
+        for keep, colour, width in ((~soft, INK, line), (soft, QUIET, QUIET_W)):
+            if keep.any():
+                pl.add_mesh(edges.extract_cells(np.nonzero(keep)[0]), color=colour, line_width=width * SS,
+                            lighting=False)
     for corners in panels:
         quad = panel_face(corners)
         pl.add_mesh(quad, color=PAPER, lighting=False)

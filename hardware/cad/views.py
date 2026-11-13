@@ -283,8 +283,14 @@ def twin_view(parts, out):
     """the tracker as a line drawing, for the page of the pi on the sheets, turned to a lamp on the left"""
     pan, tilt = 70, 20
     path = Path(out) / "page_twin.png"
+    # the engraving on the lid is too fine for the pen at this size, it stays a light texture
+    quiet = None
+    if P.SIG_ON:
+        from . import signature
+        x0, y0, x1, y1 = signature.profile().bounds()
+        quiet = (x0 - 2, y0 - 2, x1 + 2, y1 + 2, P.BASE_TOP - P.SIG_DEPTH - 0.5)
     MARKS["page_twin"] = drawing(scene_items(parts, pan, tilt), path, camera(TARGET, 45, 15, 520), size=(1000, 750),
-                                 panels=[A.panel_corners(pan, tilt)],
+                                 panels=[A.panel_corners(pan, tilt)], quiet=quiet,
                                  marks={"panel": panel_centre(pan, tilt), "lamp": lamp_point(pan, tilt)})
     return [path]
 
