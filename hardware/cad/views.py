@@ -77,11 +77,11 @@ def lamp_point(pan, tilt, dist=260.0):
 def product_views(parts, elec, out):
     shots = [
         ("front_three_quarter", 75, 45, camera(TARGET, 36, 22, 600)),
-        ("rear_three_quarter", -20, 55, camera(TARGET, 215, 24, 470)),
+        ("rear_three_quarter", -20, 55, camera(TARGET, 215, 24, 580)),
         ("side", 0, 45, camera(TARGET, 90, 2, 520)),
         ("top", 0, 10, camera((0, -5, 60), 0, 89.5, 520, up=(0, 1, 0))),
         ("head_flat", 0, 90, camera(TARGET, 32, 22, 470)),
-        ("head_over_the_top", 30, 155, camera(TARGET, 150, 22, 480)),
+        ("head_over_the_top", 30, 155, camera(TARGET, 150, 22, 580)),
     ]
     written = []
     kit_vis = visible_kit(elec)
@@ -166,7 +166,7 @@ def inside_views(parts, elec, out):
     coil = usb_coil_points()
     lines = [(coil, ORANGE, 2.0, "accent")]
     lines += [(cables.route_points(n, 0, 90)[:4], CABLE, 0.9) for n in ("L", "R", "U", "D", "lux")]
-    written.append(shot("inside_base", out, items, camera((0, -5, 25), 25, 55, 420), lines=lines, lines_role="kit",
+    written.append(shot("inside_base", out, items, camera((0, -5, 25), 25, 55, 500), lines=lines, lines_role="kit",
                         marks={"usb": tuple(coil[len(coil) // 2])}))
     # the back shell with its modules, seen from the front with the bezel off
     by = {p.name: p for p in parts}

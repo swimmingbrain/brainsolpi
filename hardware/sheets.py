@@ -141,7 +141,7 @@ def load_marks():
 def content_box(img, pad=0.04):
     """the part of a render that is not plain paper, with a little room around it"""
     bg = Image.new("RGB", img.size, PAPER)
-    diff = ImageChops.difference(img, bg).convert("L").point(lambda v: 255 if v > 10 else 0)
+    diff = ImageChops.difference(img, bg).convert("L").point(lambda v: 255 if v > 2 else 0)
     box = diff.getbbox() or (0, 0, img.width, img.height)
     w, h = box[2] - box[0], box[3] - box[1]
     m = pad * max(w, h)

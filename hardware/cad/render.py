@@ -394,6 +394,13 @@ def render(items, path, cam, size=(1600, 1200), panels=(), parallel=False, zoom=
     ground = valid & ~obj
     far = np.hypot(pts[..., 0] - mid[0], pts[..., 1] - mid[1])
     share = 1 - (1 - share) * np.clip((6 * radius - far) / (4 * radius), 0, 1)
+    # and every shadow fades to plain paper before the border of the picture, so a crop on the
+    # sheets never cuts one in a straight line
+    ex, ey = np.arange(w), np.arange(h)
+    ex, ey = np.minimum(ex, w - 1 - ex), np.minimum(ey, h - 1 - ey)
+    edge = np.clip(np.minimum(ey[:, None], ex[None, :]) / (0.14 * min(w, h)), 0, 1).astype(np.float32)
+    share = 1 - (1 - share) * edge * edge * (3 - 2 * edge)
+    del edge
     # a loss below half a percent is only noise, the plain paper stays plain
     share = 1 - np.clip((1 - share) - 0.005, 0, None) / 0.995
     img[ground] = rgb(PAPER) * share[ground, None]
