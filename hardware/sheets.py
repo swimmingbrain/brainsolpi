@@ -1,44 +1,51 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["pillow>=10.1"]
+# dependencies = ["pillow>=10.1", "fonttools>=4.50"]
 # ///
 """the picture steps of the readme, docs/steps-1.png to docs/steps-3.png
 
     uv run build.py      first, it writes the renders and renders/marks.json this script uses
-    uv run sheets.py     then this, the lettering is osifont from cad/assets like on the drawings
-    uv run sheets.py --font path/to/osifont.ttf
+    uv run sheets.py     then this, the lettering is geist serif from cad/assets like on the web page
+    uv run sheets.py --font path/to/geist_serif_regular.ttf
 
-the sheets look like pages of a workshop manual: paper, a frame, thin lines between the steps,
-numbered balloons and one colour for what each step is about
+each picture is just steps on paper: a number, a short line of text and a picture,
+no frame and no title, one colour for what each step is about
 """
 
 import argparse
+import functools
 import json
 import math
 from pathlib import Path
 
+from fontTools.ttLib import TTFont
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 HERE = Path(__file__).resolve().parent
 RENDERS = HERE / "renders"
 DOCS = HERE.parent / "docs"
-FONT = HERE / "cad" / "assets" / "osifont.ttf"
+FONT = HERE / "cad" / "assets" / "geist_serif_regular.ttf"
 
 # everything is drawn at twice the size and scaled down at the end, so the lines get smooth edges
 K = 2
 WIDTH = 1600
-MARGIN = 26  # paper outside the frame
-HEAD = 84  # the row with the balloon and the text of a step
-PAD = 22
-TITLE_H = 64
+SIDE = 52  # paper left and right of the steps
+TOP = 52  # paper above the first step, the same is left below the last one
+GUTTER = 72  # between two columns
+GAP = 56  # between two steps in a column
+HEAD = 84  # the row with the number and the text of a step
+BASE = 46  # baseline of that row
 
-# the same paper and ink as cad/render.py, so a render sits on the sheet without a seam
+# the one face of the web page in one weight, so sizes and colours make the order
+SIZES = {"num": 60, "text": 35, "pic": 31, "small": 29, "plate": 27}
+
+# the same paper and ink as cad/render.py, so a render sits on the paper without a seam
 PAPER = (242, 239, 232)
 INK = (38, 36, 31)
+SOFT = (118, 113, 104)  # the step numbers, one step lighter than the ink
 HAIR = (150, 145, 136)
 ORANGE = (255, 139, 75)
 
-FRAME_W = 3
 LINE_W = 2.6  # the pen of the drawn pictures
 THIN_W = 1.6  # leader lines and hairlines
 
@@ -58,26 +65,79 @@ STEPS = [
     ("head_over_the_top", "It follows the light"),
 ]
 
-# each sheet as columns of step numbers, a column with one step gets a tall picture
-SHEETS = [
+# each picture as columns of step numbers, a column with one step gets a tall picture
+PICTURES = [
     [[1, 3], [2, 4]],
     [[5, 6, 7], [8]],
     [[9, 11], [10, 12]],
 ]
-PICTURE_H = 500
+PICTURE_H = 470
 
 
 def s(v):
     return round(v * K)
 
 
-class Pen:
-    """draws in the units of the final sheet on a canvas K times larger"""
+class Kerning:
+    """the pair kerning of the font as the browser uses it, pillow without raqm leaves it out"""
 
-    def __init__(self, img, fonts):
+    def __init__(self, path):
+        font = TTFont(path)
+        self.upm = font["head"].unitsPerEm
+        self.cmap = font.getBestCmap()
+        self.lookups = []
+        gpos = font["GPOS"].table if "GPOS" in font else None
+        if gpos is None:
+            return
+        used = sorted({i for fr in gpos.FeatureList.FeatureRecord if fr.FeatureTag == "kern"
+                       for i in fr.Feature.LookupListIndex})
+        for i in used:
+            subs = [getattr(st, "ExtSubTable", st) for st in gpos.LookupList.Lookup[i].SubTable]
+            self.lookups.append([st for st in subs if type(st).__name__ == "PairPos"])
+
+    @functools.lru_cache(maxsize=None)
+    def pair(self, a, b):
+        """the kerning between two characters in font units, the first subtable that knows the pair counts"""
+        ga, gb = self.cmap.get(ord(a)), self.cmap.get(ord(b))
+        total = 0
+        for subs in self.lookups:
+            for st in subs:
+                if ga not in st.Coverage.glyphs:
+                    continue
+                if st.Format == 1:
+                    found = [r for r in st.PairSet[st.Coverage.glyphs.index(ga)].PairValueRecord
+                             if r.SecondGlyph == gb]
+                    if not found:
+                        continue
+                    value = found[0].Value1
+                else:
+                    c2 = st.ClassDef2.classDefs.get(gb, 0)
+                    if not c2:
+                        continue
+                    value = st.Class1Record[st.ClassDef1.classDefs.get(ga, 0)].Class2Record[c2].Value1
+                total += getattr(value, "XAdvance", 0) or 0
+                break
+        return total
+
+    def run(self, t, font):
+        """where each character of t starts and how wide all of it is, in pixels of font"""
+        xs, x = [], 0.0
+        for i, c in enumerate(t):
+            if i:
+                x += self.pair(t[i - 1], c) * font.size / self.upm
+            xs.append(x)
+            x += font.getlength(c)
+        return xs, x
+
+
+class Pen:
+    """draws in the units of the final picture on a canvas K times larger"""
+
+    def __init__(self, img, fonts, kerning):
         self.img = img
         self.d = ImageDraw.Draw(img)
         self.fonts = fonts
+        self.kerning = kerning
 
     def line(self, pts, fill=INK, width=LINE_W):
         self.d.line([(s(x), s(y)) for x, y in pts], fill=fill, width=s(width), joint="curve")
@@ -104,10 +164,16 @@ class Pen:
         self.d.polygon([(s(x), s(y)) for x, y in pts], fill=fill, outline=outline, width=s(width) if outline else 0)
 
     def text(self, x, y, t, font="text", fill=INK, anchor="ls"):
-        self.d.text((s(x), s(y)), t, font=self.fonts[font], fill=fill, anchor=anchor)
+        """anchor like pillow, l m r for the start, the middle or the end and s or m for the height"""
+        f = self.fonts[font]
+        xs, width = self.kerning.run(t, f)
+        x0 = s(x) - {"l": 0, "m": width / 2, "r": width}[anchor[0]]
+        # one character at a time, so the kerning lands between them
+        for c, dx in zip(t, xs):
+            self.d.text((x0 + dx, s(y)), c, font=f, fill=fill, anchor="l" + anchor[1])
 
     def length(self, t, font="text"):
-        return self.d.textlength(t, font=self.fonts[font]) / K
+        return self.kerning.run(t, self.fonts[font])[1] / K
 
     def arrow(self, x0, y0, x1, y1, fill=INK, width=LINE_W, head=16):
         """a line with a narrow filled head at x1, y1 like on a drawing"""
@@ -124,11 +190,11 @@ class Pen:
         sx = x1 + (30 if right else -30)
         self.line([(x0, y0), (x1, y1), (sx, y1)], width=THIN_W)
         if right:
-            self.text(sx + 8, y1 + 7, label, "small")
+            self.text(sx + 10, y1 + 9, label, "small")
         else:
-            self.text(sx - 8, y1 + 7, label, "small", anchor="rs")
+            self.text(sx - 10, y1 + 9, label, "small", anchor="rs")
 
-    def balloon(self, x, y, n, r=22, font="num"):
+    def balloon(self, x, y, n, r=20, font="plate"):
         self.circle(x, y, r, fill=PAPER, width=2.2)
         self.text(x, y + 1, str(n), font, anchor="mm")
 
@@ -163,7 +229,7 @@ def feather(w, h, r):
 
 
 def place(pen, name, x, y, w, h, marks, box=None):
-    """put a render into the area, returns a function that maps its pixels to sheet units"""
+    """put a render into the area, returns a function that maps its pixels to picture units"""
     img = Image.open(RENDERS / f"{name}.png").convert("RGB")
     box = box or content_box(img)
     src = img.crop(tuple(round(v) for v in box))
@@ -172,16 +238,16 @@ def place(pen, name, x, y, w, h, marks, box=None):
     ox, oy = x + (w - sw) / 2, y + (h - sh) / 2
     pen.img.paste(src.resize((s(sw), s(sh)), Image.LANCZOS), (s(ox), s(oy)), feather(s(sw), s(sh), s(28)))
 
-    def to_sheet(p):
+    def to_pic(p):
         return ox + (p[0] - box[0]) * scale, oy + (p[1] - box[1]) * scale
 
-    return to_sheet, marks.get(name, {})
+    return to_pic, marks.get(name, {})
 
 
-# the drawn pictures, each in an area x, y, w, h of the sheet
+# the drawn pictures, each fills an area x, y, w, h
 
 def sd_card(pen, x, y, w, h):
-    cw, ch = 240, 316
+    cw, ch = 280, 330
     x0, y0 = x + (w - cw) / 2, y + (h - ch) / 2 + 36
     cut = 50
     outline = [(x0, y0), (x0 + cw - cut, y0), (x0 + cw, y0 + cut), (x0 + cw, y0 + ch), (x0, y0 + ch)]
@@ -189,27 +255,28 @@ def sd_card(pen, x, y, w, h):
     # the write protect slider on the left edge
     pen.rect(x0 - 8, y0 + 100, x0, y0 + 144, width=THIN_W)
     # the contacts along the top
-    for i in range(7):
+    for i in range(8):
         cx = x0 + 24 + i * 23
         pen.rect(cx, y0 + 20, cx + 12, y0 + 64, width=THIN_W)
-    # the label
-    lx0, ly0, lx1, ly1 = x0 + 26, y0 + 104, x0 + cw - 26, y0 + ch - 28
+    # the label, its three lines in the middle of it
+    lx0, ly0, lx1, ly1 = x0 + 26, y0 + 98, x0 + cw - 26, y0 + ch - 26
     pen.rect(lx0, ly0, lx1, ly1, width=THIN_W)
+    first = (ly0 + ly1) / 2 - 31
     for i, t in enumerate(("Raspberry Pi", "OS Lite", "64 bit")):
-        pen.text((lx0 + lx1) / 2, ly0 + 54 + i * 40, t, "pic", anchor="ms")
+        pen.text((lx0 + lx1) / 2, first + i * 42, t, "pic", anchor="ms")
     # what goes on the card
     pen.arrow(x0 + cw / 2, y0 - 96, x0 + cw / 2, y0 - 12, fill=ORANGE, width=3.4, head=22)
 
 
 def terminal(pen, x, y, w, h):
-    tw, th = min(w - 40, 640), 330
+    tw, th = min(w - 40, 640), 346
     x0, y0 = x + (w - tw) / 2, y + (h - th) / 2
     pen.rect(x0, y0, x0 + tw, y0 + th, fill=PAPER)
-    pen.line([(x0, y0 + 46), (x0 + tw, y0 + 46)], width=THIN_W)
-    pen.text(x0 + 20, y0 + 32, "you@brainsol", "small")
+    pen.line([(x0, y0 + 54), (x0 + tw, y0 + 54)], width=THIN_W)
+    pen.text(x0 + 20, y0 + 37, "you@brainsol", "small")
     lines = ["$ deploy/install.sh", "[sudo] password:", "new admin pin:", "done, open in a browser",
              "http://brainsol.local:8080"]
-    ty = y0 + 104
+    ty = y0 + 112
     for i, t in enumerate(lines):
         pen.text(x0 + 30, ty + i * 48, t, "pic")
     # the command is the step
@@ -273,14 +340,15 @@ def bars(pen, x, y, w, h):
 
 def page(pen, x, y, w, h, marks):
     """the page of the pi, a browser window with the twin of the tracker turning to the lamp"""
-    bw, bh = min(w - 30, 700), min(h - 10, 470)
+    bw, bh = min(w - 30, 700), min(h - 24, 460)
     x0, y0 = x + (w - bw) / 2, y + (h - bh) / 2
     pen.rect(x0, y0, x0 + bw, y0 + bh, fill=PAPER)
-    pen.rect(x0 + 16, y0 + 12, x0 + bw - 16, y0 + 50, width=THIN_W, radius=19)
-    pen.text(x0 + 38, y0 + 39, "brainsol.local:8080", "small")
-    pen.text(x0 + 28, y0 + 92, "The panel faces the light.", "pic")
-    to_sheet, m = place(pen, "page_twin", x0 + 150, y0 + 104, bw - 180, bh - 120, marks)
-    ray(pen, to_sheet, m, (x0 + 40, y0 + 120, x0 + bw - 40, y0 + bh - 30))
+    pen.rect(x0 + 16, y0 + 14, x0 + bw - 16, y0 + 60, width=THIN_W, radius=23)
+    pen.text(x0 + 40, y0 + 47, "brainsol.local:8080", "small")
+    pen.text(x0 + 28, y0 + 108, "The panel faces the light.", "pic")
+    to_pic, m = place(pen, "page_twin", x0 + 150, y0 + 124, bw - 180, bh - 140, marks)
+    # the lamp stays below the line of text
+    ray(pen, to_pic, m, (x0 + 40, y0 + 152, x0 + bw - 40, y0 + bh - 30))
 
 
 def edge_point(px, py, lx, ly, area):
@@ -295,12 +363,12 @@ def edge_point(px, py, lx, ly, area):
     return px + (lx - px) * t, py + (ly - py) * t
 
 
-def ray(pen, to_sheet, m, area):
+def ray(pen, to_pic, m, area):
     """a lamp at the edge of the area where the panel looks, and one orange ray to the panel"""
     if "panel" not in m or "lamp" not in m:
         return
-    px, py = to_sheet(m["panel"])
-    lx, ly = edge_point(px, py, *to_sheet(m["lamp"]), area)
+    px, py = to_pic(m["panel"])
+    lx, ly = edge_point(px, py, *to_pic(m["lamp"]), area)
     lamp_glyph(pen, lx, ly)
     d = math.hypot(px - lx, py - ly)
     sx, sy = lx + (px - lx) / d * 22, ly + (py - ly) / d * 22
@@ -343,93 +411,75 @@ def picture(pen, n, x, y, w, h, marks):
         return bars(pen, x, y, w, h)
     if name == "page":
         return page(pen, x, y, w, h, marks)
-    to_sheet, m = place(pen, name, x, y, w, h, marks)
+    to_pic, m = place(pen, name, x, y, w, h, marks)
     if name == "rear_three_quarter" and "notch" in m:
-        cx, cy = to_sheet(m["notch"])
+        cx, cy = to_pic(m["notch"])
         pen.circle(cx, cy, 24, outline=ORANGE, width=4)
+    # a leader is shortened where its label would run out of the column
     if name == "neck_open":
         for key, label, dx, dy in (("tilt_servo", "tilt servo", 150, -40), ("pan_servo", "pan servo", 150, 30)):
             if key in m:
-                px, py = to_sheet(m[key])
-                pen.leader(px, py, px + dx, py + dy, label)
+                px, py = to_pic(m[key])
+                pen.leader(px, py, min(px + dx, x + w - 40 - pen.length(label, "small")), py + dy, label)
     if name == "inside_base" and "usb" in m:
-        px, py = to_sheet(m["usb"])
-        pen.leader(px, py, px - 120, py + 70, "USB to the UNO", right=False)
+        px, py = to_pic(m["usb"])
+        label = "USB to the UNO"
+        pen.leader(px, py, max(px - 120, x + 40 + pen.length(label, "small")), py + 70, label, right=False)
     if name == "print/plates":
         for i in range(6):
             key = f"plate_{i + 1}"
             if key in m:
-                px, py = to_sheet(m[key])
-                pen.balloon(px, py, i + 1, r=17, font="small")
+                px, py = to_pic(m[key])
+                pen.balloon(px, py, i + 1)
     if name == "head_over_the_top":
-        ray(pen, to_sheet, m, (x + 30, y + 30, x + w - 30, y + h - 30))
+        ray(pen, to_pic, m, (x + 30, y + 30, x + w - 30, y + h - 30))
     if name == "exploded" and "axis_lo" in m:
         # the axis of the turret as a chain line, like on the drawings
-        chain(pen, to_sheet(m["axis_lo"]), to_sheet(m["axis_hi"]))
+        chain(pen, to_pic(m["axis_lo"]), to_pic(m["axis_hi"]))
 
 
-def sheet(cols, number, total, fonts, marks):
-    inner_w = WIDTH - 2 * MARGIN
-    col_w = inner_w / len(cols)
+def steps(cols, fonts, kerning, marks):
+    """one picture of the readme, its columns of steps on plain paper, only space between them"""
     rows = max(len(c) for c in cols)
+    col_w = (WIDTH - 2 * SIDE - (len(cols) - 1) * GUTTER) / len(cols)
     pic_h = PICTURE_H if rows == 2 else PICTURE_H * 0.78
-    cell_h = HEAD + pic_h + PAD
-    body = rows * cell_h
-    height = round(2 * MARGIN + body + TITLE_H)
+    cell_h = HEAD + pic_h
+    body = rows * cell_h + (rows - 1) * GAP
+    height = round(2 * TOP + body)
     img = Image.new("RGB", (s(WIDTH), s(height)), PAPER)
-    pen = Pen(img, fonts)
-    x0, y0, x1 = MARGIN, MARGIN, WIDTH - MARGIN
-    y1 = height - MARGIN
+    pen = Pen(img, fonts, kerning)
 
     def step(n, x, y, w, h):
-        pen.balloon(x + 40, y + 44, n)
-        pen.text(x + 76, y + 55, STEPS[n - 1][1])
-        picture(pen, n, x + PAD, y + HEAD, w - 2 * PAD, h - HEAD - PAD, marks)
+        pen.text(x, y + BASE, str(n), "num", fill=SOFT)
+        pen.text(x + pen.length(str(n), "num") + 18, y + BASE, STEPS[n - 1][1])
+        picture(pen, n, x, y + HEAD, w, h - HEAD, marks)
 
     for c, col in enumerate(cols):
-        x = x0 + c * col_w
+        x = SIDE + c * (col_w + GUTTER)
         if len(col) == rows:
             for r, n in enumerate(col):
-                step(n, x, y0 + r * cell_h, col_w, cell_h)
+                step(n, x, TOP + r * (cell_h + GAP), col_w, cell_h)
         else:
-            step(col[0], x, y0, col_w, body)
-    # thin lines between the steps, drawn last so no picture covers them
-    for c in range(1, len(cols)):
-        pen.line([(x0 + c * col_w, y0), (x0 + c * col_w, y0 + body)], fill=HAIR, width=THIN_W)
-    for c, col in enumerate(cols):
-        if len(col) == rows:
-            for r in range(1, rows):
-                yy = y0 + r * cell_h
-                pen.line([(x0 + c * col_w, yy), (x0 + (c + 1) * col_w, yy)], fill=HAIR, width=THIN_W)
-    # the title strip at the foot like on the drawings and the wiring page
-    ty = y0 + body
-    pen.line([(x0, ty), (x1, ty)], width=FRAME_W - 1)
-    pen.text(x0 + 22, ty + 43, "brainSOL", "title")
-    steps = [n for c in cols for n in c]
-    mid = f"steps {min(steps)} to {max(steps)}"
-    pen.line([(x0 + 260, ty), (x0 + 260, y1)], width=FRAME_W - 1)
-    pen.text(x0 + 282, ty + 41, mid, "text")
-    pen.line([(x1 - 230, ty), (x1 - 230, y1)], width=FRAME_W - 1)
-    pen.text(x1 - 208, ty + 41, f"sheet {number} of {total}", "text")
-    pen.rect(x0, y0, x1, y1, width=FRAME_W)
-    return img.resize((WIDTH, height), Image.LANCZOS)
+            step(col[0], x, TOP, col_w, body)
+    img = img.resize((WIDTH, height), Image.LANCZOS)
+    # the pictures keep some air of their own, so the paper below them is cut to as much as above them
+    top, bottom = content_box(img, pad=0)[1::2]
+    return img.crop((0, 0, WIDTH, min(height, round(bottom + top))))
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--font", type=Path, default=FONT, help="osifont.ttf, the lettering of the drawings")
+    ap.add_argument("--font", type=Path, default=FONT, help="geist_serif_regular.ttf, the font of the web page")
     args = ap.parse_args()
     if not args.font.exists():
-        raise SystemExit(f"missing font {args.font}, get osifont.ttf from github.com/hikikomori82/osifont")
+        raise SystemExit(f"missing font {args.font}, it is GeistSerif-Regular of the web page as ttf")
 
-    def f(size):
-        return ImageFont.truetype(str(args.font), s(size))
-
-    fonts = {"text": f(33), "num": f(27), "pic": f(29), "small": f(25), "title": f(38)}
+    fonts = {k: ImageFont.truetype(str(args.font), s(v)) for k, v in SIZES.items()}
+    kerning = Kerning(args.font)
     marks = load_marks()
-    for i, cols in enumerate(SHEETS, 1):
+    for i, cols in enumerate(PICTURES, 1):
         out = DOCS / f"steps-{i}.png"
-        sheet(cols, i, len(SHEETS), fonts, marks).save(out, optimize=True)
+        steps(cols, fonts, kerning, marks).save(out, optimize=True)
         print(f"wrote {out.relative_to(HERE.parent)}")
 
 
