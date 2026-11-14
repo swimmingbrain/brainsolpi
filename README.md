@@ -177,4 +177,4 @@ When it says the bridge firmware changed, run `brainsolpi flash`.
 ## License
 
 MIT, see [LICENSE](LICENSE). The FHV logo engraved in the lid is not covered by it, `SIG_ON = False` in
-`hardware/cad/params.py` gives a plain lid. The fonts beside the logo keep their own license.
+`hardware/cad/params.py` gives a plain lid. The fonts in `hardware/cad/assets` keep their own licenses.
