@@ -1658,6 +1658,26 @@ def sheet_ears(m):
         end.dim((xi, ye, zt + P.EAR_W / 2), (xh, ye, zt + P.EAR_W / 2), "h", end.top + 8)
         hole(end, (eu, ye, zt + head.EAR_SCREWS_V[0]), P.M3_TAP / 2, None, f"2x {tap()}", c.letter,
              at=(end.right + 8, end.bottom - 14))
+        ic = inner.p((xi, ty, zt))
+        if side < 0:
+            # horn pocket in the inner face, depth, hub and reach measured on the ear
+            part = m.shape(name)
+            pd = reach(part, (xi, ty + P.HORN_SINGLE_LEN / 2, zt), (side, 0, 0))
+            hub = across(part, (xi + side, ty, zt), (0, 0, 1))
+            arm = reach(part, (xi + side, ty, zt), (0, 1, 0))
+            tip = P.HORN_ARM_W1 / 2 + P.FIT_SNUG
+            inner.axis((xi, ty - hub / 2, zt), (xi, ty + arm, zt))
+            inner.axis((xi, ty, zt - hub / 2), (xi, ty, zt + hub / 2))
+            inner.axis((xi, ty + arm - tip, zt - tip), (xi, ty + arm - tip, zt + tip))
+            hole(inner, (xi, ty, zt), hub / 2, None, f"⌀{num(hub)} x {num(pd)}", at=(ic[0] - 12, inner.top + 10))
+            k = tip * math.sqrt(0.5)
+            inner.note((xi, ty + arm - tip + k, zt + k), (20, 20), f"R{num(tip)}")
+            inner.dim((xi, ty, zt), (xi, ty + arm, zt), "h", inner.bottom - 8)
+        else:
+            # the pivot screw threads from the inner face up to the countersink
+            thread = P.EAR_T + P.EAR_HUB_H - P.CAP_T - (P.M3_CSK_D - P.M3_TAP) / 2
+            inner.cmark((xi, ty, zt), P.M3_TAP / 2)
+            hole(inner, (xi, ty, zt), P.M3_TAP / 2, None, f"{tap()} x {num(thread)}", at=(ic[0] + 22, inner.top + 10))
         iso_view(sh, m, name, (side, 1, 1), 2.0, (348, yrow))
     return sh
 
