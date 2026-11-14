@@ -4,6 +4,7 @@
     uv run build.py --quick      coarse sweep and no renders, for trying a parameter
     uv run build.py --no-renders everything except the PNG files
     uv run build.py --drawings   only the technical drawings in ../docs/drawings.pdf
+    uv run build.py --only steps/usb product_views   only these renders, no checks and no exports
 
 the exit code is 1 when a check fails, the report in reports/checks.md says which one
 """
@@ -167,11 +168,19 @@ def main():
     ap.add_argument("--quick", action="store_true", help="coarse sweep, no renders, no 3mf")
     ap.add_argument("--no-renders", action="store_true", help="skip the PNG renders")
     ap.add_argument("--drawings", action="store_true", help="only the technical drawings, no checks and no exports")
+    ap.add_argument("--only", nargs="+", metavar="VIEW",
+                    help="only these renders, a group of cad/views.py like product_views or a step picture like steps/usb")
     args = ap.parse_args()
     t0 = time.time()
     drawing_pdf = HERE.parent / "docs" / "drawings.pdf"
     if args.drawings:
         make_drawings(assembly.build_parts(), drawing_pdf, t0)
+        return 0
+    if args.only:
+        parts = assembly.build_parts()
+        log(f"built {len(parts)} parts", t0)
+        views.all_views(parts, assembly.electronics(), HERE / "renders", only=args.only)
+        log(f"renders {' '.join(args.only)}", t0)
         return 0
     export_dir = HERE / "export"
     render_dir = HERE / "renders"
