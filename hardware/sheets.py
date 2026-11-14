@@ -89,7 +89,8 @@ PICTURES = [
 PICTURE_H = 470
 # paper kept free left, above, right and below a picture for its labels
 ROOM = {"steps/analog": (90, 70, 0, 0), "steps/digital": (0, 70, 0, 0), "steps/i2c": (120, 0, 0, 0),
-        "steps/modules": (70, 30, 150, 0)}
+        "steps/modules": (40, 20, 110, 0), "steps/usb": (0, 30, 0, 0), "steps/tray_power": (0, 60, 0, 0),
+        "steps/tray_usb": (0, 60, 0, 0)}
 
 
 def s(v):
@@ -434,16 +435,20 @@ def chain(pen, a, b, dash=(26, 6, 4, 6)):
         k += 1
 
 
-def is_paper(pen, box, margin=6):
+def is_paper(pen, box, margin=6, loose=False):
     """True where a box of the picture is still plain paper inside the area of its step, so a label
-    there reads clearly and stays out of the next step"""
+    there reads clearly and stays out of the next step, loose also takes a light shadow or a light
+    part as long as it is smooth, with no edge or line in it"""
     ax0, ay0, ax1, ay1 = pen.area
     if box[0] - margin < ax0 or box[1] - margin < ay0 or box[2] + margin > ax1 or box[3] + margin > ay1:
         return False
     x0, y0, x1, y1 = (s(box[0] - margin), s(box[1] - margin), s(box[2] + margin), s(box[3] + margin))
     region = pen.img.crop((x0, y0, x1, y1))
     diff = ImageChops.difference(region, Image.new("RGB", region.size, PAPER)).convert("L")
-    return diff.getextrema()[1] < 12
+    if not loose:
+        return diff.getextrema()[1] < 12
+    low, high = region.convert("L").getextrema()
+    return diff.getextrema()[1] < 40 and high - low < 14
 
 
 def text_box(pen, x, y, t, anchor, font="small"):
@@ -453,7 +458,7 @@ def text_box(pen, x, y, t, anchor, font="small"):
     return (x0, y - SIZES[font] * 0.78, x0 + w, y + SIZES[font] * 0.25)
 
 
-def ring_spots(p, prefer, radii=(70, 100, 135, 175, 220, 270, 330)):
+def ring_spots(p, prefer, radii=(70, 100, 135, 175, 220, 270, 330, 390, 450)):
     """places around a point, nearest first, the preferred directions first at each distance"""
     for r in radii:
         for deg in prefer:
@@ -462,30 +467,55 @@ def ring_spots(p, prefer, radii=(70, 100, 135, 175, 220, 270, 330)):
 
 
 def note(pen, p, text, prefer=(-140, -40, 140, 40, -100, -80, 100, 80, 180, 0)):
-    """a short note on a hairline with a shoulder, put where the paper is free near the point"""
-    for qx, qy in ring_spots(p, prefer):
-        right = qx >= p[0]
-        sx = qx + (30 if right else -30)
-        tx = sx + (10 if right else -10)
-        box = text_box(pen, tx, qy + 9, text, "ls" if right else "rs")
-        box = (min(box[0], qx), box[1], max(box[2], qx), box[3])
-        if is_paper(pen, box):
-            pen.leader(p[0], p[1], qx, qy, text, right=right)
-            return
-    pen.leader(p[0], p[1], p[0] + 60, p[1] - 60, text)
+    """a short note on a hairline with a shoulder, put where the paper is free near the point, a
+    newline in the text gives a second line under the first"""
+    lines = text.split("\n")
+    step = SIZES["small"] * 1.2
+
+    def find(loose):
+        # the text runs away from the point, or back over it when there is no room that way anywhere
+        for away in (True, False):
+            for qx, qy in ring_spots(p, prefer):
+                right = (qx >= p[0]) == away
+                tx = qx + (40 if right else -40)
+                anchor = "ls" if right else "rs"
+                boxes = [text_box(pen, tx, qy + 9 + i * step, t, anchor) for i, t in enumerate(lines)]
+                xs = [b[0] for b in boxes] + [b[2] for b in boxes] + [qx]
+                box = (min(xs), boxes[0][1], max(xs), boxes[-1][3])
+                if is_paper(pen, box, loose=loose):
+                    return qx, qy, right
+        return None
+
+    spot = find(False) or find(True)
+    if spot is None:
+        print(f"  no free paper near the point for the note {text!r}")
+        spot = (p[0] + 60, p[1] - 60, True)
+    qx, qy, right = spot
+    pen.leader(p[0], p[1], qx, qy, lines[0], right=right)
+    for i, t in enumerate(lines[1:], 1):
+        pen.text(qx + (40 if right else -40), qy + 9 + i * step, t, "small", anchor="ls" if right else "rs")
 
 
 def screw_tag(pen, p, letter, count=None, prefer=(-140, -40, 140, 40, 90, -90)):
     """a balloon with the screw letter of the drawings and the count, where the paper is free"""
     r = 20
-    for bx, by in ring_spots(p, prefer):
-        right = bx >= p[0]
-        box = (bx - r, by - r, bx + r, by + r)
-        if count:
-            cb = text_box(pen, bx + (r + 8 if right else -r - 8), by + 9, count, "ls" if right else "rs")
-            box = (min(box[0], cb[0]), box[1], max(box[2], cb[2]), box[3])
-        if is_paper(pen, box):
-            break
+
+    def find(loose):
+        for bx, by in ring_spots(p, prefer):
+            right = bx >= p[0]
+            box = (bx - r, by - r, bx + r, by + r)
+            if count:
+                cb = text_box(pen, bx + (r + 8 if right else -r - 8), by + 9, count, "ls" if right else "rs")
+                box = (min(box[0], cb[0]), box[1], max(box[2], cb[2]), box[3])
+            if is_paper(pen, box, loose=loose):
+                return bx, by, right
+        return None
+
+    spot = find(False) or find(True)
+    if spot is None:
+        print(f"  no free paper near the point for the screw {letter}")
+        spot = (p[0] + 70, p[1] - 40, True)
+    bx, by, right = spot
     d = math.hypot(bx - p[0], by - p[1])
     pen.line([(p[0], p[1]), (bx - (bx - p[0]) / d * r, by - (by - p[1]) / d * r)], width=THIN_W)
     pen.circle(p[0], p[1], 2.6, fill=INK, outline=None)
@@ -547,8 +577,8 @@ def step_marks(pen, name, to_pic, m):
         return to_pic(m[key])
 
     if name == "steps/usb":
-        note(pen, at("port"), "lower port, next to the Ethernet", (-120, -60, 120, 60))
-        note(pen, at("switch"), "switch on 5 V", (-60, -120, 60, 120))
+        note(pen, at("port"), "lower port,\nnext to the Ethernet", (-20, 10, -45, 30))
+        note(pen, at("switch"), "switch on 5 V", (75, 60, 90, 45, 115, 130))
     elif name == "steps/analog":
         row_labels(pen, [at(f"A{i}") for i in range(4)], [f"A{i}" for i in range(4)])
         column_labels(pen, [at(k) for k in "GVS"], list("GVS"))
@@ -559,7 +589,7 @@ def step_marks(pen, name, to_pic, m):
         names = ["GND", "VCC", "SDA", "SCL"]
         column_labels(pen, [at(k) for k in names], names)
     elif name == "steps/tray_power":
-        note(pen, at("notch"), "widen it to 13 x 10 mm", (-60, -120, -30, -150))
+        note(pen, at("notch"), "widen it to 13 x 10 mm", (-90, -60, -120, -150, -30))
     elif name == "steps/tray_usb":
         note(pen, at("port"), "lower port", (-60, -120, 60, 120))
     elif name == "steps/neck_cables":
