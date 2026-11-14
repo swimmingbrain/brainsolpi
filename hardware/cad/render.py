@@ -41,6 +41,9 @@ LOOK = {
     "accent": (0.86, 0.12, 12, 0.22, 1.0),
     "kit": (0.86, 0.10, 10, 0.0, 1.0),
     "panel": (0.60, 0.22, 3, 0.0, 1.0),
+    # the bought parts of the step pictures: tin plated sockets and gold plated pins
+    "metal": (0.70, 0.45, 24, 0.1, 1.0),
+    "gold": (0.75, 0.40, 20, 0.05, 1.0),
 }
 
 # the lights in the frame of the camera: to the right, up and toward the camera, then the strength
