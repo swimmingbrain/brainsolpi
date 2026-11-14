@@ -50,14 +50,10 @@ def tilt_servo_frame():
 
 
 def tilt_boss_face_x():
-    # the ear collar and horn pocket fix where the horn sits, the servo follows from that
-    socket_floor = -(P.NECK_W / 2 + P.EAR_GAP) - socket_depth()
-    hub_end = socket_floor + (P.HORN_TOTAL_H - P.HORN_ARM_T)
+    # the horn pocket of the left ear fixes where the horn sits, the servo follows from that
+    seat = -(P.NECK_W / 2 + P.EAR_GAP) - P.HORN_SEAT_DEPTH
+    hub_end = seat + (P.HORN_TOTAL_H - P.HORN_ARM_T)
     return hub_end + P.HORN_HUB_PLAY
-
-
-def socket_depth():
-    return (P.RING_H - P.EAR_GAP) + P.COLLAR_PLAY / 2
 
 
 def pan_servo():
@@ -121,8 +117,8 @@ def pan_horn():
 
 def tilt_horn_frame():
     """the tilt horn sits in the left ear, arm toward the head"""
-    socket_floor = -(P.NECK_W / 2 + P.EAR_GAP) - socket_depth()
-    return (socket_floor, P.TURRET_Y, P.Z_TILT), (0, 1, 0), (1, 0, 0)
+    seat = -(P.NECK_W / 2 + P.EAR_GAP) - P.HORN_SEAT_DEPTH
+    return (seat, P.TURRET_Y, P.Z_TILT), (0, 1, 0), (1, 0, 0)
 
 
 def tilt_horn():

@@ -245,7 +245,7 @@ EAR_HUB_R = 10.25
 EAR_HUB_H = 5.5  # the pivot screw gets a full 6 mm of thread in the hub
 EAR_W = 26.0  # ear width where it meets the head
 EAR_SCREW_DEPTH = 8.0  # tap holes in the end of the ear plate
-COLLAR_PLAY = 0.8  # axial play of the ear collar over the ring boss
+HORN_SEAT_DEPTH = 1.9  # servo side of the tilt horn arm below the inner face of the left ear, it places the tilt servo
 CAP_D = 12.0
 CAP_T = 1.6
 

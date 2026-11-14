@@ -326,8 +326,8 @@ def ear(side):
     s1 = P.HEAD_OFFSET
     body = plate + hub
     cuts = []
-    # collar socket over the ring boss of the neck
-    sd = kit.socket_depth()
+    # collar socket over the ring boss of the neck, its floor is the horn seat
+    sd = P.HORN_SEAT_DEPTH
     cuts.append(cyl("x", P.RING_R + P.FIT_SLIDE, xi - side * 0.01, xi + side * sd, (P.TURRET_Y, P.Z_TILT)))
     floor_x = xi + side * sd
     if side < 0:
