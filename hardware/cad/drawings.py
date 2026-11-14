@@ -1068,7 +1068,7 @@ def tag_screw(v, screws, out, side, dy=0.0, move=(0, 0, 0), count=True, gap=GAP_
 
 
 def kit_name(v, target, text, side, dy=0.0, gap=GAP_COL - 4):
-    """leader with a dot for a bought part, the name says it comes with the kit"""
+    """leader with a dot for a bought part, the name says when it comes with the kit"""
     v.note(target, None, text, arrow=False, th=2.8, at=side_at(v, target, side, dy, gap))
 
 
@@ -1222,7 +1222,7 @@ def sheet_screws_boards(m):
     tag_screw(front, e, out, "l", -6, move)
     ux, uy, uz = kit.uno_origin()
     kit_name(front, (ux + 3, uy - 30, uz + move[2] + P.UNO_T / 2), "UNO, kit", "r", -2)
-    kit_name(front, (P.PI_X0 - 30, P.PI_Y0 + 60, kit.pi_z0() + pi_lift + P.PI_T / 2), "Raspberry Pi, kit", "r", 6)
+    kit_name(front, (P.PI_X0 - 30, P.PI_Y0 + 60, kit.pi_z0() + pi_lift + P.PI_T / 2), "Raspberry Pi", "r", 6)
     tag_screw(iso, e, out, "r", -6, move, gap=10)
     return sh
 
