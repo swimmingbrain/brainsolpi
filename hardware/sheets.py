@@ -2,7 +2,7 @@
 # requires-python = ">=3.11"
 # dependencies = ["pillow>=10.1", "fonttools>=4.50"]
 # ///
-"""the picture steps of the readme, docs/steps-1.png to docs/steps-3.png
+"""the picture steps of the readme, docs/steps-1.png to docs/steps-6.png
 
     uv run build.py      first, it writes the renders and renders/marks.json this script uses
     uv run sheets.py     then this, the lettering is geist serif from cad/assets like on the web page
@@ -55,10 +55,22 @@ STEPS = [
     ("print/plates", "Then the six plates in three colours"),
     ("sd card", "Write Raspberry Pi OS Lite to the card"),
     ("terminal", "Run the install script, choose a pin"),
-    ("inside_base", "Plug in the UNO, wire, run the doctor"),
-    ("neck_open", "Centre the servos before the horns"),
-    ("rear_three_quarter", "Only the cable fits through the notch"),
-    ("exploded", "Build it with the drawings"),
+    ("steps/usb", "Plug the UNO into the Pi"),
+    ("steps/analog", "Light sensors on A0 to A3"),
+    ("steps/digital", "Pan servo on 9, tilt servo on 10"),
+    ("steps/i2c", "The BH1750 on SDA and SCL"),
+    ("doctor", "Doctor, centre, then power off"),
+    ("steps/tray_power", "The Pi on its pins, power out the back"),
+    ("steps/tray_usb", "USB in, two turns round the posts"),
+    ("steps/neck_cables", "Servos in, every cable up the neck"),
+    ("steps/neck_close", "Close the neck with two B"),
+    ("steps/lid_neck", "Horn under the lid, neck on top"),
+    ("steps/uno_cables", "Every cable onto the UNO"),
+    ("steps/ears", "Both ears on, straight up"),
+    ("steps/head_back", "Back shell onto the ears"),
+    ("steps/modules", "Each sensor on its pegs, G to G"),
+    ("steps/bezel", "Panel and bezel, eight D from behind"),
+    ("steps/base", "Lid onto the tray, then feet and caps"),
     ("page", "Power on, open brainsol.local:8080"),
     ("lock", "Unlock the admin tools with your pin"),
     ("bars", "Calibrate it with a lamp"),
@@ -68,10 +80,16 @@ STEPS = [
 # each picture as columns of step numbers, a column with one step gets a tall picture
 PICTURES = [
     [[1, 3], [2, 4]],
-    [[5, 6, 7], [8]],
+    [[5, 7], [6, 8]],
     [[9, 11], [10, 12]],
+    [[13, 15], [14, 16]],
+    [[17, 19], [18, 20]],
+    [[21, 23], [22, 24]],
 ]
 PICTURE_H = 470
+# paper kept free left, above, right and below a picture for its labels
+ROOM = {"steps/analog": (90, 70, 0, 0), "steps/digital": (0, 70, 0, 0), "steps/i2c": (120, 0, 0, 0),
+        "steps/modules": (70, 30, 150, 0)}
 
 
 def s(v):
@@ -284,6 +302,23 @@ def terminal(pen, x, y, w, h):
     pen.line([(x0 + 30, ty + 10), (x0 + 30 + lw, ty + 10)], fill=ORANGE, width=3.4)
 
 
+def doctor(pen, x, y, w, h):
+    """the three commands at the end of the wiring on the table"""
+    tw, th = min(w - 40, 640), 346
+    x0, y0 = x + (w - tw) / 2, y + (h - th) / 2
+    pen.rect(x0, y0, x0 + tw, y0 + th, fill=PAPER)
+    pen.line([(x0, y0 + 54), (x0 + tw, y0 + 54)], width=THIN_W)
+    pen.text(x0 + 20, y0 + 37, "you@brainsol", "small")
+    lines = ["$ brainsolpi doctor", "ok  every step", "$ brainsolpi centre", "wait, then Ctrl+C", "$ sudo poweroff"]
+    ty = y0 + 112
+    for i, t in enumerate(lines):
+        pen.text(x0 + 30, ty + i * 48, t, "pic")
+        # the three commands are the step
+        if t.startswith("$"):
+            pen.line([(x0 + 30, ty + i * 48 + 10), (x0 + 30 + pen.length(t, "pic"), ty + i * 48 + 10)], fill=ORANGE,
+                     width=3.4)
+
+
 def lock(pen, x, y, w, h):
     cx = x + w / 2
     bw, bh = 170, 128
@@ -399,32 +434,182 @@ def chain(pen, a, b, dash=(26, 6, 4, 6)):
         k += 1
 
 
+def is_paper(pen, box, margin=6):
+    """True where a box of the picture is still plain paper inside the area of its step, so a label
+    there reads clearly and stays out of the next step"""
+    ax0, ay0, ax1, ay1 = pen.area
+    if box[0] - margin < ax0 or box[1] - margin < ay0 or box[2] + margin > ax1 or box[3] + margin > ay1:
+        return False
+    x0, y0, x1, y1 = (s(box[0] - margin), s(box[1] - margin), s(box[2] + margin), s(box[3] + margin))
+    region = pen.img.crop((x0, y0, x1, y1))
+    diff = ImageChops.difference(region, Image.new("RGB", region.size, PAPER)).convert("L")
+    return diff.getextrema()[1] < 12
+
+
+def text_box(pen, x, y, t, anchor, font="small"):
+    """the box a line of text fills, x and y as for Pen.text with a baseline anchor"""
+    w = pen.length(t, font)
+    x0 = x - {"l": 0, "m": w / 2, "r": w}[anchor[0]]
+    return (x0, y - SIZES[font] * 0.78, x0 + w, y + SIZES[font] * 0.25)
+
+
+def ring_spots(p, prefer, radii=(70, 100, 135, 175, 220, 270, 330)):
+    """places around a point, nearest first, the preferred directions first at each distance"""
+    for r in radii:
+        for deg in prefer:
+            a = math.radians(deg)
+            yield p[0] + r * math.cos(a), p[1] + r * math.sin(a)
+
+
+def note(pen, p, text, prefer=(-140, -40, 140, 40, -100, -80, 100, 80, 180, 0)):
+    """a short note on a hairline with a shoulder, put where the paper is free near the point"""
+    for qx, qy in ring_spots(p, prefer):
+        right = qx >= p[0]
+        sx = qx + (30 if right else -30)
+        tx = sx + (10 if right else -10)
+        box = text_box(pen, tx, qy + 9, text, "ls" if right else "rs")
+        box = (min(box[0], qx), box[1], max(box[2], qx), box[3])
+        if is_paper(pen, box):
+            pen.leader(p[0], p[1], qx, qy, text, right=right)
+            return
+    pen.leader(p[0], p[1], p[0] + 60, p[1] - 60, text)
+
+
+def screw_tag(pen, p, letter, count=None, prefer=(-140, -40, 140, 40, 90, -90)):
+    """a balloon with the screw letter of the drawings and the count, where the paper is free"""
+    r = 20
+    for bx, by in ring_spots(p, prefer):
+        right = bx >= p[0]
+        box = (bx - r, by - r, bx + r, by + r)
+        if count:
+            cb = text_box(pen, bx + (r + 8 if right else -r - 8), by + 9, count, "ls" if right else "rs")
+            box = (min(box[0], cb[0]), box[1], max(box[2], cb[2]), box[3])
+        if is_paper(pen, box):
+            break
+    d = math.hypot(bx - p[0], by - p[1])
+    pen.line([(p[0], p[1]), (bx - (bx - p[0]) / d * r, by - (by - p[1]) / d * r)], width=THIN_W)
+    pen.circle(p[0], p[1], 2.6, fill=INK, outline=None)
+    pen.balloon(bx, by, letter, r=r)
+    if count:
+        pen.text(bx + (r + 8 if right else -r - 8), by + 9, count, "small", anchor="ls" if right else "rs")
+
+
+def spread(centres, sizes, gap):
+    """positions along a line near the centres, pushed apart so the sizes never touch"""
+    order = sorted(range(len(centres)), key=lambda i: centres[i])
+    at, edge = {}, -1e9
+    for i in order:
+        at[i] = max(centres[i], edge + gap + sizes[i] / 2)
+        edge = at[i] + sizes[i] / 2
+    move = sum(centres) / len(centres) - sum(at.values()) / len(at)
+    return [at[i] + move for i in range(len(centres))]
+
+
+def row_labels(pen, pts, texts, font="small"):
+    """labels side by side above (or below) their points where the paper is free, a hairline to each"""
+    widths = [pen.length(t, font) for t in texts]
+    xs = spread([q[0] for q in pts], widths, 14)
+    top, low = min(q[1] for q in pts), max(q[1] for q in pts)
+    for ly in [top - d for d in range(40, 320, 12)] + [low + d for d in range(50, 320, 12)]:
+        boxes = [text_box(pen, x, ly, t, "ms", font) for x, t in zip(xs, texts)]
+        if all(is_paper(pen, b) for b in boxes):
+            break
+    up = ly < top
+    for (px, py), x, t in zip(pts, xs, texts):
+        pen.line([(px, py), (x, ly + (8 if up else -SIZES[font] * 0.8 - 6))], width=THIN_W)
+        pen.circle(px, py, 2.6, fill=INK, outline=None)
+        pen.text(x, ly, t, font, anchor="ms")
+
+
+def column_labels(pen, pts, texts, left=True, font="small"):
+    """labels one above the other beside their points where the paper is free, a hairline to each"""
+    ys = spread([q[1] for q in pts], [34] * len(pts), 4)
+    edge = min(q[0] for q in pts) if left else max(q[0] for q in pts)
+    sides = [left, not left]
+    for side in sides:
+        for d in range(50, 420, 14):
+            lx = edge - d if side else edge + d
+            boxes = [text_box(pen, lx, y + 9, t, "rs" if side else "ls", font) for y, t in zip(ys, texts)]
+            if all(is_paper(pen, b) for b in boxes):
+                break
+        else:
+            continue
+        break
+    for (px, py), y, t in zip(pts, ys, texts):
+        pen.line([(px, py), (lx + (8 if side else -8), y)], width=THIN_W)
+        pen.circle(px, py, 2.6, fill=INK, outline=None)
+        pen.text(lx, y + 9, t, font, anchor="rs" if side else "ls")
+
+
+def step_marks(pen, name, to_pic, m):
+    """the labels and notes of the build steps, on the points the renders kept, in free paper"""
+    def at(key):
+        return to_pic(m[key])
+
+    if name == "steps/usb":
+        note(pen, at("port"), "lower port, next to the Ethernet", (-120, -60, 120, 60))
+        note(pen, at("switch"), "switch on 5 V", (-60, -120, 60, 120))
+    elif name == "steps/analog":
+        row_labels(pen, [at(f"A{i}") for i in range(4)], [f"A{i}" for i in range(4)])
+        column_labels(pen, [at(k) for k in "GVS"], list("GVS"))
+    elif name == "steps/digital":
+        row_labels(pen, [at("9"), at("10")], ["9", "10"])
+        note(pen, at("brown"), "brown on G", (-60, -120, -150, 150))
+    elif name == "steps/i2c":
+        names = ["GND", "VCC", "SDA", "SCL"]
+        column_labels(pen, [at(k) for k in names], names)
+    elif name == "steps/tray_power":
+        note(pen, at("notch"), "widen it to 13 x 10 mm", (-60, -120, -30, -150))
+    elif name == "steps/tray_usb":
+        note(pen, at("port"), "lower port", (-60, -120, 60, 120))
+    elif name == "steps/neck_cables":
+        note(pen, at("below"), "25 mm at most", (20, -20, 160, 200))
+    elif name == "steps/neck_close":
+        for i in range(2):
+            chain(pen, at(f"tip_{i}"), at(f"hole_{i}"))
+        screw_tag(pen, at("B"), "B", "2x", (30, 150, -30, 0))
+    elif name == "steps/lid_neck":
+        screw_tag(pen, at("G"), "G", None, (150, 30, 120, 60))
+    elif name == "steps/uno_cables":
+        for key in ("A0 to A3", "SDA SCL", "9 10", "USB"):
+            note(pen, at(key), key)
+        holes = sorted(k for k in m if k.startswith("E"))
+        screw_tag(pen, at(holes[0]), "E", "3x", (150, 120, 60))
+    elif name == "steps/ears":
+        screw_tag(pen, at("G"), "G", None, (60, 120, 90))
+        screw_tag(pen, at("F"), "F", None, (120, 60, 90))
+    elif name == "steps/head_back":
+        screw_tag(pen, at("C0"), "C", "4x", (-150, -120, -30))
+    elif name == "steps/modules":
+        for key, text in (("L", "A0"), ("R", "A1"), ("U", "A2"), ("D", "A3"), ("lux", "SDA SCL")):
+            note(pen, at(key), text)
+    elif name == "steps/bezel":
+        screw_tag(pen, at("D"), "D", "8x", (150, 120, 180))
+    elif name == "steps/base":
+        screw_tag(pen, at("A"), "A", "4x", (30, 0, 60))
+        note(pen, at("cap"), "caps, no glue", (-30, 0, -60, 30))
+
+
 def picture(pen, n, x, y, w, h, marks):
     name = STEPS[n - 1][0]
     if name == "sd card":
         return sd_card(pen, x, y, w, h)
     if name == "terminal":
         return terminal(pen, x, y, w, h)
+    if name == "doctor":
+        return doctor(pen, x, y, w, h)
     if name == "lock":
         return lock(pen, x, y, w, h)
     if name == "bars":
         return bars(pen, x, y, w, h)
     if name == "page":
         return page(pen, x, y, w, h, marks)
-    to_pic, m = place(pen, name, x, y, w, h, marks)
-    if name == "rear_three_quarter" and "notch" in m:
-        cx, cy = to_pic(m["notch"])
-        pen.circle(cx, cy, 24, outline=ORANGE, width=4)
-    # a leader is shortened where its label would run out of the column
-    if name == "neck_open":
-        for key, label, dx, dy in (("tilt_servo", "tilt servo", 150, -40), ("pan_servo", "pan servo", 150, 30)):
-            if key in m:
-                px, py = to_pic(m[key])
-                pen.leader(px, py, min(px + dx, x + w - 40 - pen.length(label, "small")), py + dy, label)
-    if name == "inside_base" and "usb" in m:
-        px, py = to_pic(m["usb"])
-        label = "USB to the UNO"
-        pen.leader(px, py, max(px - 120, x + 40 + pen.length(label, "small")), py + 70, label, right=False)
+    # the close ups of the pins fill their render, a strip of paper beside them takes the labels
+    left, top, right, bottom = ROOM.get(name, (0, 0, 0, 0))
+    to_pic, m = place(pen, name, x + left, y + top, w - left - right, h - top - bottom, marks)
+    if name.startswith("steps/") and m:
+        pen.area = (x, y, x + w, y + h)
+        step_marks(pen, name, to_pic, m)
     if name == "print/plates":
         for i in range(6):
             key = f"plate_{i + 1}"
@@ -433,9 +618,6 @@ def picture(pen, n, x, y, w, h, marks):
                 pen.balloon(px, py, i + 1)
     if name == "head_over_the_top":
         ray(pen, to_pic, m, (x + 30, y + 30, x + w - 30, y + h - 30))
-    if name == "exploded" and "axis_lo" in m:
-        # the axis of the turret as a chain line, like on the drawings
-        chain(pen, to_pic(m["axis_lo"]), to_pic(m["axis_hi"]))
 
 
 def steps(cols, fonts, kerning, marks):
