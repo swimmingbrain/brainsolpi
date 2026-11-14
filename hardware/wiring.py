@@ -6,7 +6,7 @@
 
 only the standard library, the pdf comes from a headless print of the page
 the pins follow firmware/brainsol_bridge/brainsol_bridge.ino, the font is
-osifont from cad/assets/osifont.ttf, the same as on the technical drawings
+geist serif from cad/assets/geist_serif_regular.ttf, the same as on the web page
 """
 
 import argparse
@@ -19,7 +19,9 @@ from html import escape
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-FONT = HERE / "cad" / "assets" / "osifont.ttf"
+FONT = HERE / "cad" / "assets" / "geist_serif_regular.ttf"
+# times only fills in for the omega, geist serif has no greek, like on the web page
+FAMILY = "'Geist Serif', 'Times New Roman', Times, serif"
 OUT = HERE.parent / "docs" / "wiring.pdf"
 
 # a4 landscape, everything below is in mm
@@ -34,7 +36,8 @@ WIRE_W = 0.35
 BOX_W = 0.5
 DASH = "1.8 1.2"
 
-# text sizes, osifont caps are 0.74 of the size
+# text sizes, geist serif caps are 0.71 of the size
+CAP = 0.71
 NAME = 3.4
 SUB = 2.8
 PIN = 2.8
@@ -69,7 +72,7 @@ class Sheet:
     def text(self, x, y, s, size, anchor="start", colour=INK, mid=False):
         # mid puts the middle of the caps on y instead of the baseline
         if mid:
-            y += 0.37 * size
+            y += CAP / 2 * size
         self.items.append(f'<text x="{x:.2f}" y="{y:.2f}" font-size="{size}" text-anchor="{anchor}" '
                           f'fill="{colour}">{escape(s)}</text>')
 
@@ -82,7 +85,7 @@ class Sheet:
     def svg(self):
         body = "\n".join(self.items)
         return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{PAGE_W}mm" height="{PAGE_H}mm" '
-                f'viewBox="0 0 {PAGE_W} {PAGE_H}" font-family="osifont">\n'
+                f'viewBox="0 0 {PAGE_W} {PAGE_H}" font-family="{FAMILY}">\n'
                 f'<rect width="{PAGE_W}" height="{PAGE_H}" fill="#ffffff"/>\n{body}\n</svg>\n')
 
 
@@ -103,7 +106,7 @@ def part(sh, box, lines, left=(), right=(), top=(), dashed=False, text_x=None, t
         sh.text(x1 - 1.8, y, label, PIN, anchor="end", mid=True)
     for label, x in top:
         sh.terminal(x, y0)
-        sh.text(x, y0 + 1.6 + 0.74 * PIN, label, PIN, anchor="middle")
+        sh.text(x, y0 + 1.6 + CAP * PIN, label, PIN, anchor="middle")
 
 
 def bundle(sh, x0, x1, rows, names, cable, dashed=False):
@@ -250,7 +253,7 @@ def draw():
 def page_html(svg):
     font = base64.b64encode(FONT.read_bytes()).decode("ascii")
     return ('<!doctype html>\n<html><head><meta charset="utf-8"><title>brainSOL wiring</title>\n<style>\n'
-            f'@font-face {{ font-family: "osifont"; src: url(data:font/ttf;base64,{font}) format("truetype"); }}\n'
+            f'@font-face {{ font-family: "Geist Serif"; src: url(data:font/ttf;base64,{font}) format("truetype"); }}\n'
             f'@page {{ size: {PAGE_W}mm {PAGE_H}mm; margin: 0; }}\n'
             'html, body { margin: 0; padding: 0; background: #ffffff; }\n'
             f'body {{ width: {PAGE_W}mm; height: {PAGE_H}mm; overflow: hidden; }}\n'
