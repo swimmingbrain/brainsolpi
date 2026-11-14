@@ -50,10 +50,12 @@ def cut(items, origin, normal):
     out = []
     for it in items:
         m = it[0]
-        solid = mf.Manifold(mf.Mesh(vert_properties=np.asarray(m.vertices, np.float32), tri_verts=np.asarray(m.faces, np.uint32)))
+        mesh = mf.Mesh(vert_properties=np.asarray(m.vertices, np.float32), tri_verts=np.asarray(m.faces, np.uint32))
+        solid = mf.Manifold(mesh)
         kept = solid.trim_by_plane(tuple(n), float(n @ np.asarray(origin, float))).to_mesh()
         if len(kept.tri_verts):
-            out.append((trimesh.Trimesh(np.asarray(kept.vert_properties)[:, :3], np.asarray(kept.tri_verts)),) + tuple(it[1:]))
+            back = trimesh.Trimesh(np.asarray(kept.vert_properties)[:, :3], np.asarray(kept.tri_verts))
+            out.append((back,) + tuple(it[1:]))
     return out
 
 
@@ -207,7 +209,8 @@ def table_lux(out):
     items = KD.items(KD.uno_meshes(), m)
     top = P.UNO_T + 2.5 + W.DUPONT_L
     w_mid = sum(P.UNO_I2C_W) / 4
-    a = W.End(KD.apply(m, (P.UNO_I2C_U, w_mid, P.UNO_T + 2.5)), KD.vec(m, (0, -1, 0)), KD.vec(m, (0, 0, 1)), "dupont", 4)
+    a = W.End(KD.apply(m, (P.UNO_I2C_U, w_mid, P.UNO_T + 2.5)), KD.vec(m, (0, -1, 0)), KD.vec(m, (0, 0, 1)),
+              "dupont", 4)
     route = nested_arcs([P.UNO_I2C_U], w_mid, top, 1, 6.0, P.UNO_L, [-4.0], W.JUMPER_R)[0]
     cable, _ = W.jumper(a, [KD.apply(m, p) for p in route], None, ("black", "red", "blue", "green"), plug_accent=ORANGE)
     items += cable
@@ -231,8 +234,8 @@ def tray_power_cable(accent=None):
     back = -P.BASE_D / 2
     # outside it turns along the back wall and leaves past the corner of the tray
     mid = [(15.0, -54.0, 9.5), (12.0, -62.0, z), (nx + 1.0, -70.0, z), (nx, back + 2.0, z), (nx, back - 3.0, z),
-           (nx - 3.0, back - 8.0, zt + 1.0), (nx - 14.0, back - 11.0, zt), (-60.0, back - 13.0, zt), (-110.0, back - 18.0, zt),
-           (-300.0, back - 30.0, zt)]
+           (nx - 3.0, back - 8.0, zt + 1.0), (nx - 14.0, back - 11.0, zt), (-60.0, back - 13.0, zt),
+           (-110.0, back - 18.0, zt), (-300.0, back - 30.0, zt)]
     return W.power_cable(pw, mid, accent=accent)
 
 
@@ -263,8 +266,8 @@ def tray_usb_cable(b_end=None, accent=None, after=None):
     ax = a.o[0]
     lead = [(ax + 1.0, 71.5, 13.5), (ax + 7.0, 72.5, 11.0), (x0 - 10.0, 67.0, 8.5)]
     coil = coil_points()
-    tail = after if after is not None else [(-10.0, 61.5, 20.0), (14.0, 64.5, 18.5), (32.0, 66.0, 13.0), (46.0, 63.0, 8.5),
-                                            (54.0, 50.0, 7.6)]
+    loose = [(-10.0, 61.5, 20.0), (14.0, 64.5, 18.5), (32.0, 66.0, 13.0), (46.0, 63.0, 8.5), (54.0, 50.0, 7.6)]
+    tail = after if after is not None else loose
     if b_end is None:
         b_end = W.End((55.0, -10.0, P.FLOOR_TOP + 5.5), (1, 0, 0), (0, 1, 0), "usb_b")
     return W.usb_cable(a, lead + coil + tail, b_end, accent=accent)
@@ -276,7 +279,8 @@ def tray_power(parts, out):
     cable, _ = tray_power_cable(ORANGE)
     items += cable
     nx = B.power_notch_x()
-    marks = {"notch": (nx, -P.BASE_D / 2 + P.WALL, P.TRAY_Z0 + 7.0), "plug": KD.apply(KD.pi_matrix(), (14.0, -14.0, 6.0))}
+    marks = {"notch": (nx, -P.BASE_D / 2 + P.WALL, P.TRAY_Z0 + 7.0),
+             "plug": KD.apply(KD.pi_matrix(), (14.0, -14.0, 6.0))}
     cam = camera((-8.0, -34.0, 8.0), 24, 56, 330)
     return [shot("steps/tray_power", out, items, cam, size=STEP_SIZE, marks=marks)]
 
@@ -314,7 +318,8 @@ def neck_up(name):
     # out of the exit the cables turn to the back wall at once, under the tab of the pan servo
     pts = [(ex, ey, z0 + 0.5), (ex, ey, z0 + 2.4), (ex * 0.5 + cx * 0.5, cy + 2.2, z0 + 5.4), (cx, cy + 0.4, z0 + 8.5)]
     pts += [(cx, cy, z) for z in (66.0, 74.0, 82.0, 92.0, 101.0)]
-    pts += [(tx * 0.5 + cx * 0.5, ty * 0.3 + cy * 0.7, 108.5), (tx, ty - 3.0, 114.5), (tx, ty, 119.5), (tx, ty, P.NECK_TOP + 3.0)]
+    pts += [(tx * 0.5 + cx * 0.5, ty * 0.3 + cy * 0.7, 108.5), (tx, ty - 3.0, 114.5), (tx, ty, 119.5),
+            (tx, ty, P.NECK_TOP + 3.0)]
     pins = [((ex, ey, z0), (0, 1, 0)), ((cx, cy, 80.0), (1, 0, 0)), ((tx, ty, P.NECK_TOP), (1, 0, 0))]
     return pts, pins
 
@@ -327,8 +332,8 @@ def lead_down(which):
     # the pan lead climbs in its narrow channel at the far end of the servo and runs over it,
     # the tilt lead drops from the lower end of its servo, both join the column
     if which == "pan":
-        pts = [(-18.6, -32.6, 72.5), (-18.5, -33.0, 77.0), (-16.0, -33.4, 80.0), (-4.0, -33.6, 80.0), (4.0, -33.6, 80.0),
-               (8.8, -36.5, 78.5), (cx, cy - 0.5, 73.0), (cx, cy, 66.0)]
+        pts = [(-18.6, -32.6, 72.5), (-18.5, -33.0, 77.0), (-16.0, -33.4, 80.0), (-4.0, -33.6, 80.0),
+               (4.0, -33.6, 80.0), (8.8, -36.5, 78.5), (cx, cy - 0.5, 73.0), (cx, cy, 66.0)]
     else:
         pts = [(0.0, -32.6, 86.5), (1.5, -33.4, 82.8), (6.0, -33.8, 82.6), (11.0, -35.0, 82.0), (13.8, -38.6, 79.5),
                (cx, cy, 73.0), (cx, cy, 66.0)]
@@ -403,8 +408,9 @@ def neck_close(parts, out):
         a = hanging(name, 20.0 + {"L": 0.0, "R": 6.0, "U": 2.0, "D": 9.0, "lux": 4.0}[name])
         pts = [(ex, ey, P.BASE_TOP - 6.0)] + pts
         # out of the top the cables fall over to the back of the neck
-        up = [(tx, ty - 6.0, P.NECK_TOP + 9.0), (tx, ty - 16.0, P.NECK_TOP + 12.0), (tx, P.TURRET_Y - P.NECK_D / 2 - 6.0, P.NECK_TOP - 6.0),
-              (tx, P.TURRET_Y - P.NECK_D / 2 - 7.0, P.NECK_TOP - 40.0)]
+        back = P.TURRET_Y - P.NECK_D / 2
+        up = [(tx, ty - 6.0, P.NECK_TOP + 9.0), (tx, ty - 16.0, P.NECK_TOP + 12.0), (tx, back - 6.0, P.NECK_TOP - 6.0),
+              (tx, back - 7.0, P.NECK_TOP - 40.0)]
         colours = ("black", "red", "blue", "green") if name == "lux" else ("black", "red", "yellow")
         cable, _ = W.jumper(a, pts + up, None, colours, pins=pins)
         items += W.tint(cable, GREY)
@@ -437,7 +443,8 @@ def uno_end(name):
         return gvs_end(m, KD.uno_a_u(A_PINS[name]), P.UNO_GVS_W, -1)
     if name == "lux":
         w = sum(P.UNO_I2C_W) / 4
-        return W.End(KD.apply(m, (P.UNO_I2C_U, w, P.UNO_T + 2.5)), KD.vec(m, (0, -1, 0)), KD.vec(m, (0, 0, 1)), "dupont", 4)
+        return W.End(KD.apply(m, (P.UNO_I2C_U, w, P.UNO_T + 2.5)), KD.vec(m, (0, -1, 0)), KD.vec(m, (0, 0, 1)),
+                     "dupont", 4)
     return gvs_end(m, KD.uno_d_u(SERVO_PIN[name]), P.UNO_DGVS_W, 1, "servo")
 
 
@@ -508,8 +515,9 @@ def sensor_route(name, tilt=None, accent=None, colours=None):
     mid = under_lid(name) + pts
     if tilt is None:
         tx, ty = TOP[name]
+        back = P.TURRET_Y - P.NECK_D / 2
         mid += [(tx, ty - 6.0, P.NECK_TOP + 9.0), (tx, ty - 16.0, P.NECK_TOP + 12.0),
-                (tx, P.TURRET_Y - P.NECK_D / 2 - 6.0, P.NECK_TOP - 6.0), (tx, P.TURRET_Y - P.NECK_D / 2 - 7.0, P.NECK_TOP - 40.0)]
+                (tx, back - 6.0, P.NECK_TOP - 6.0), (tx, back - 7.0, P.NECK_TOP - 40.0)]
         b = None
     else:
         more, floor_pins = into_head(name, tilt)
@@ -532,7 +540,8 @@ def servo_route(which, accent=None):
 
 def usb_tail(lift=0.0):
     """the usb cable from the last turn round the posts up to the uno, lift raises the lid"""
-    return [(-14.0, 60.5, 20.5), (4.0, 63.0, 23.0 + lift * 0.3), (20.0, 68.0, 25.0 + lift * 0.7), (27.0, 72.0, 27.0 + lift)]
+    return [(-14.0, 60.5, 20.5), (4.0, 63.0, 23.0 + lift * 0.3), (20.0, 68.0, 25.0 + lift * 0.7),
+            (27.0, 72.0, 27.0 + lift)]
 
 
 def uno_b_end(lift=0.0):
@@ -559,7 +568,8 @@ def lid_neck(parts, out):
         pts, pins = neck_up(name)
         ex, ey = EXIT[name]
         tx, ty = TOP[name]
-        a = W.End((ex + HANG_DX[name] + 4.0, ey, P.LID_BOTTOM - 14.0 - W.DUPONT_L - (3.0 if name in ("R", "D") else 0.0)),
+        drop = 14.0 + (3.0 if name in ("R", "D") else 0.0)
+        a = W.End((ex + HANG_DX[name] + 4.0, ey, P.LID_BOTTOM - drop - W.DUPONT_L),
                   (0, 1, 0), (0, 0, 1), "dupont", 4 if name == "lux" else 3)
         mid = [(ex, ey, P.LID_BOTTOM - 5.0), (ex, ey, P.LID_BOTTOM + 0.5), (ex, ey, P.BASE_TOP + 0.5)] + pts
         mid += [(tx, ty - 6.0, P.NECK_TOP + 9.0), (tx, ty - 16.0, P.NECK_TOP + 12.0),
@@ -574,7 +584,8 @@ def lid_neck(parts, out):
         cable, _ = W.servo_lead(lead_start(which), mid, end, pins=pins, lead=(1.0, 6.0))
         items += W.tint(cable, GREY)
     h, d = g.places[0]
-    marks = {"G": tuple(np.asarray(h) - np.asarray(d) * (out_g + 1.5)), "horn": (-9.0, P.TURRET_Y + 2.0, kit.pan_horn_frame()[0][2] - 0.8)}
+    marks = {"G": tuple(np.asarray(h) - np.asarray(d) * (out_g + 1.5)),
+             "horn": (-9.0, P.TURRET_Y + 2.0, kit.pan_horn_frame()[0][2] - 0.8)}
     cam = camera((3.0, P.TURRET_Y, 50.0), 18, 10, 175)
     return [shot("steps/lid_neck", out, items, cam, size=STEP_SIZE, floor=False, marks=marks)]
 
@@ -628,7 +639,8 @@ def loose_tops():
         lean = {"L": -7.0, "R": -2.0, "U": 3.0, "D": 8.0, "lux": 13.0}[name]
         drop = {"L": 30.0, "R": 22.0, "U": 34.0, "D": 26.0, "lux": 18.0}[name]
         b = W.End((tx + lean, back - 5.0, P.NECK_TOP - drop - W.DUPONT_L), (1, 0, 0), (0, 0, 1), "dupont", n)
-        mid = [(tx, ty, P.NECK_TOP + 2.0), (tx + 0.3 * lean, ty - 7.0, P.NECK_TOP + 8.0), (tx + 0.7 * lean, back - 3.0, P.NECK_TOP + 3.0)]
+        mid = [(tx, ty, P.NECK_TOP + 2.0), (tx + 0.3 * lean, ty - 7.0, P.NECK_TOP + 8.0),
+               (tx + 0.7 * lean, back - 3.0, P.NECK_TOP + 3.0)]
         colours = ("black", "red", "blue", "green") if n == 4 else ("black", "red", "yellow")
         cable, _ = W.jumper(a, mid, b, colours, lead=(1.0, 4.0))
         items += W.tint(cable, GREY)

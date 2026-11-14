@@ -328,7 +328,8 @@ def plug_items(end, accent=None):
         if k == "metal":
             out.append((mm, METAL, 1.0, "metal", "plug"))
         else:
-            out.append((mm, accent or (HOUSING if k == "housing" else OVERMOLD), 1.0, "accent" if accent else "kit", "plug"))
+            plastic = HOUSING if k == "housing" else OVERMOLD
+            out.append((mm, accent or plastic, 1.0, "accent" if accent else "kit", "plug"))
     return out
 
 
