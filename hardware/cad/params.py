@@ -11,6 +11,8 @@ after changing a value run `uv run build.py` again, every part and check follows
 BED = (175.0, 175.0, 175.0)  # usable box we allow per part, the plate is 180 mm
 NOZZLE = 0.4
 LAYER = 0.2
+LAYER_FIRST = 0.2  # the bambu profiles start with 0.2 whatever the layer height
+LAYER_EAR = 0.16  # the ears print finer, every ceiling over one of their recesses sits on a layer line
 WALL_MIN = 1.6  # four perimeters, anything thinner flexes and looks cheap
 FIT_SLIDE = 0.25  # per side, parts that must slide or turn
 FIT_SNUG = 0.15  # per side, parts that are pushed in and stay

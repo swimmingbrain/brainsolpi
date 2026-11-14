@@ -312,11 +312,38 @@ def ear_plane(x):
     return Plane(origin=(x, P.TURRET_Y, P.Z_TILT), x_dir=(0, 1, 0), z_dir=(1, 0, 0))
 
 
+def layer_line(z):
+    """first layer line of the ears at or above z, z from the bed"""
+    k = math.ceil(round((z - P.LAYER_FIRST) / P.LAYER_EAR, 6))
+    return P.LAYER_FIRST + max(k, 0) * P.LAYER_EAR
+
+
+def ear_box(side, s0, s1, t0, t1, z0, z1):
+    """box in the ear frame, s and t as in ear_outline, z from the inner face outward"""
+    xi = side * (P.NECK_W / 2 + P.EAR_GAP)
+    xa, xb = xi + side * z0, xi + side * z1
+    return box(min(xa, xb), max(xa, xb), P.TURRET_Y + s0, P.TURRET_Y + s1, P.Z_TILT + t0, P.Z_TILT + t1)
+
+
+def hole_roof(side, r, z, recess):
+    """slot then square over a round hole that starts in a bridged ceiling at z
+
+    the ceiling bridges across t, so the first step leaves a slot as wide as the hole that runs
+    along t out to the walls of the recess and the bridge lines on both sides of it land on walls
+    at both ends, the second step bridges across the slot and leaves a square, the round hole
+    starts above, each step is two layers of the ears so a 0.2 profile still prints every step
+    """
+    L = 2 * P.LAYER_EAR
+    slot = ear_box(side, -r, r, -50.0, 50.0, z - 0.01, z + L) & recess
+    return slot + ear_box(side, -r, r, -r, r, z + L - 0.01, z + 2 * L)
+
+
 def ear(side):
     """side -1 is the left ear with the horn, side +1 the right ear with the pivot screw
 
     the ears print on the inner face, flat against the neck wall with the ear gap between, the
-    horn pocket is the only recess in that face
+    horn pocket is the only recess in that face, its ceiling sits on a layer line and every bridge
+    line of it lands on a wall at both ends
     """
     xi = side * (P.NECK_W / 2 + P.EAR_GAP)
     xo = side * (P.NECK_W / 2 + P.EAR_GAP + P.EAR_T)
@@ -333,12 +360,20 @@ def ear(side):
     if side < 0:
         # horn pocket, hub and arm snug from the inner face to just past the arm, the arm points to
         # the head, the horn seat stays where the tilt servo expects it
-        pocket_end = xi + side * (P.HORN_SEAT_DEPTH + P.HORN_ARM_T + 0.2)
-        arm = kit.arm_solid(1, P.HORN_SINGLE_LEN, 0.0, abs(pocket_end - xi) + 0.01, grow=P.FIT_SNUG)
-        arm = arm + cyl("z", P.HORN_HUB_D / 2 + P.FIT_SNUG, 0.0, abs(pocket_end - xi) + 0.01)
-        # local z of the arm solid runs from the inner face outward
-        cuts.append(kit.frame_map(arm, (xi + 0.01, P.TURRET_Y, P.Z_TILT), (0, 1, 0), (side, 0, 0)))
-        cuts.append(cyl("x", P.HORN_SCREW_HEAD_D / 2 + 0.3, xh - 1, pocket_end + 0.1, (P.TURRET_Y, P.Z_TILT)))
+        pd = layer_line(P.HORN_SEAT_DEPTH + P.HORN_ARM_T + 0.2)
+
+        def pocket(z1):
+            # local z of the arm solid runs from the inner face outward
+            arm = kit.arm_solid(1, P.HORN_SINGLE_LEN, 0.0, z1 + 0.01, grow=P.FIT_SNUG)
+            arm = arm + cyl("z", P.HORN_HUB_D / 2 + P.FIT_SNUG, 0.0, z1 + 0.01)
+            return kit.frame_map(arm, (xi + 0.01, P.TURRET_Y, P.Z_TILT), (0, 1, 0), (side, 0, 0))
+
+        cuts.append(pocket(pd))
+        # screw hole from the pocket ceiling to the cap recess, its roof steps so the pocket ceiling
+        # has no loose bridge lines around it
+        rh = P.HORN_SCREW_HEAD_D / 2 + 0.3
+        cuts.append(cyl("x", rh, xh - 1, xi + side * (pd - 0.01), (P.TURRET_Y, P.Z_TILT)))
+        cuts.append(hole_roof(side, rh, pd, pocket(pd + 1.0)))
     else:
         # pivot screw threads through the whole ear from the countersink to the inner face and turns
         # in the bearing of the neck
