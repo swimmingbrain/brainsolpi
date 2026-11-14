@@ -436,7 +436,7 @@ def chain(pen, a, b, dash=(26, 6, 4, 6)):
 
 
 def is_paper(pen, box, margin=6, loose=False):
-    """True where a box of the picture is still plain paper inside the area of its step, so a label
+    """whether a box of the picture is still plain paper inside the area of its step, so a label
     there reads clearly and stays out of the next step, loose also takes a light shadow or a light
     part as long as it is smooth, with no edge or line in it"""
     ax0, ay0, ax1, ay1 = pen.area

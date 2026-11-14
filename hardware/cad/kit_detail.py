@@ -322,7 +322,8 @@ def pi_power_port():
 
 UNO_A_COLS = 6
 UNO_D_COLS = 14  # D13 next to the usb end to D0
-# D9 and D10 sit side by side on the 2.54 grid, the block is centred between the two values of params.py
+# the columns of D9 and D10 sit side by side on the 2.54 grid, the block is centred between the two values
+# of params.py
 UNO_D10_AT = (P.UNO_D9_U + P.UNO_D10_U) / 2 - P.PITCH / 2
 UNO_SERIAL_U = 63.6
 UNO_SERIAL_W = tuple(38.9 + i * P.PITCH for i in range(4))  # GND VCC TX RX from the bottom
