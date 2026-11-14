@@ -3,8 +3,7 @@
 each half prints lying on its big outer face, so the visible front and back of the neck come
 off the bed and every pocket opens upward, no supports
 the front half carries the floor of the foot that rides on the lid, two screws from below go
-through that floor into the back half, the hinge ears collar the two ring bosses at the top so
-the halves cannot open there either
+through that floor into the back half, pins line the two halves up
 """
 
 import math
@@ -163,22 +162,11 @@ def exit_outline():
     return pts[:-1]
 
 
-def ring_boss(side):
-    """ring on the side wall around the tilt axis, flats toward the print bed"""
-    if side > 0:
-        lo, hi = P.NECK_W / 2 - 0.5, P.NECK_W / 2 + P.RING_H
-    else:
-        lo, hi = -P.NECK_W / 2 - P.RING_H, -P.NECK_W / 2 + 0.5
-    r = cyl("x", P.RING_R, lo, hi, (ty(), P.Z_TILT))
-    flat = P.RING_R * math.sqrt(0.5)
-    return r & box(-40, 40, ty() - flat, ty() + flat, P.Z_TILT - 20, P.Z_TILT + 20)
-
-
 def build():
     """both halves at their place in the device frame, pan 0"""
     t = ty()
     shell = outer() - cavity()
-    add = [shell, pan_holder(), tilt_holder(), ring_boss(-1), ring_boss(1)]
+    add = [shell, pan_holder(), tilt_holder()]
     # screw bosses for the foot screws, they belong to the back half
     for sx, sy in SCREW_XY:
         add.append(cyl("z", 3.6, z0() + P.FOOT_FLOOR_T - 0.01, z0() + P.FOOT_FLOOR_T + 9.0, (sx, t + sy)))
@@ -218,8 +206,8 @@ def build():
     fz0, fz1 = z0() - 1, z0() + P.FOOT_FLOOR_T + 1
     cuts.append(teardrop("z", P.SERVO_BOSS_R + 0.55, fz0, fz1, (0.0, t), up))
     cuts.append(poly_prism(exit_outline(), fz0, fz1))
-    # tilt servo boss through the left wall and ring
-    cuts.append(cyl("x", P.SERVO_BOSS_R + 0.4, -P.NECK_W / 2 - P.RING_H - 1, -P.NECK_W / 2 + P.NECK_WALL + 1.5, (t, P.Z_TILT)))
+    # tilt servo boss through the left wall
+    cuts.append(cyl("x", P.SERVO_BOSS_R + 0.4, -P.NECK_W / 2 - 3.0, -P.NECK_W / 2 + P.NECK_WALL + 1.5, (t, P.Z_TILT)))
     body = body - union_all(cuts)
     # pivot boss inside the right wall and a pin block, added after the cable column is cut
     # the pivot boss hangs off the split face while printing, so it gets a roof on both sides
@@ -227,7 +215,7 @@ def build():
     late.append(box(19.0, P.FOOT_W / 2 - 1.0, t - 4.0, t + 4.0, z0() + P.FOOT_FLOOR_T - 0.01, z0() + 9.0))
     body = (body + union_all(late)) & outer()
     # bearing for the pivot screw on the right
-    body = body - cyl("x", P.M3_CLEAR / 2, P.PIVOT_BOSS_X0 - 1.0, P.NECK_W / 2 + P.RING_H + 1, (t, P.Z_TILT))
+    body = body - cyl("x", P.M3_CLEAR / 2, P.PIVOT_BOSS_X0 - 1.0, P.NECK_W / 2 + 3.0, (t, P.Z_TILT))
     return body
 
 

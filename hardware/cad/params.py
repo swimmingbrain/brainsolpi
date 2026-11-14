@@ -234,8 +234,6 @@ SLOT_W = 6.0
 SLOT_HALF_ANGLE = 118.0
 EXIT_W = 5.0  # cable exit in the foot floor
 EXIT_L = 13.0
-RING_R = 8.0  # ring boss on each side wall that the ear collars around
-RING_H = 2.0
 PIVOT_BOSS_R = 4.0
 PIVOT_BOSS_X0 = 15.5  # inner end of the pivot boss, the cable column passes beside it
 
