@@ -153,28 +153,6 @@ def write_report(path, parts_rep, static_bad, sweep, cable_rows, fast_rows, web_
     path.write_text("\n".join(L) + "\n", encoding="utf-8", newline=LF)
 
 
-def update_printing_table(path, parts_rep, est):
-    """refresh the generated table in PRINTING.md between its markers"""
-    if not path.exists():
-        return
-    text = path.read_text(encoding="utf-8")
-    a, b = "<!-- print table start -->", "<!-- print table end -->"
-    if a not in text or b not in text:
-        return
-    rows = ["| part | count | colour | layer mm | infill | grams | minutes |", "|---|---|---|---|---|---|---|"]
-    tg, tm = 0.0, 0.0
-    by = {r["name"]: r for r in parts_rep}
-    for name, r in by.items():
-        e = est[name]
-        g, m = e["grams"] * r["count"], e["minutes"] * r["count"]
-        tg += g
-        tm += m
-        rows.append(f"| {name} | {r['count']} | {r['role']} | {e['layer']} | {e['infill']} % {e['pattern']} | {fmt(g)} | {fmt(m, 0)} |")
-    rows.append(f"| total | | | | | {fmt(tg)} | {fmt(tm, 0)} |")
-    new = text.split(a)[0] + a + "\n" + "\n".join(rows) + "\n" + b + text.split(b)[1]
-    path.write_text(new, encoding="utf-8", newline=LF)
-
-
 def make_drawings(parts, path, t0):
     """the drawings pdf, a text that runs into a line is reported but does not fail the build"""
     findings = drawings.make(parts, path, log=lambda msg: log(msg, t0))
@@ -216,7 +194,6 @@ def main():
     est = {}
     for p in parts:
         r = checks.part_report(p)
-        r["role"] = p.role
         parts_rep.append(r)
         est[p.name] = estimate.estimate(p.name, p.print_mesh())
     log("part checks", t0)
@@ -227,9 +204,7 @@ def main():
     log("signature check", t0)
 
     fit = assembly.fit_test_part()
-    fit_rep = checks.part_report(fit)
-    fit_rep["role"] = fit.role
-    parts_rep.append(fit_rep)
+    parts_rep.append(checks.part_report(fit))
     est[fit.name] = estimate.estimate(fit.name, fit.print_mesh())
     exporting.export_parts(parts + [fit], export_dir)
     elec_shapes = {}
@@ -277,7 +252,6 @@ def main():
                "parts": [{k: v for k, v in r.items() if k not in ("steep_worst",)} for r in parts_rep],
                "estimate": est}
     (report_dir / "summary.json").write_text(json.dumps(summary, indent=1, default=str) + "\n", encoding="utf-8", newline=LF)
-    update_printing_table(HERE / "PRINTING.md", parts_rep, est)
     log("reports", t0)
 
     if not (args.quick or args.no_renders):
