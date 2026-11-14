@@ -313,7 +313,11 @@ def ear_plane(x):
 
 
 def ear(side):
-    """side -1 is the left ear with the horn, side +1 the right ear with the pivot screw"""
+    """side -1 is the left ear with the horn, side +1 the right ear with the pivot screw
+
+    the ears print on the inner face, flat against the neck wall with the ear gap between, the
+    horn pocket is the only recess in that face
+    """
     xi = side * (P.NECK_W / 2 + P.EAR_GAP)
     xo = side * (P.NECK_W / 2 + P.EAR_GAP + P.EAR_T)
     xh = side * (P.NECK_W / 2 + P.EAR_GAP + P.EAR_T + P.EAR_HUB_H)
@@ -326,23 +330,21 @@ def ear(side):
     s1 = P.HEAD_OFFSET
     body = plate + hub
     cuts = []
-    # collar socket over the ring boss of the neck, its floor is the horn seat
-    sd = P.HORN_SEAT_DEPTH
-    cuts.append(cyl("x", P.RING_R + P.FIT_SLIDE, xi - side * 0.01, xi + side * sd, (P.TURRET_Y, P.Z_TILT)))
-    floor_x = xi + side * sd
     if side < 0:
-        # horn pocket below the socket floor, the horn arm points to the head
-        pocket_end = floor_x + side * (P.HORN_ARM_T + 0.2)
+        # horn pocket, hub and arm snug from the inner face to just past the arm, the arm points to
+        # the head, the horn seat stays where the tilt servo expects it
+        pocket_end = xi + side * (P.HORN_SEAT_DEPTH + P.HORN_ARM_T + 0.2)
         arm = kit.arm_solid(1, P.HORN_SINGLE_LEN, 0.0, abs(pocket_end - xi) + 0.01, grow=P.FIT_SNUG)
         arm = arm + cyl("z", P.HORN_HUB_D / 2 + P.FIT_SNUG, 0.0, abs(pocket_end - xi) + 0.01)
         # local z of the arm solid runs from the inner face outward
         cuts.append(kit.frame_map(arm, (xi + 0.01, P.TURRET_Y, P.Z_TILT), (0, 1, 0), (side, 0, 0)))
         cuts.append(cyl("x", P.HORN_SCREW_HEAD_D / 2 + 0.3, xh - 1, pocket_end + 0.1, (P.TURRET_Y, P.Z_TILT)))
     else:
-        # pivot screw threads into the ear and turns in the bearing of the neck
+        # pivot screw threads through the whole ear from the countersink to the inner face and turns
+        # in the bearing of the neck
         csk_top = xh - side * P.CAP_T
         h = (P.M3_CSK_D - P.M3_TAP) / 2
-        cuts.append(cyl("x", P.M3_TAP / 2, floor_x - 0.5, csk_top, (P.TURRET_Y, P.Z_TILT)))
+        cuts.append(cyl("x", P.M3_TAP / 2, xi - side * 0.01, csk_top, (P.TURRET_Y, P.Z_TILT)))
         cuts.append(cone("x", P.M3_TAP / 2, P.M3_CSK_D / 2 + 0.01, csk_top - side * h, csk_top + side * 0.01, (P.TURRET_Y, P.Z_TILT)))
     # cap recess with a small pry notch on the underside
     cuts.append(cyl("x", P.CAP_D / 2, xh - side * P.CAP_T, xh + side, (P.TURRET_Y, P.Z_TILT)))
