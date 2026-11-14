@@ -2,7 +2,7 @@
 
 units are millimetres, angles are degrees
 device frame: x to the right, y forward, z up, seen from behind, the table is z = 0
-values marked measure are assumptions until the kit arrives, MEASURE.md lists them
+values marked measure are checked with the fit test, the readme says how
 after changing a value run `uv run build.py` again, every part and check follows
 """
 
