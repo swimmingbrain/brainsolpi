@@ -82,7 +82,7 @@ The page now answers at `http://brainsol.local:8080`. It shows the simulation un
 
 ## Wire and assemble
 
-<img src="docs/steps-2.png" alt="Steps 5 to 8: wire the UNO and run the doctor, centre the servos, lead the cable through the notch, build the body" width="800" />
+<img src="docs/steps-2.png" alt="Steps 5 to 8: the UNO on the lower USB port of the Pi, the light sensors on A0 to A3, the pan servo on 9 and the tilt servo on 10, the BH1750 on SDA and SCL" width="800" />
 
 Do the wiring on the table first. Plug the UNO into the lower USB port of the Pi, next to the Ethernet jack.
 Within about 15 s the service sees that the UNO does not answer yet, writes the bridge firmware to it and
@@ -101,6 +101,8 @@ sudo poweroff
 Run the doctor until every step says ok, it tells you what to fix. After `centre` wait until both servos
 stop, then press Ctrl+C. Pull the power plug once the green light of the Pi stops blinking.
 
+<img src="docs/steps-3.png" alt="Steps 9 to 12: doctor, centre and power off, the Pi in the tray with its power cable out through the notch, the USB cable round the posts, the servos and every cable in the neck" width="800" />
+
 Now build the body as [docs/drawings.pdf](docs/drawings.pdf) shows, every screw comes from the kit. Mind this:
 
 - Do not turn the servo shafts by hand any more. The horns go on in the centre position, with the neck facing
@@ -111,9 +113,13 @@ Now build the body as [docs/drawings.pdf](docs/drawings.pdf) shows, every screw 
 - Leave at most 25 mm of the sensor cables below the neck, they are short.
 - Do not glue the caps, screws sit under them.
 
+<img src="docs/steps-4.png" alt="Steps 13 to 16: the neck closed with two screws B, the neck on the horn under the lid with screw G, every cable on the UNO under the lid and three screws E, the ears with screws G and F" width="800" />
+
+<img src="docs/steps-5.png" alt="Steps 17 to 20: the back shell on the ears with four screws C, the sensors on their pegs, the panel and the bezel with eight screws D, the lid on the tray with the four feet, screws A and the caps" width="800" />
+
 ## First start
 
-<img src="docs/steps-3.png" alt="Steps 9 to 12: open the page, unlock it with the pin, calibrate with a lamp, the tracker follows the light" width="800" />
+<img src="docs/steps-6.png" alt="Steps 21 to 24: open the page, unlock it with the pin, calibrate with a lamp, the tracker follows the light" width="800" />
 
 Plug in the power. After about a minute the tracker runs and holds still. Open `http://brainsol.local:8080`,
 click the lock in the top bar and type your pin. In the Calibrate tab go through Step by step:
