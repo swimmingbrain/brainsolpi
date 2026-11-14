@@ -281,7 +281,7 @@ def tray_power(parts, out):
     nx = B.power_notch_x()
     marks = {"notch": (nx, -P.BASE_D / 2 + P.WALL, P.TRAY_Z0 + 7.0),
              "plug": KD.apply(KD.pi_matrix(), (14.0, -14.0, 6.0))}
-    cam = camera((-8.0, -34.0, 8.0), 24, 56, 330)
+    cam = camera((-2.0, -22.0, 8.0), 24, 56, 370)
     return [shot("steps/tray_power", out, items, cam, size=STEP_SIZE, marks=marks)]
 
 
@@ -426,7 +426,7 @@ def neck_close(parts, out):
     for i, (h, d) in enumerate(g.places):
         marks[f"hole_{i}"] = tuple(h)
         marks[f"tip_{i}"] = tuple(np.asarray(h) - np.asarray(d) * (14.0 + 9.0))
-    cam = camera((4.0, P.TURRET_Y, 66.0), 32, 12, 270)
+    cam = camera((4.0, P.TURRET_Y, 64.0), 32, 12, 225)
     return [shot("steps/neck_close", out, items, cam, size=STEP_SIZE, floor=False, marks=marks)]
 
 
@@ -586,7 +586,7 @@ def lid_neck(parts, out):
     h, d = g.places[0]
     marks = {"G": tuple(np.asarray(h) - np.asarray(d) * (out_g + 1.5)),
              "horn": (-9.0, P.TURRET_Y + 2.0, kit.pan_horn_frame()[0][2] - 0.8)}
-    cam = camera((3.0, P.TURRET_Y, 50.0), 18, 10, 175)
+    cam = camera((0.0, P.TURRET_Y, 46.0), 18, 10, 125)
     return [shot("steps/lid_neck", out, items, cam, size=STEP_SIZE, floor=False, marks=marks)]
 
 
