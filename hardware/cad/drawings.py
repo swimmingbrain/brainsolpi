@@ -1506,7 +1506,7 @@ def sheet_neck(m, name):
     front.dim((-fw, yf, z0), (-nw, yf, P.NECK_TOP), "v", front.right + 8)
     front.dim((fw, yf, z0), (fw, yf, z0 + P.FOOT_H), "v", front.left - 8)
     front.dim((fw, yf, z0), (nw, yf, P.Z_TILT), "v", front.left - 16)
-    front.axis((-nw - P.RING_H - 4, yf, P.Z_TILT), (nw + P.RING_H + 4, yf, P.Z_TILT), ext=0.0)
+    front.axis((-nw, yf, P.Z_TILT), (nw, yf, P.Z_TILT), ext=4.0)
     zb = z0 if front_half else z0 + P.FOOT_FLOOR_T  # the back half starts on the floor of the front half
     front.axis((0, yf, zb - 2), (0, yf, P.NECK_TOP + 4), ext=0.0)
     side.dim((nw, ty - P.NECK_D / 2, z0), (nw, ty + P.NECK_D / 2, z0), "h", side.bottom - 8)
@@ -1658,11 +1658,6 @@ def sheet_ears(m):
         end.dim((xi, ye, zt + P.EAR_W / 2), (xh, ye, zt + P.EAR_W / 2), "h", end.top + 8)
         hole(end, (eu, ye, zt + head.EAR_SCREWS_V[0]), P.M3_TAP / 2, None, f"2x {tap()}", c.letter,
              at=(end.right + 8, end.bottom - 14))
-        sock = P.RING_R + P.FIT_SLIDE
-        inner.cmark((xi, ty, zt), sock)
-        ic = inner.p((xi, ty, zt))
-        hole(inner, (xi, ty, zt), sock, None, f"⌀{num(2 * sock)} x {num(kit.socket_depth())}",
-             at=(ic[0] + 22, inner.top + 10))
         iso_view(sh, m, name, (side, 1, 1), 2.0, (348, yrow))
     return sh
 
