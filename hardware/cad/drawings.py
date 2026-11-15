@@ -1595,25 +1595,32 @@ def sheet_bezel(m):
     yb, zt = P.HEAD_BACK_Y, P.Z_TILT
     hw, hh = P.HEAD_W / 2, P.HEAD_H / 2
     yf = yb + P.HEAD_T
-    vs = part_views(sh, m, "head_bezel", 1.0, {"main": (118, 188), "below": (118, 110), "far": (305, 188)},
+    # two views of 176 mm side by side at 1:1, the dimensions between them stay close to the views
+    vs = part_views(sh, m, "head_bezel", 1.0, {"main": (120, 188), "below": (120, 110), "far": (311, 188)},
                     (0, 1, 0), (0, 0, 1))
     front, top, rear = vs["main"], vs["below"], vs["far"]
     front.dim((-hw, yf, zt + hh), (hw, yf, zt + hh), "h", front.top + 8)
-    front.dim((hw, yf, zt - hh), (hw, yf, zt + hh), "v", front.left - 8)
+    front.dim((hw, yf, zt - hh), (hw, yf, zt + hh), "v", front.left - 7)
     ww, wh = P.PANEL_W - 2 * P.BEZEL_LIP, P.PANEL_H - 2 * P.BEZEL_LIP
     front.dim((-ww / 2, yf, zt - wh / 2), (ww / 2, yf, zt - wh / 2), "h", front.bottom - 8)
-    front.dim((-ww / 2, yf, zt - wh / 2), (-ww / 2, yf, zt + wh / 2), "v", front.right + 8)
+    front.dim((-ww / 2, yf, zt - wh / 2), (-ww / 2, yf, zt + wh / 2), "v", front.right + 6)
     eyes = kit.sensor_layout()
     for name, ((su, sv), _) in eyes.items():
-        front.cmark((su, yf, zt + sv), P.LDR_D / 2 if name != "lux" else P.BH_WINDOW_D / 2)
+        if name != "lux":
+            front.cmark((su, yf, zt + sv), P.LDR_D / 2)
+    bezel = m.shape("head_bezel")
     (su, sv), _ = eyes["D"]
-    eye = across(m.shape("head_bezel"), (su, yb + P.PANEL_BACK_N + 0.001, zt + sv), (1, 0, 0))
+    eye = across(bezel, (su, yb + P.PANEL_BACK_N + 0.001, zt + sv), (1, 0, 0))
     hole(front, (su, yf, zt + sv), eye / 2, (24, 14), f"4x ⌀{num(eye)}")
-    (lu, lv), _ = eyes["lux"]
+    # the slot in front of the bh1750 chip, it lies beside the board centre line, measured behind its flare
+    lu, lv = kit.chip_uv("lux")
+    lp = (lu, yb + P.PANEL_BACK_N + 0.5, zt + lv)
+    sw, sl = across(bezel, lp, (1, 0, 0)), across(bezel, lp, (0, 0, 1))
+    front.cmark((lu, yf, zt + lv), sl / 2)
     lc = front.p((lu, yf, zt + lv))
-    hole(front, (lu, yf, zt + lv), P.BH_WINDOW_D / 2, None, f"⌀{num(P.BH_WINDOW_D)}", at=(lc[0] + 16, lc[1] - 12))
+    hole(front, (lu, yf, zt + lv), sw / 2, None, f"slot {num(sw)} x {num(sl)}", at=(lc[0] + 16, lc[1] - 12))
     front.dim((eyes["R"][0][0], yf, zt), (eyes["L"][0][0], yf, zt), "h", front.top + 16)
-    front.dim((0, yf, zt + eyes["D"][0][1]), (0, yf, zt + eyes["U"][0][1]), "v", front.right + 15)
+    front.dim((0, yf, zt + eyes["D"][0][1]), (0, yf, zt + eyes["U"][0][1]), "v", front.right + 12)
     bs = head.BEZEL_SCREWS
     for u, v in bs:
         rear.cmark((u, yb, zt + v), head.boss_r())
@@ -1621,8 +1628,8 @@ def sheet_bezel(m):
          at=(rear.p((bs[1][0], 0, 0))[0] - 6, rear.top + 10))
     pw, ph = P.PANEL_W + 2 * P.PANEL_FIT, P.PANEL_H + 2 * P.PANEL_FIT
     rear.dim((-pw / 2, yb, zt - ph / 2), (pw / 2, yb, zt - ph / 2), "h", rear.bottom - 8)
-    rear.dim((pw / 2, yb, zt - ph / 2), (pw / 2, yb, zt + ph / 2), "v", rear.right + 8)
-    top.dim((-hw + 20, yb + P.HEAD_JOINT, zt + hh), (-hw + 20, yf, zt + hh), "v", top.left - 8)
+    rear.dim((pw / 2, yb, zt - ph / 2), (pw / 2, yb, zt + ph / 2), "v", rear.right + 6)
+    top.dim((-hw + 20, yb + P.HEAD_JOINT, zt + hh), (-hw + 20, yf, zt + hh), "v", top.left - 7)
     view_label(sh, rear, "seen from behind", dy=18)
     iso_view(sh, m, "head_bezel", (1, 1, 1), 0.5, (150, 58), "scale 1:2", beside=True)
     return sh
