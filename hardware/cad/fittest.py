@@ -8,24 +8,49 @@ print one cap next to it
 
 import math
 
-from . import kit, signature
+from build123d import Plane, Polygon, loft
+
+from . import kit, neck, signature
 from . import params as P
 from .helpers import box, cone, cyl, poly_prism, rrect_points, union_all
 
 PLATE_T = 1.6
 
 
+def upright_rib(x, y, nx, ny, h, z0, z1, taper=1.2):
+    """crush rib with a 90 degree point standing on a frame wall, lower toward its top end z1
+    so the case finds its way in, x y is the middle of its foot, nx ny points into the opening"""
+    ex, ey = -ny, nx
+
+    def section(z, hh):
+        foot = hh + 0.05
+        pts = [(x - 0.05 * nx - foot * ex, y - 0.05 * ny - foot * ey), (x + hh * nx, y + hh * ny),
+               (x - 0.05 * nx + foot * ex, y - 0.05 * ny + foot * ey)]
+        return Plane.XY.offset(z) * Polygon(*pts, align=None)
+
+    return loft([section(z0, h), section(z1 - taper, h)], ruled=True) + \
+        loft([section(z1 - taper, h), section(z1, 0.05)], ruled=True)
+
+
 def fit_plate():
     plate = poly_prism(rrect_points(104.0, 56.0, 4.0, cx=-4.0, cy=-2.0), 0.0, PLATE_T)
     add, cut = [], []
-    # servo frame, the servo drops in spline up, its tabs rest in the notches
-    g = P.FIT_SLIDE
+    # servo frame with the air and the crush ribs of the neck, the servo goes in spline down, so
+    # the lead stays above the frame, its tabs rest in the notches and both bosses pass the hole
+    a = neck.side_air()
+    g = P.SERVO_PLAY + P.FIT_SLIDE
     sx, sy = -35.0, 12.0
-    cw, cl = P.SERVO_W + 2 * g, P.SERVO_L + 2 * g
+    cw, cl = P.SERVO_W + 2 * a, P.SERVO_L + 2 * a
     add.append(box(sx - cl / 2 - 6.5, sx + cl / 2 + 6.5, sy - cw / 2 - 2.4, sy + cw / 2 + 2.4, 0, 9.0))
     cut.append(box(sx - cl / 2, sx + cl / 2, sy - cw / 2, sy + cw / 2, -1, 10))
     tl = P.SERVO_L + 2 * P.SERVO_TAB_LEN + 2 * g
-    cut.append(box(sx - tl / 2, sx + tl / 2, sy - cw / 2, sy + cw / 2, 9.0 - P.SERVO_TAB_T - g, 10))
+    z1 = 9.0 - P.SERVO_TAB_T - P.FIT_SLIDE
+    cut.append(box(sx - tl / 2, sx + tl / 2, sy - cw / 2, sy + cw / 2, z1, 10))
+    h = a + P.SERVO_RIB_BITE
+    ribs = [upright_rib(sx - cl / 2, sy, 1, 0, h, 0.0, z1), upright_rib(sx + cl / 2, sy, -1, 0, h, 0.0, z1)]
+    for dx in (-P.SERVO_L / 2 + neck.BUMP_IN, P.SERVO_L / 2 - neck.BUMP_IN):
+        ribs += [upright_rib(sx + dx, sy - cw / 2, 0, 1, h, 0.0, z1),
+                 upright_rib(sx + dx, sy + cw / 2, 0, -1, h, 0.0, z1)]
     # the pan horn pocket exactly as in the lid, printed the same way up: the thin plate on the bed,
     # the horn lies in the pocket with its hub down through the hole, the servo spline comes from below
     hx, hy = -44.0, -16.0
@@ -75,7 +100,7 @@ def fit_plate():
     # plate over to read it
     cut.append(signature.sample_cut(0.0, -16.0))
     body = union_all([plate] + add)
-    return body - union_all(cut)
+    return (body - union_all(cut)) + union_all(ribs)
 
 
 _ = math
