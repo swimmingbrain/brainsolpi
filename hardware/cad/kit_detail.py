@@ -546,9 +546,9 @@ def module_model(kind="ldr"):
         m.add("cap", box(13.0, 14.6, -2.6, -1.8, t, t + 0.5), box(15.6, 17.2, -2.6, -1.8, t, t + 0.5))
         m.add("chip", box(13.0, 14.6, 1.8, 2.6, t, t + 0.5))
     else:
-        x = P.BH_CHIP_FROM_END
-        m.add("chip", box(x - 1.5, x + 1.5, -0.8, 0.8, t, t + P.BH_CHIP_TOP))
-        m.add("ldr", box(x - 0.6, x + 0.6, -0.5, 0.5, t + P.BH_CHIP_TOP - 0.02, t + P.BH_CHIP_TOP + 0.03))
+        x, y = P.BH_CHIP_FROM_END, -P.BH_CHIP_SIDE
+        m.add("chip", box(x - 1.5, x + 1.5, y - 0.8, y + 0.8, t, t + P.BH_CHIP_TOP))
+        m.add("ldr", box(x - 0.6, x + 0.6, y - 0.5, y + 0.5, t + P.BH_CHIP_TOP - 0.02, t + P.BH_CHIP_TOP + 0.03))
         m.add("chip", box(4.0, 7.0, -5.0, -3.4, t, t + 1.1), box(4.0, 7.0, 3.4, 5.0, t, t + 1.1))
         m.add("cap", box(17.0, 18.6, -3.0, -2.2, t, t + 0.5), box(17.0, 18.6, 2.2, 3.0, t, t + 0.5))
     return m

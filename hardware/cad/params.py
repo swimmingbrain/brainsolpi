@@ -89,6 +89,7 @@ LDR_TOP = 2.5  # top face of the photoresistor above the board top
 MOD_PARTS_H = 4.0  # tallest thing above the board, the header with a plug on it
 MOD_UNDER = 1.6  # solder joints under the board
 BH_CHIP_FROM_END = 12.8  # bh1750 sensor window from the module end without header
+BH_CHIP_SIDE = 2.5  # measure, chip centre off the board centre line, toward minus v as the module lies in the head
 BH_CHIP_TOP = 1.0
 
 # dupont plugs and cables

@@ -245,7 +245,8 @@ def r3(v):
 
 def sensor_points():
     out = {}
-    for name, ((su, sv), _) in kit.sensor_layout().items():
+    for name in kit.sensor_layout():
+        su, sv = kit.chip_uv(name)
         n = P.LDR_FACE_N if name != "lux" else P.PCB_TOP_N + P.BH_CHIP_TOP
         out[name] = r3(kit.head_xyz(su, sv, n))
     return out

@@ -149,7 +149,10 @@ def module_local(kind="ldr"):
     if kind == "ldr":
         s += cyl("z", P.LDR_D / 2, P.MOD_T - 0.01, P.MOD_T + P.LDR_TOP, (P.LDR_FROM_END, 0))
     else:
-        s += box(P.BH_CHIP_FROM_END - 1.5, P.BH_CHIP_FROM_END + 1.5, -1.0, 1.0, P.MOD_T - 0.01, P.MOD_T + P.BH_CHIP_TOP)
+        # the chip sits off the centre line, local y of the module in the head points to plus v
+        cy = -P.BH_CHIP_SIDE
+        s += box(P.BH_CHIP_FROM_END - 1.5, P.BH_CHIP_FROM_END + 1.5, cy - 1.0, cy + 1.0,
+                 P.MOD_T - 0.01, P.MOD_T + P.BH_CHIP_TOP)
         # small parts around the chip
         s += box(3.0, 10.0, -6.0, 6.0, P.MOD_T - 0.01, P.MOD_T + 1.0)
     # right angle header and the plug that sits on it, lying flat
@@ -176,11 +179,27 @@ def module(sensor_uv, inward_uv, kind="ldr"):
     return frame_map(module_local(kind), o, x, z)
 
 
+def board_side(inward_uv):
+    """local y of a module in u and v, across the board"""
+    iu, iv = inward_uv
+    return iv, -iu
+
+
+def chip_uv(name):
+    """where the light falls on a sensor, the bh1750 chip sits beside the board centre line"""
+    (su, sv), i = sensor_layout()[name]
+    if name != "lux":
+        return su, sv
+    yu, yv = board_side(i)
+    return su - P.BH_CHIP_SIDE * yu, sv - P.BH_CHIP_SIDE * yv
+
+
 def sensor_layout():
-    """sensor centres on the head and the direction toward the board middle, in u and v
+    """sensor centres on the board centre line and the direction toward the board middle, in u and v
 
     the four photoresistors sit in the middle of each edge, the bh1750 next to the top right
-    corner of the panel inside the wide side border
+    corner of the panel inside the wide side border, the board follows from these points and
+    chip_uv gives where the bh1750 chip really is
     """
     e = P.EYE_FROM_PANEL
     hw, hh = P.PANEL_W / 2, P.PANEL_H / 2
@@ -204,7 +223,8 @@ def sensor_layout():
 def sensor_faces():
     """thin discs on the photoresistors and the bh1750 window, only for the renders"""
     out = {}
-    for name, ((su, sv), _) in sensor_layout().items():
+    for name in sensor_layout():
+        su, sv = chip_uv(name)
         if name == "lux":
             n0 = P.PCB_TOP_N + P.BH_CHIP_TOP - 0.2
             r = 1.2
