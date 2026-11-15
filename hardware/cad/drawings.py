@@ -1536,6 +1536,12 @@ def sheet_neck(m, name):
         pin = across(part, (-6, ty + 1.0, P.Z_TILT - 20), (1, 0, 0))
         rear.note((-6, ty, P.Z_TILT - 20), None, f"4x ⌀{num(pin)}", r=pin / 2,
                   at=(rear.right + 12, rear.p((0, 0, P.Z_TILT - 20))[1] - 10))
+        # the half keyhole for both tilt bosses, the opening in the left wall seen edge on from behind,
+        # the back half has the other half, the leader runs straight into the middle of the opening
+        big = 2 * (P.SERVO_BOSS_R + P.SERVO_BOSS_AIR)
+        kh = (-P.NECK_W / 2 + P.NECK_WALL / 2, ty, P.Z_TILT - 2.0)
+        rear.note(kh, None, "half keyhole", under=f"⌀{num(big)} and ⌀{num(small)}",
+                  at=(rear.left - 6, rear.p(kh)[1]))
     else:
         hole(under, (xs[0], sy, z0), r_hole, None, f"2x {tap()}", b.letter, at=(under.right + 10, under.bottom - 6))
         front.note((-21.0, ty, z0 + 5.7), None, f"4x pin ⌀{num(neck.PIN_D)}", r=neck.PIN_D / 2,
