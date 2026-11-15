@@ -106,7 +106,7 @@ CABLE_SLACK_MIN = 8.0  # we want at least this much spare wire on the worst pose
 
 # solar panel, measure: width, height, thickness and where the lead leaves the back
 
-PANEL_W = 125.0
+PANEL_W = 137.0  # the delivered panel, its label says 137 x 85
 PANEL_H = 85.0
 PANEL_T = 2.5
 PANEL_FIT = 0.3  # per side in the bezel pocket
