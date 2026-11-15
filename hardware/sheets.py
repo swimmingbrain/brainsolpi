@@ -62,8 +62,8 @@ STEPS = [
     ("doctor", "Doctor, centre, then power off"),
     ("steps/tray_power", "The Pi on its pins, power out the back"),
     ("steps/tray_usb", "USB in, two turns round the posts"),
-    ("steps/neck_cables", "Servos in, every cable up the neck"),
-    ("steps/neck_close", "Close the neck with two B"),
+    ("steps/neck_cables", "Servos into the front half, cables in"),
+    ("steps/neck_close", "Back half on, close it with two B"),
     ("steps/lid_neck", "Horn under the lid, neck on top"),
     ("steps/uno_cables", "Every cable onto the UNO"),
     ("steps/ears", "Both ears on, straight up"),
@@ -90,7 +90,7 @@ PICTURE_H = 470
 # paper kept free left, above, right and below a picture for its labels
 ROOM = {"steps/analog": (90, 70, 0, 0), "steps/digital": (0, 70, 0, 0), "steps/i2c": (120, 0, 0, 0),
         "steps/modules": (40, 20, 110, 0), "steps/usb": (0, 30, 0, 0), "steps/tray_power": (0, 60, 0, 0),
-        "steps/tray_usb": (0, 60, 0, 0)}
+        "steps/tray_usb": (0, 60, 0, 0), "steps/neck_cables": (170, 0, 0, 0)}
 
 
 def s(v):
@@ -594,6 +594,8 @@ def step_marks(pen, name, to_pic, m):
         note(pen, at("port"), "lower port", (-60, -120, 60, 120))
     elif name == "steps/neck_cables":
         note(pen, at("below"), "25 mm at most", (20, -20, 160, 200))
+        if "pan" in m:
+            note(pen, at("pan"), "in 6 mm high,\nthen slide it down", (180, -160, 160, -140, 140))
     elif name == "steps/neck_close":
         for i in range(2):
             chain(pen, at(f"tip_{i}"), at(f"hole_{i}"))

@@ -356,8 +356,9 @@ def apply_all(m, pts):
 
 
 def neck_cables(parts, out):
-    """step: both servos in the back half, every cable up the column, 20 mm hang out below"""
-    items = printed(parts, ["neck_back"])
+    """step: both servos into the front half, the pan servo goes in a little high and slides down onto
+    its seats, both leads down the column, every sensor cable up the column, 20 mm hang out below"""
+    items = printed(parts, ["neck_front"])
     items += servo_items("pan") + servo_items("tilt")
     z0 = P.BASE_TOP + P.FOOT_FLOOR_T
     side = P.TURRET_Y - 4.0
@@ -383,8 +384,11 @@ def neck_cables(parts, out):
         tail = [(px + 4.0, P.TURRET_Y - 1.0, z0 - 22.0)]
         cable, _ = W.servo_lead(lead_start(which), pts + tail, b, accent=ORANGE, pins=pins, lead=(1.0, 6.0))
         items += cable
-    marks = {"below": (12.0, P.TURRET_Y, z0 - 9.0), "column": (14.0, -42.0, 90.0)}
-    cam = camera((12.0, P.TURRET_Y, 64.0), 16, 6, 280)
+    po = kit.pan_servo_frame()[0]
+    marks = {"below": (12.0, P.TURRET_Y, z0 - 9.0), "column": (14.0, -42.0, 90.0),
+             "pan": (po[0] - 8.0, P.TURRET_Y - P.SERVO_W / 2, po[2] - 9.0)}
+    # the open front half seen from behind, where the back half goes on next
+    cam = camera((4.0, P.TURRET_Y, 64.0), 196, 8, 280)
     return [shot("steps/neck_cables", out, items, cam, size=STEP_SIZE, floor=False, marks=marks)]
 
 
@@ -400,8 +404,8 @@ def hanging(name, n_drop=20.0):
 
 
 def neck_close(parts, out):
-    """step: the front half on, both halves held by two screws B from below the foot"""
-    items = printed(parts, ["neck_front", "neck_back"])
+    """step: the back half on, both halves held by two screws B from below the foot"""
+    items = printed(parts, ["neck_front"]) + printed(parts, ["neck_back"], colour=ORANGE)
     items += servo_items("pan") + servo_items("tilt")
     for name in SENSORS:
         pts, pins = neck_up(name)
@@ -409,10 +413,10 @@ def neck_close(parts, out):
         tx, ty = TOP[name]
         a = hanging(name, 20.0 + {"L": 0.0, "R": 6.0, "U": 2.0, "D": 9.0, "lux": 4.0}[name])
         pts = [(ex, ey, P.BASE_TOP - 6.0)] + pts
-        # out of the top the cables fall over to the back of the neck
-        back = P.TURRET_Y - P.NECK_D / 2
-        up = [(tx, ty - 6.0, P.NECK_TOP + 9.0), (tx, ty - 16.0, P.NECK_TOP + 12.0), (tx, back - 6.0, P.NECK_TOP - 6.0),
-              (tx, back - 7.0, P.NECK_TOP - 40.0)]
+        # out of the top the cables fall over to the front of the neck, away from the back half
+        front = P.TURRET_Y + P.NECK_D / 2
+        up = [(tx, ty + 6.0, P.NECK_TOP + 9.0), (tx, ty + 16.0, P.NECK_TOP + 12.0), (tx, front + 6.0, P.NECK_TOP - 6.0),
+              (tx, front + 7.0, P.NECK_TOP - 40.0)]
         colours = ("black", "red", "blue", "green") if name == "lux" else ("black", "red", "yellow")
         cable, _ = W.jumper(a, pts + up, None, colours, pins=pins)
         items += W.tint(cable, GREY)
@@ -428,7 +432,8 @@ def neck_close(parts, out):
     for i, (h, d) in enumerate(g.places):
         marks[f"hole_{i}"] = tuple(h)
         marks[f"tip_{i}"] = tuple(np.asarray(h) - np.asarray(d) * (14.0 + 9.0))
-    cam = camera((4.0, P.TURRET_Y, 64.0), 32, 12, 225)
+    # from behind, where the back half goes on
+    cam = camera((4.0, P.TURRET_Y, 72.0), 148, 12, 245)
     return [shot("steps/neck_close", out, items, cam, size=STEP_SIZE, floor=False, marks=marks)]
 
 
@@ -561,6 +566,8 @@ def lid_neck(parts, out):
     cut through the turret axis"""
     keep = ((0.0, P.TURRET_Y, 0.0), (0.0, -1.0, 0.0))
     items = cut(printed(parts, ["lid"]), *keep)
+    # of the front half only the foot floor reaches behind the cut, the pan servo hangs above it
+    items += cut(printed(parts, ["neck_front"]), (0.0, P.TURRET_Y - 0.05, 0.0), (0.0, -1.0, 0.0))
     items += printed(parts, ["neck_back"]) + servo_items("pan") + servo_items("tilt")
     items.append((horn_mesh(kit.pan_horn_frame()), ORANGE, 1.0, "accent"))
     out_g = 12.0
