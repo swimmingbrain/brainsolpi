@@ -144,6 +144,32 @@ def teardrop(axis, r, a0, a1, c, up, flat=None):
     return extrude(pl * Polygon(*pts, align=None), hi - lo)
 
 
+def roof(axis, r, a0, a1, c, up, flat=None):
+    """45 degree roof over a round hole of radius r, the hole itself stays a true cylinder
+    the roof starts on the tangents of the circle, flat cuts its tip at that height"""
+    ax = AXES[axis]
+    upv = Vector(*up).normalized()
+    xdir = upv.cross(ax)
+    lo, hi = min(a0, a1), max(a0, a1)
+    if axis == "z":
+        origin = Vector(c[0], c[1], lo)
+    elif axis == "x":
+        origin = Vector(lo, c[0], c[1])
+    else:
+        origin = Vector(c[0], lo, c[1])
+    pl = Plane(origin=origin, x_dir=xdir, z_dir=ax)
+    k = r * math.sqrt(0.5)
+    tip = r * math.sqrt(2)
+    top = tip if flat is None else min(tip, flat)
+    pts = [(0.0, 0.0), (k, k)]
+    if top < tip - 1e-6:
+        pts += [(tip - top, top), (top - tip, top)]
+    else:
+        pts.append((0.0, tip))
+    pts.append((-k, k))
+    return extrude(pl * Polygon(*pts, align=None), hi - lo)
+
+
 def double_teardrop(axis, r, a0, a1, c, up):
     """round bar with 45 degree points toward up and toward minus up, for parts that print
     on either side of a split face"""
