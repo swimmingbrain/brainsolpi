@@ -35,7 +35,7 @@ nothing is kept.
 - A Raspberry Pi 3B+ with the official 5.1 V 2.5 A micro USB supply, or a Pi 4 with the official 5.1 V 3 A
   USB C supply. The Pi also powers the UNO and both servos, a phone charger is too weak
 - A micro SD card with 16 GB or more
-- Matte PLA, about 275 g light grey or white and 175 g charcoal, plus 2 g of copper PLA
+- Matte PLA, about 275 g light grey or white and 185 g charcoal, plus 2 g of copper PLA
 
 Nothing else to buy.
 
@@ -44,15 +44,19 @@ Nothing else to buy.
 <img src="docs/steps-1.png" alt="Steps 1 to 4: print the fit test, print the plates, write the SD card, run the install script" width="800" />
 
 Print `hardware/export/stl/fit_test.stl` and one `cap.stl` first, it takes half an hour. Check it with the kit
-parts: a servo drops into its frame, a horn sits tight in its pocket, a sensor module slides over the pegs, the
-panel corner drops into its pocket and a kit screw holds firm in the hole with two notches. If something is
-off, change its value in `hardware/cad/params.py` and run `uv run build.py` in `hardware/`.
+parts: a servo goes into its frame spline down and rests on its tabs, a horn sits tight in its pocket, a sensor
+module slides over the pegs, the panel corner drops into its pocket and a kit screw holds firm in the hole with
+two notches. Then print `hardware/export/stl/servo_test.stl`, about ten minutes, and try a servo in it before
+you print the neck. If something is off, change its value in `hardware/cad/params.py` and run
+`uv run build.py` in `hardware/`.
 
 Then print the six plates in `hardware/export/3mf/`: body in light grey or white, dark in charcoal, accent in
 copper. That takes about 11.5 hours. Start from the Bambu Studio profile for matte PLA with the 0.4 mm nozzle
 and change only this: 4 walls, 5 top and 4 bottom layers, gyroid infill 15 % (25 % for the neck, 40 % for the
 ears, 100 % for feet and caps), supports off, elephant foot compensation 0.15 mm. Every part fits the bed of a
-Bambu Lab A1 mini.
+Bambu Lab A1 mini. The ears stand on their end face as the plate file places them, they need no supports and a
+brim is optional. The back shell and the bezel are 176 mm wide and fill the bed, do not rotate them and print
+them without brim or skirt.
 
 ## Set up the Pi
 
@@ -101,19 +105,23 @@ sudo poweroff
 Run the doctor until every step says ok, it tells you what to fix. After `centre` wait until both servos
 stop, then press Ctrl+C. Pull the power plug once the green light of the Pi stops blinking.
 
-<img src="docs/steps-3.png" alt="Steps 9 to 12: doctor, centre and power off, the Pi in the tray with its power cable out through the notch, the USB cable round the posts, the servos and every cable in the neck" width="800" />
+<img src="docs/steps-3.png" alt="Steps 9 to 12: doctor, centre and power off, the Pi in the tray with its power cable out through the notch, the USB cable round the posts, both servos in the front half of the neck with their leads down the cable column and every sensor cable up it" width="800" />
 
 Now build the body as [docs/drawings.pdf](docs/drawings.pdf) shows, every screw comes from the kit. Mind this:
 
 - Do not turn the servo shafts by hand any more. The horns go on in the centre position, with the neck facing
   the front of the lid and both ears standing straight up.
+- Both servos go into the front half of the neck while it lies on its front face. Put the pan servo in about
+  6 mm higher than its place and slide it down onto its seats. Both leads leave at the spline end and run down
+  the cable column to the exit in the foot, then the back half goes on.
 - The screws cut their own thread. Turn them in slowly and stop when the head sits.
 - The notch in the back wall of the tray passes only the power cable, no plug. Widen it to about 13 x 10 mm
   with a file, or cut the cable, lead it in and join it again inside.
-- Leave at most 25 mm of the sensor cables below the neck, they are short.
+- Leave at most 25 mm of the sensor cables below the neck, they are short. The left and right ones only just
+  reach their sensors.
 - Do not glue the caps, screws sit under them.
 
-<img src="docs/steps-4.png" alt="Steps 13 to 16: the neck closed with two screws B, the neck on the horn under the lid with screw G, every cable on the UNO under the lid and three screws E, the ears with screws G and F" width="800" />
+<img src="docs/steps-4.png" alt="Steps 13 to 16: the back half on the neck and two screws B from below, the neck on the horn under the lid with screw G, every cable on the UNO under the lid and three screws E, the ears with screws G and F" width="800" />
 
 <img src="docs/steps-5.png" alt="Steps 17 to 20: the back shell on the ears with four screws C, the sensors on their pegs, the panel and the bezel with eight screws D, the lid on the tray with the four feet, screws A and the caps" width="800" />
 
