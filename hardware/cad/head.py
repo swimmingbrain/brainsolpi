@@ -3,16 +3,17 @@
 head frame at pan 0 and tilt 0: u = x to the right, v = z minus the tilt axis height,
 n = y minus the back face of the head, n grows toward the front
 the back shell prints on its back face and the bezel on its front face, both visible faces
-come off the bed, the ears print flat so their layers run along the load
+come off the bed, the ears stand on the end face that meets the head, so every recess in them
+opens sideways and needs no support
 """
 
 import math
 
-from build123d import Plane, Polygon, extrude, loft
+from build123d import GeomType, Plane, Polygon, chamfer, extrude, loft
 
 from . import kit
 from . import params as P
-from .helpers import box, cone, cyl, poly_prism, stadium_points, teardrop, union_all
+from .helpers import box, cone, cyl, poly_prism, roof, stadium_points, union_all
 
 N_ARC = 10
 CABLE_U = P.HEAD_CABLE_U
@@ -313,20 +314,32 @@ def hull2d(points):
     return lower[:-1] + upper[:-1]
 
 
+EAR_CORNER_R = 2.0  # corners of the ear where it meets the head
+
+
+def ear_end_t():
+    """half width of the flat end face, where the 45 degree tangents of the corners meet it"""
+    return P.EAR_W / 2 - EAR_CORNER_R + EAR_CORNER_R * (math.sqrt(2) - 1)
+
+
 def ear_outline():
-    """ear shape in (s, t), s from the tilt axis toward the head, t up at tilt 0"""
+    """ear shape in (s, t), s from the tilt axis toward the head, t up at tilt 0
+
+    the corners at the head end are round down to 45 degrees and then run straight into the end
+    face, so the ear standing on that face has no overhang steeper than 45 degrees
+    """
     pts = []
     for k in range(48):
         a = 2 * math.pi * k / 48
         pts.append((P.EAR_HUB_R * math.cos(a), P.EAR_HUB_R * math.sin(a)))
     s1 = P.HEAD_OFFSET
     hw = P.EAR_W / 2
-    rc = 2.0
+    rc = EAR_CORNER_R
     for sc, tc in ((s1 - rc, hw - rc), (s1 - rc, -hw + rc)):
-        for k in range(12):
-            a = 2 * math.pi * k / 12
+        for k in range(24):
+            a = 2 * math.pi * k / 24
             pts.append((sc + rc * math.cos(a), tc + rc * math.sin(a)))
-    pts += [(s1, -hw + rc), (s1, hw - rc)]
+    pts += [(s1, -ear_end_t()), (s1, ear_end_t())]
     pts = [(min(x, s1), y) for x, y in pts]
     return hull2d(pts)
 
@@ -336,79 +349,115 @@ def ear_plane(x):
     return Plane(origin=(x, P.TURRET_Y, P.Z_TILT), x_dir=(0, 1, 0), z_dir=(1, 0, 0))
 
 
-def ear_box(side, s0, s1, t0, t1, z0, z1):
-    """box in the ear frame, s and t as in ear_outline, z from the inner face outward"""
+def ear_prism(side, pts, z0, z1):
+    """prism of a polygon in (s, t) from z0 to z1, z from the inner face outward"""
     xi = side * (P.NECK_W / 2 + P.EAR_GAP)
-    xa, xb = xi + side * z0, xi + side * z1
-    return box(min(xa, xb), max(xa, xb), P.TURRET_Y + s0, P.TURRET_Y + s1, P.Z_TILT + t0, P.Z_TILT + t1)
+    xa, xb = sorted((xi + side * z0, xi + side * z1))
+    return extrude(ear_plane(xa) * Polygon(*pts, align=None), xb - xa)
 
 
-def hole_roof(side, r, z, recess):
-    """slot then square over a round hole that starts in a bridged ceiling at z
+def ear_side_prism(side, pts, half):
+    """prism of a polygon in (s, z) across t from minus half to half, z from the inner face outward"""
+    xi = side * (P.NECK_W / 2 + P.EAR_GAP)
+    pl = Plane(origin=(xi, P.TURRET_Y, P.Z_TILT + side * half), x_dir=(0, 1, 0), z_dir=(0, 0, -side))
+    return extrude(pl * Polygon(*pts, align=None), 2 * half)
 
-    the ceiling bridges across t, so the first step leaves a slot as wide as the hole that runs
-    along t out to the walls of the recess and the bridge lines on both sides of it land on walls
-    at both ends, the second step bridges across the slot and leaves a square, the round hole
-    starts above, each step is two layers of the ears so a 0.2 profile still prints every step
+
+def ear_rib(side):
+    """rib that carries the hub down to the end face, the ear prints standing on that face
+
+    seen from outside its sides leave the hub on tangents and end EAR_RIB_W apart on the end face,
+    its top is level with the foot of the hub chamfer and falls in a plane from the lowest point of
+    the hub to EAR_RIB_H above the plate at the end face, so the hub has plastic under it all the
+    way down and no face of the rib leans out more than 20 degrees
     """
-    L = 2 * P.LAYER_EAR
-    slot = ear_box(side, -r, r, -50.0, 50.0, z - 0.01, z + L) & recess
-    return slot + ear_box(side, -r, r, -r, r, z + L - 0.01, z + 2 * L)
+    R = P.EAR_HUB_R
+    s1 = P.HEAD_OFFSET
+    w = P.EAR_RIB_W / 2
+    a = math.atan2(w, s1) + math.acos(R / math.hypot(s1, w))
+    ts, tt = R * math.cos(a), R * math.sin(a)
+    z_top = P.EAR_T + P.EAR_HUB_H - P.EDGE
+    rib = ear_prism(side, [(ts, -tt), (s1, -w), (s1, w), (ts, tt)], P.EAR_T - 1.0, z_top)
+    z_end = P.EAR_T + P.EAR_RIB_H
+    k = (z_top - z_end) / (s1 - R)
+    slope = [(R, z_top), (s1 + 1.0, z_end - k), (s1 + 1.0, z_top + 2.0), (R, z_top + 2.0)]
+    return rib - ear_side_prism(side, slope, P.EAR_W)
+
+
+def end_face_chamfer(body):
+    """small chamfer round the end face against elephant foot, the corner flares need none"""
+    y_end = P.TURRET_Y + P.HEAD_OFFSET
+    edges = []
+    for e in body.edges():
+        vs = e.vertices()
+        if e.geom_type != GeomType.LINE or any(abs(v.Y - y_end) > 1e-4 for v in vs):
+            continue
+        a, b = vs[0], vs[1]
+        # skip the short ends of the plate at the corner flares
+        if abs(a.Z - b.Z) < 1e-4 and abs(abs(a.Z - P.Z_TILT) - ear_end_t()) < 1e-3:
+            continue
+        edges.append(e)
+    return chamfer(edges, P.EAR_FOOT_C)
 
 
 def ear(side):
     """side -1 is the left ear with the horn, side +1 the right ear with the pivot screw
 
-    the ears print on the inner face, flat against the neck wall with the ear gap between, the
-    horn pocket is the only recess in that face, its ceiling sits on a layer line and every bridge
-    line of it lands on a wall at both ends
+    the ears print standing on the end face that meets the head, tilt axis level, so the horn
+    pocket, the holes and the cap recess all open sideways, their round tops get a 45 degree roof
+    and the hub stands on a rib that runs down to the end face
     """
     xi = side * (P.NECK_W / 2 + P.EAR_GAP)
     xo = side * (P.NECK_W / 2 + P.EAR_GAP + P.EAR_T)
     xh = side * (P.NECK_W / 2 + P.EAR_GAP + P.EAR_T + P.EAR_HUB_H)
     lo = min(xi, xo)
+    c = (P.TURRET_Y, P.Z_TILT)
+    up = (0, -1, 0)  # up on the bed, away from the head
     plate = extrude(ear_plane(lo) * Polygon(*ear_outline(), align=None), P.EAR_T)
-    hub = cyl("x", P.EAR_HUB_R, min(xi, xh), max(xi, xh), (P.TURRET_Y, P.Z_TILT))
+    hub = cyl("x", P.EAR_HUB_R, min(xi, xh), max(xi, xh), c)
     # 0.8 chamfer on the hub rim
-    hub_ch = cone("x", P.EAR_HUB_R, P.EAR_HUB_R - P.EDGE, xh - side * P.EDGE, xh, (P.TURRET_Y, P.Z_TILT))
-    hub = (hub - cyl("x", P.EAR_HUB_R + 1, xh - side * P.EDGE, xh + side * 1, (P.TURRET_Y, P.Z_TILT))) + hub_ch
+    hub_ch = cone("x", P.EAR_HUB_R, P.EAR_HUB_R - P.EDGE, xh - side * P.EDGE, xh, c)
+    hub = (hub - cyl("x", P.EAR_HUB_R + 1, xh - side * P.EDGE, xh + side * 1, c)) + hub_ch
     s1 = P.HEAD_OFFSET
-    body = plate + hub
+    body = plate + hub + ear_rib(side)
     cuts = []
     if side < 0:
         # horn pocket, hub and arm snug from the inner face to just past the arm, the arm points to
-        # the head, the horn seat stays where the tilt servo expects it
+        # the head and down on the bed, the horn seat stays where the tilt servo expects it
         pd = P.HORN_POCKET_DEPTH
-
-        def pocket(z1):
-            # local z of the arm solid runs from the inner face outward
-            arm = kit.arm_solid(1, P.HORN_SINGLE_LEN, 0.0, z1 + 0.01, grow=P.FIT_SNUG)
-            arm = arm + cyl("z", P.HORN_HUB_D / 2 + P.FIT_SNUG, 0.0, z1 + 0.01)
-            return kit.frame_map(arm, (xi + 0.01, P.TURRET_Y, P.Z_TILT), (0, 1, 0), (side, 0, 0))
-
-        cuts.append(pocket(pd))
-        # screw hole from the pocket ceiling to the cap recess, its roof steps so the pocket ceiling
-        # has no loose bridge lines around it
+        arm = kit.arm_solid(1, P.HORN_SINGLE_LEN, 0.0, pd + 0.01, grow=P.FIT_SNUG)
+        cuts.append(kit.frame_map(arm, (xi + 0.01, P.TURRET_Y, P.Z_TILT), (0, 1, 0), (side, 0, 0)))
+        rp = P.HORN_HUB_D / 2 + P.FIT_SNUG
+        cuts.append(cyl("x", rp, xi - side * 0.01, xi + side * pd, c))
+        cuts.append(roof("x", rp, xi - side * 0.01, xi + side * pd, c, up))
+        # screw hole from the pocket floor to the cap recess
         rh = P.HORN_SCREW_HEAD_D / 2 + 0.3
-        cuts.append(cyl("x", rh, xh - 1, xi + side * (pd - 0.01), (P.TURRET_Y, P.Z_TILT)))
-        cuts.append(hole_roof(side, rh, pd, pocket(pd + 1.0)))
+        cuts.append(cyl("x", rh, xh + side * 1, xi + side * (pd - 0.01), c))
+        cuts.append(roof("x", rh, xh + side * 1, xi + side * (pd - 0.01), c, up))
     else:
         # pivot screw threads through the whole ear from the countersink to the inner face and turns
-        # in the bearing of the neck
+        # in the bearing of the neck, the roof of the hole stays inside the thread of the screw
         csk_top = xh - side * P.CAP_T
         h = (P.M3_CSK_D - P.M3_TAP) / 2
-        cuts.append(cyl("x", P.M3_TAP / 2, xi - side * 0.01, csk_top, (P.TURRET_Y, P.Z_TILT)))
-        cuts.append(cone("x", P.M3_TAP / 2, P.M3_CSK_D / 2 + 0.01, csk_top - side * h, csk_top + side * 0.01, (P.TURRET_Y, P.Z_TILT)))
-    # cap recess with a small pry notch on the underside
-    cuts.append(cyl("x", P.CAP_D / 2, xh - side * P.CAP_T, xh + side, (P.TURRET_Y, P.Z_TILT)))
+        cuts.append(cyl("x", P.M3_TAP / 2, xi - side * 0.01, csk_top, c))
+        cuts.append(roof("x", P.M3_TAP / 2, xi - side * 0.01, csk_top, c, up, flat=P.M3_TAP / 2 + 0.15))
+        cuts.append(cone("x", P.M3_TAP / 2, P.M3_CSK_D / 2 + 0.01, csk_top - side * h, csk_top + side * 0.01, c))
+    # cap recess with a small pry notch on the underside, its roof is flat 0.1 above the round
+    cuts.append(cyl("x", P.CAP_D / 2, xh - side * P.CAP_T, xh + side, c))
+    cuts.append(roof("x", P.CAP_D / 2, xh - side * P.CAP_T, xh + side, c, up, flat=P.CAP_D / 2 + 0.1))
     cuts.append(box(min(xh, xh - side * P.CAP_T), max(xh, xh - side * P.CAP_T) + 0.0 + 1.0 * (side > 0),
                     P.TURRET_Y - 0.8, P.TURRET_Y + 0.8, P.Z_TILT - P.CAP_D / 2 - 1.0, P.Z_TILT - P.CAP_D / 2 + 0.5))
-    # tap holes in the end of the plate for the screws from inside the head, roofed for printing
+    # tap holes in the end of the plate for the screws from inside the head, they stand upright on
+    # the bed, a 45 degree mouth against elephant foot and a pointed end that needs no bridge
     xu = side * ear_screw_u()
+    y_end = P.TURRET_Y + s1
+    r = P.M3_TAP / 2
     for v in EAR_SCREWS_V:
-        cuts.append(teardrop("y", P.M3_TAP / 2, P.TURRET_Y + s1 - P.EAR_SCREW_DEPTH, P.TURRET_Y + s1 + 0.1,
-                             (xu, P.Z_TILT + v), (side, 0, 0), flat=P.M3_TAP / 2 + 0.3))
-    return body - union_all(cuts)
+        cv = (xu, P.Z_TILT + v)
+        cuts.append(cyl("y", r, y_end - P.EAR_SCREW_DEPTH, y_end + 0.1, cv))
+        cuts.append(cone("y", r, 0.05, y_end - P.EAR_SCREW_DEPTH, y_end - P.EAR_SCREW_DEPTH - r + 0.05, cv))
+        cuts.append(cone("y", r + P.EAR_FOOT_C + 0.01, r, y_end + 0.01, y_end - P.EAR_FOOT_C, cv))
+    return end_face_chamfer(body - union_all(cuts))
 
 
 def cap():

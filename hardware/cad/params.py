@@ -11,7 +11,6 @@ after changing a value run `uv run build.py` again, every part and check follows
 BED = (178.0, 178.0, 178.0)  # usable box we allow per part, 1 mm from each edge of the 180 mm plate
 NOZZLE = 0.4
 LAYER = 0.2
-LAYER_EAR = 0.16  # the ears print finer, every ceiling over one of their recesses sits on a layer line
 WALL_MIN = 1.6  # four perimeters, anything thinner flexes and looks cheap
 FIT_SLIDE = 0.25  # per side, parts that must slide or turn
 FIT_SNUG = 0.15  # per side, parts that are pushed in and stay
@@ -255,6 +254,9 @@ EAR_HUB_R = 10.25
 EAR_HUB_H = 5.5  # with the hub the pivot screw gets 8.5 mm of thread in the ear
 EAR_W = 26.0  # ear width where it meets the head
 EAR_SCREW_DEPTH = 8.0  # tap holes in the end of the ear plate
+EAR_RIB_W = 8.0  # the rib under the hub where it meets the end face, the ears print standing on that face
+EAR_RIB_H = 2.5  # rib above the outer face of the plate at the end face
+EAR_FOOT_C = 0.4  # chamfer round the end face and the tap hole mouths against elephant foot
 HORN_SEAT_DEPTH = 1.9  # servo side of the tilt horn arm below the inner face of the left ear, it places the tilt servo
 HORN_POCKET_DEPTH = 3.72  # inner face of the left ear to the pocket floor, 0.22 past the horn arm
 CAP_D = 12.0

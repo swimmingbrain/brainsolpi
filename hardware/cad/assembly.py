@@ -69,8 +69,8 @@ def build_parts():
     parts.append(Part("neck_back", back, "neck", "dark", print_rot=((1, 0, 0), 90.0), note="back face on the bed"))
     parts.append(Part("head_back", head.back_shell(), "head", "dark", print_rot=((1, 0, 0), 90.0), note="back face on the bed"))
     parts.append(Part("head_bezel", head.bezel(), "head", "dark", print_rot=((1, 0, 0), -90.0), note="front face on the bed"))
-    parts.append(Part("ear_horn", head.ear(-1), "head", "dark", print_rot=((0, 1, 0), 90.0), note="inner face on the bed"))
-    parts.append(Part("ear_pivot", head.ear(1), "head", "dark", print_rot=((0, 1, 0), -90.0), note="inner face on the bed"))
+    parts.append(Part("ear_horn", head.ear(-1), "head", "dark", print_rot=((1, 0, 0), -90.0), note="end face on the bed"))
+    parts.append(Part("ear_pivot", head.ear(1), "head", "dark", print_rot=((1, 0, 0), -90.0), note="end face on the bed"))
     caps = head.caps_placed()
     # the right cap is the left one mirrored in place, same print
     mirror = np.diag([-1.0, 1.0, 1.0, 1.0])
