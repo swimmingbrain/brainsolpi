@@ -1304,7 +1304,9 @@ def sheet_screws_hinge(m):
     th = kit.tilt_horn_frame()[0]
     front.note((th[0] + sl_horn - 1, ty, zt - 2.5), None, "tilt horn, kit", arrow=False, th=2.8,
                at=(front.p((th[0] + sl_horn, ty, zt))[0] + 14, bot_y - 10))
-    tag(front, (-P.NECK_W / 2, ty + 10, P.BASE_TOP + 30), str(it["neck_front"]), "l", 0, gap=8)
+    # the dot on the wall that faces the balloon, so the leader does not cross the neck
+    xw = P.NECK_W / 2 if front.p((P.NECK_W / 2, ty, zt))[0] < front.p((-P.NECK_W / 2, ty, zt))[0] else -P.NECK_W / 2
+    tag(front, (xw, ty + 10, P.BASE_TOP + 30), str(it["neck_front"]), "l", 0, gap=8)
     return sh
 
 
@@ -1335,7 +1337,8 @@ def sheet_screws_head(m):
                  at=(side.p((hw, yb + s_shell, zt + hh))[0], top_y))
     side.balloon((hw, yb + s_bezel + 8, zt + hh - 4), None, str(it["head_bezel"]),
                  at=(side.p((hw, yb + s_bezel + 7, zt + hh))[0] + 6, top_y))
-    side.note((hw, yb + s_panel + 1.2, zt + 20), None, "solar panel, kit", arrow=False, th=2.8,
+    yp = yb + s_panel + P.PANEL_BACK_N + P.PANEL_T / 2  # the middle of the panel, where its dot sits
+    side.note((hw, yp, zt + 20), None, "solar panel, kit", arrow=False, th=2.8,
               at=(side.right + 8, side.p((hw, yb + s_panel, zt + 20))[1] + 10))
     side.note((-hw + 20, yb + s_mod + P.PCB_BOTTOM_N + 0.8, zt - 25), None, "sensor modules, kit", arrow=False,
               th=2.8, at=(side.right + 8, side.p((hw, yb + s_panel, zt - 30))[1] - 12))
