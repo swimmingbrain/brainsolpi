@@ -39,6 +39,7 @@ def test_defaults_match_the_shared_contract():
     assert s.pan_limits == (-88, 88)
     assert s.tilt_limits == (4, 176)
     assert s.park == (0, 90)
+    assert s.panel == {"w": 137.0, "h": 85.0, "eff": 0.15}
     assert s.problems == []
 
 
