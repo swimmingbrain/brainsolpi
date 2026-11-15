@@ -1549,18 +1549,23 @@ def sheet_head_back(m):
     yb, zt = P.HEAD_BACK_Y, P.Z_TILT
     hw, hh = P.HEAD_W / 2, P.HEAD_H / 2
     floor = [((-90, yb + P.BACK_T, zt + hh), (90, yb + P.BACK_T, zt + hh), 0.3)]
-    vs = part_views(sh, m, "head_back", 1.0, {"main": (118, 192), "below": (118, 118), "far": (305, 192)},
+    # two views of 176 mm side by side at 1:1 leave room for one dimension on each side of a view
+    vs = part_views(sh, m, "head_back", 1.0, {"main": (120, 192), "below": (120, 118), "far": (305, 192)},
                     (0, 1, 0), (0, 0, 1), hidden={"below": floor})
     front, top, rear = vs["main"], vs["below"], vs["far"]
     rear.dim((-hw, yb, zt + hh), (hw, yb, zt + hh), "h", rear.top + 8)
-    rear.dim((hw, yb, zt - hh), (hw, yb, zt + hh), "v", rear.left - 8)
+    # the height on the view from the front, its left side is free
+    ul = hw if front.p((hw, yb, zt))[0] < front.p((-hw, yb, zt))[0] else -hw
+    front.dim((ul, yb, zt - hh), (ul, yb, zt + hh), "v", front.left - 7)
     bs = head.BEZEL_SCREWS
     for u, v in bs:
         rear.cmark((u, yb, zt + v), P.M3_CSK_D / 2)
     rear.dim((bs[0][0], yb, zt + bs[0][1]), (bs[2][0], yb, zt + bs[0][1]), "h", rear.bottom - 8)
     rear.dim((bs[4][0], yb, zt + bs[4][1]), (bs[6][0], yb, zt + bs[4][1]), "h", rear.bottom - 16)
-    rear.dim((bs[0][0], yb, zt + bs[0][1]), (bs[0][0], yb, zt + bs[1][1]), "v", rear.right + 8)
-    rear.dim((bs[4][0], yb, zt + bs[4][1]), (bs[4][0], yb, zt + bs[5][1]), "v", rear.right + 15)
+    # the screw rows on the right of the view from behind, so the extension lines stay short
+    i0, i4 = (2, 6) if rear.p((bs[2][0], yb, zt))[0] > rear.p((bs[0][0], yb, zt))[0] else (0, 4)
+    rear.dim((bs[i0][0], yb, zt + bs[i0][1]), (bs[i0][0], yb, zt + bs[i0 + 1][1]), "v", rear.right + 6)
+    rear.dim((bs[i4][0], yb, zt + bs[i4][1]), (bs[i4][0], yb, zt + bs[i4 + 1][1]), "v", rear.right + 12)
     hole(rear, (bs[1][0], yb, zt + bs[1][1]), P.M3_CSK_D / 2, None, "8x " + csk(), d.letter,
          at=(rear.p((bs[1][0], 0, 0))[0] - 6, rear.top + 18))
     cx, cz = corner(hw, hh, P.R_MID)
@@ -1573,11 +1578,12 @@ def sheet_head_back(m):
         for v in ev:
             front.cmark((s * eu, yb + P.BACK_T, zt + v), P.M3_CSK_D / 2)
     front.dim((-eu, yb, zt + ev[0]), (eu, yb, zt + ev[0]), "h", front.bottom - 8)
-    front.dim((eu, yb, zt + ev[0]), (eu, yb, zt + ev[1]), "v", front.right + 8)
+    ur = -ul / hw * eu
+    front.dim((ur, yb, zt + ev[0]), (ur, yb, zt + ev[1]), "v", front.right + 6)
     hole(front, (eu, yb + P.BACK_T, zt + ev[1]), P.M3_CSK_D / 2, None, "4x " + csk(), c.letter,
          at=(front.p((eu, 0, 0))[0] - 10, front.top + 10))
-    top.dim((-hw + 20, yb, zt + hh), (-hw + 20, yb + P.HEAD_JOINT, zt + hh), "v", top.left - 8)
-    top.dim((hw - 20, yb, zt + hh), (hw - 20, yb + P.BACK_T, zt + hh), "v", top.right + 8, tpos="right")
+    top.dim((-hw + 20, yb, zt + hh), (-hw + 20, yb + P.HEAD_JOINT, zt + hh), "v", top.left - 7)
+    top.dim((hw - 20, yb, zt + hh), (hw - 20, yb + P.BACK_T, zt + hh), "v", top.right + 7, tpos="right")
     view_label(sh, rear, "seen from behind", dy=26)
     iso_view(sh, m, "head_back", (1, 1, 1), 0.5, (150, 62), "scale 1:2", beside=True)
     return sh
