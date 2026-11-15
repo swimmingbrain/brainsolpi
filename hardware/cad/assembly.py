@@ -84,6 +84,12 @@ def fit_test_part():
     return Part("fit_test", fittest.fit_plate(), "test", "body", note="plate on the bed, print first")
 
 
+def servo_test_part():
+    from . import fittest
+    return Part("servo_test", fittest.servo_slice(), "test", "dark", print_rot=((1, 0, 0), 90.0),
+                note="cut face on the bed, a tilt servo goes in like into the back half")
+
+
 def electronics():
     """keep out solids per group, as meshes"""
     out = {"base": {}, "neck": {}, "head": {}}

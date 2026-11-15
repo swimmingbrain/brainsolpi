@@ -19,6 +19,7 @@ SETTINGS = {
     "ear_pivot": (0.16, 40, "gyroid"),
     "cap": (0.12, 100, "concentric"),
     "fit_test": (0.2, 15, "gyroid"),
+    "servo_test": (0.2, 25, "gyroid"),
 }
 
 

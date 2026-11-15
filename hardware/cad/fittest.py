@@ -4,6 +4,9 @@ servo frame, horn pocket, module peg pair, three tap holes, a pi pin, a cap rece
 corner of the panel pocket with its lip, all with the same numbers as the real parts, and a
 strip of the lid signature under the plate to judge the engraving before the long lid print
 print one cap next to it
+
+the servo test is a slice of the back half of the neck around the tilt servo, the pocket with
+its crush ribs, the half keyhole for both bosses and the way out for the lead, about ten minutes
 """
 
 import math
@@ -101,6 +104,15 @@ def fit_plate():
     cut.append(signature.sample_cut(0.0, -16.0))
     body = union_all([plate] + add)
     return (body - union_all(cut)) + union_all(ribs)
+
+
+def servo_slice(depth=8.5):
+    """the back half of the neck around the tilt servo, cut off depth behind the parting plane,
+    it prints on the cut face like the back half prints on its back"""
+    t = P.TURRET_Y
+    _, back = neck.halves()
+    zb = neck.tilt_holder().bounding_box().min.Z - 1.0
+    return back & box(-P.NECK_W / 2 - 1.0, neck.column_x0() + 1.0, t - depth, t, zb, P.NECK_TOP + 1.0)
 
 
 _ = math

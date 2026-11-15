@@ -213,9 +213,11 @@ def main():
     log("signature check", t0)
 
     fit = assembly.fit_test_part()
-    parts_rep.append(checks.part_report(fit))
-    est[fit.name] = estimate.estimate(fit.name, fit.print_mesh())
-    exporting.export_parts(parts + [fit], export_dir)
+    tests = [fit, assembly.servo_test_part()]
+    for p in tests:
+        parts_rep.append(checks.part_report(p))
+        est[p.name] = estimate.estimate(p.name, p.print_mesh())
+    exporting.export_parts(parts + tests, export_dir)
     elec_shapes = {}
     elec_shapes.update(kit.base_electronics())
     elec_shapes.update(kit.neck_electronics())
