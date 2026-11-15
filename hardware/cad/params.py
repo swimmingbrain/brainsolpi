@@ -8,7 +8,7 @@ after changing a value run `uv run build.py` again, every part and check follows
 
 # print rules for the A1 mini with a 0.4 mm nozzle and matte PLA
 
-BED = (175.0, 175.0, 175.0)  # usable box we allow per part, the plate is 180 mm
+BED = (178.0, 178.0, 178.0)  # usable box we allow per part, 1 mm from each edge of the 180 mm plate
 NOZZLE = 0.4
 LAYER = 0.2
 LAYER_FIRST = 0.2  # the bambu profiles start with 0.2 whatever the layer height
