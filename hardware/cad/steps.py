@@ -667,7 +667,8 @@ def ears_on(parts, out):
     horn = horn_mesh(kit.tilt_horn_frame())
     horn.apply_transform(shift((sl, 0, 0)) @ A.group_matrix("head", 0.0, tilt))
     items.append((horn, "#e4e1da", 1.0, "kit"))
-    out_g, out_f = 14.0, 16.0
+    # the horn screw comes from the far side, pulled out further so it shows beside its ear
+    out_g, out_f = 30.0, 16.0
     sg, g = screws("G", out_g, only=[1], move=shift((sl, 0, 0)))
     sf, f = screws("F", out_f, move=shift((sr, 0, 0)))
     items += sg + sf + loose_tops()
@@ -675,7 +676,8 @@ def ears_on(parts, out):
     hf, df = f.places[0]
     marks = {"G": tuple(np.asarray(hg) - np.asarray(dg) * (out_g + 1.0) + (sl, 0, 0)),
              "F": tuple(np.asarray(hf) - np.asarray(df) * (out_f + 1.0) + (sr, 0, 0))}
-    cam = camera((0.0, P.TURRET_Y, 104.0), 12, 16, 250)
+    # a little from the right, so the rib on the outer face of the right ear shows
+    cam = camera((0.0, P.TURRET_Y, 104.0), 34, 18, 250)
     return [shot("steps/ears", out, items, cam, size=STEP_SIZE, floor=False, marks=marks)]
 
 
