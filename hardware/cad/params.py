@@ -43,8 +43,9 @@ R_SMALL = 6.0  # neck and foot corners
 GAP = 0.8  # the shadow gap between lid and tray, and the width of every parting groove
 EDGE = 0.8  # crisp chamfer on outer edges
 
-# sg90 class servo, both servos are the same
-# measure with calipers, the model is the case, the tabs, the round gear boss and the spline
+# sg90 class servo, both servos are the same, the keyestudio micro servo of the kit
+# measure with calipers, the model is the case, the tabs, the two round bosses on the top cover,
+# the spline, the screw heads on the bottom and the lead
 
 SERVO_L = 22.9  # case length, the direction of the mounting tabs
 SERVO_W = 12.2  # case width
@@ -55,9 +56,14 @@ SERVO_TAB_T = 2.5
 SERVO_TAB_Z = 15.6  # underside of the tabs above the case bottom
 SERVO_BOSS_R = 5.9  # round gear boss on the top cover around the spline
 SERVO_BOSS_TOP = 26.4  # face of the gear boss above the case bottom
+SERVO_BOSS2_R = 2.6  # small round boss beside the gear boss, read from a photo
+SERVO_BOSS2_X = 7.4  # its centre from the spline axis toward the far end, its far edge is about 10 out
+SERVO_BOSS2_TOP = 26.4  # its face above the case bottom, taken as high as the gear boss
 SERVO_SPLINE_D = 4.8
 SERVO_SPLINE_LEN = 3.2  # how far the spline sticks out of the boss face
-SERVO_LEAD_Z = 4.5  # the lead leaves the far short end this high above the case bottom
+SERVO_SCREW_PROUD = 0.5  # the four case screws stand this far out of the case bottom
+SERVO_LEAD_Z = 1.0  # the flat lead leaves the near short end, the spline side, this high above the case bottom
+SERVO_LEAD_Y = 3.6  # middle of the lead off the middle of the case, toward one long side, either side fits
 SERVO_LEAD_W = 4.0
 SERVO_LEAD_T = 1.4
 

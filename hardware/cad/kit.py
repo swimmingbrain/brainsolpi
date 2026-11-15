@@ -20,6 +20,14 @@ def frame_map(shape, origin, x_dir, z_dir):
 # servo
 
 
+def servo_screw_spots():
+    """the four case screws in the bottom, near the corners"""
+    near = P.SERVO_SHAFT_FROM_END
+    far = near - P.SERVO_L
+    w = P.SERVO_W / 2
+    return [(x, y) for x in (far + 1.6, near - 1.6) for y in (-w + 1.6, w - 1.6)]
+
+
 def servo_local():
     """case bottom at z = 0, spline axis on the z axis, the case runs toward minus x"""
     near = P.SERVO_SHAFT_FROM_END
@@ -28,10 +36,14 @@ def servo_local():
     s = box(far, near, -w, w, 0, P.SERVO_H)
     s += box(far - P.SERVO_TAB_LEN, near + P.SERVO_TAB_LEN, -w, w, P.SERVO_TAB_Z, P.SERVO_TAB_Z + P.SERVO_TAB_T)
     s += cyl("z", P.SERVO_BOSS_R, P.SERVO_H - 0.01, P.SERVO_BOSS_TOP)
+    # the small boss beside it on the long axis, toward the far end
+    s += cyl("z", P.SERVO_BOSS2_R, P.SERVO_H - 0.01, P.SERVO_BOSS2_TOP, (-P.SERVO_BOSS2_X, 0.0))
     s += cyl("z", P.SERVO_SPLINE_D / 2, P.SERVO_BOSS_TOP - 0.01, P.SERVO_BOSS_TOP + P.SERVO_SPLINE_LEN)
-    # where the lead leaves the far end, the first few millimetres are stiff
-    s += box(far - 2.5, far + 0.01, -P.SERVO_LEAD_W / 2, P.SERVO_LEAD_W / 2,
-             P.SERVO_LEAD_Z - P.SERVO_LEAD_T / 2 - 0.4, P.SERVO_LEAD_Z + P.SERVO_LEAD_T / 2 + 0.4)
+    for x, y in servo_screw_spots():
+        s += cyl("z", 1.0, -P.SERVO_SCREW_PROUD, 0.01, (x, y))
+    # the lead leaves the near end at the bottom, toward one long side, the first few millimetres are stiff
+    s += box(near - 0.01, near + 2.5, P.SERVO_LEAD_Y - P.SERVO_LEAD_W / 2, P.SERVO_LEAD_Y + P.SERVO_LEAD_W / 2,
+             P.SERVO_LEAD_Z - P.SERVO_LEAD_T / 2 - 0.2, P.SERVO_LEAD_Z + P.SERVO_LEAD_T / 2 + 0.2)
     return s
 
 

@@ -43,7 +43,7 @@ COLOURS = {
     "led_amber": "#d0a14e",
     "card": "#3a4250",
     "ldr": "#b79b74",  # the face of a photoresistor
-    "servo": "#53627a",  # the kit servos are blue, here a quiet slate blue
+    "servo": "#53627a",  # the kit servos are black, a quiet slate blue keeps them apart from the dark neck
     "label": "#3c4658",
 }
 
@@ -469,7 +469,7 @@ def uno_usb_port():
 
 
 # sg90 class servo in the frame of kit.servo_local: case bottom at z = 0, the spline on the z axis,
-# the case runs toward minus x, the lead leaves the far end
+# the case runs toward minus x, the lead leaves the near end at the bottom
 
 
 def servo_model():
@@ -498,9 +498,13 @@ def servo_model():
         tab -= box(min(hx, x1) - (0 if sgn > 0 else 1), max(hx, x1) + (1 if sgn > 0 else 0), -0.5, 0.5,
                    P.SERVO_TAB_Z - 1, P.SERVO_TAB_Z + 3)
         m.add("servo", tab)
-    # gear boss, the small bump beside it, the splined output with its screw hole
+    # gear boss, the small boss beside it, the splined output with its screw hole
     m.add("servo", cyl("z", P.SERVO_BOSS_R, h - 0.01, P.SERVO_BOSS_TOP))
-    m.add("servo", cyl("z", 2.8, h - 0.01, h + 1.6, (-7.6, 0.0)))
+    m.add("servo", cyl("z", P.SERVO_BOSS2_R, h - 0.01, P.SERVO_BOSS2_TOP, (-P.SERVO_BOSS2_X, 0.0)))
+    m.add("black", cyl("z", 0.4, P.SERVO_BOSS2_TOP - 0.3, P.SERVO_BOSS2_TOP + 0.01, (-P.SERVO_BOSS2_X, 0.0)))
+    # the four case screws stand a little out of the bottom
+    for x, y in kit.servo_screw_spots():
+        m.add("metal", cyl("z", 1.0, -P.SERVO_SCREW_PROUD, 0.01, (x, y)))
     teeth = 21
     r0, r1 = P.SERVO_SPLINE_D / 2 - 0.25, P.SERVO_SPLINE_D / 2
     pts = []
@@ -516,7 +520,7 @@ def servo_model():
 
 def servo_lead_exit():
     """where the three wires leave the case, middle of the flat lead, and the way they leave"""
-    return (P.SERVO_SHAFT_FROM_END - P.SERVO_L - 0.3, 0.0, P.SERVO_LEAD_Z), (-1.0, 0.0, 0.0)
+    return (P.SERVO_SHAFT_FROM_END + 0.3, P.SERVO_LEAD_Y, P.SERVO_LEAD_Z), (1.0, 0.0, 0.0)
 
 
 # keyestudio light sensor module and the bh1750 module, frame of kit.module_local: sensor end at
