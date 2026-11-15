@@ -1527,8 +1527,9 @@ def sheet_neck(m, name):
         part = m.shape(name)
         boss = across(part, (0, ty, z0 + P.FOOT_FLOOR_T / 2), (0, 1, 0)) / 2
         small = 2 * (P.SERVO_BOSS2_R + P.SERVO_BOSS_AIR)
-        hole(under, (0, ty, z0), boss, None, f"keyhole ⌀{num(2 * boss)} and ⌀{num(small)}",
-             at=(under.left - 14, under.bottom - 8))
+        # the leader ends on the round end of the small boss, clear of the cable exit beside the keyhole
+        hole(under, (-P.SERVO_BOSS2_X, ty, z0), small / 2, None, f"keyhole ⌀{num(2 * boss)} and ⌀{num(small)}",
+             at=(under.right + 10, under.top + 2))
         pin = across(part, (-6, ty + 1.0, P.Z_TILT - 20), (1, 0, 0))
         rear.note((-6, ty, P.Z_TILT - 20), None, f"4x ⌀{num(pin)}", r=pin / 2,
                   at=(rear.right + 12, rear.p((0, 0, P.Z_TILT - 20))[1] - 10))
