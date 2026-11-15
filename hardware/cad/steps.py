@@ -303,7 +303,7 @@ def tray_usb(parts, out):
 EXIT = {"L": (8.9, -34.6), "R": (10.05, -34.6), "U": (11.2, -34.6), "D": (12.35, -34.6),
         "lux": (9.0, -29.3), "pan": (10.35, -29.3), "tilt": (11.6, -29.3)}
 COLUMN = {"L": (10.4, -43.6), "R": (14.6, -43.6), "U": (10.4, -42.25), "D": (14.6, -42.25), "lux": (13.6, -40.9),
-          "pan": (10.0, -39.75), "tilt": (16.6, -39.75)}
+          "pan": (10.6, -38.6), "tilt": (13.0, -28.6)}
 TOP = {"L": (8.6, -34.9), "R": (12.6, -34.9), "U": (8.6, -33.6), "D": (12.6, -33.6), "lux": (11.0, -32.6)}
 SENSORS = ("L", "R", "U", "D", "lux")
 
@@ -329,16 +329,18 @@ def lead_down(which):
     cx, cy = COLUMN[which]
     ex, ey = EXIT[which]
     z0 = P.BASE_TOP + P.FOOT_FLOOR_T
-    # the pan lead climbs in its narrow channel at the far end of the servo and runs over it,
-    # the tilt lead drops from the lower end of its servo, both join the column
+    # both leads leave their servo at the spline end on the case bottom side, the pan lead goes
+    # straight through the wall into the column, the tilt lead comes out of the top of its servo,
+    # runs over to the column under the top wall and down its front side, both stay flat
+    a = lead_start(which)
+    x0, y0, z1 = a.o
     if which == "pan":
-        pts = [(-18.6, -32.6, 72.5), (-18.5, -33.0, 77.0), (-16.0, -33.4, 80.0), (-4.0, -33.6, 80.0),
-               (4.0, -33.6, 80.0), (8.8, -36.5, 78.5), (cx, cy - 0.5, 73.0), (cx, cy, 66.0)]
+        pts = [(x0 + 1.8, y0, z1), (cx - 0.4, y0 - 1.0, z1 - 1.2), (cx, cy + 0.6, z1 - 4.0), (cx, cy, 66.0)]
     else:
-        pts = [(0.0, -32.6, 86.5), (1.5, -33.4, 82.8), (6.0, -33.8, 82.6), (11.0, -35.0, 82.0), (13.8, -38.6, 79.5),
-               (cx, cy, 73.0), (cx, cy, 66.0)]
+        pts = [(x0, y0, z1 + 2.1), (x0 + 2.5, y0, z1 + 3.3), (x0 + 7.0, y0, z1 + 3.1), (cx, cy, z1 + 0.3),
+               (cx, cy, 100.0), (cx, cy, 80.0), (cx, cy, 66.0)]
     pts += [(cx, cy + 0.4, z0 + 8.5), (ex * 0.5 + cx * 0.5, cy + 2.2, z0 + 5.4), (ex, ey, z0 + 2.4), (ex, ey, z0 + 0.5)]
-    pins = [((cx, cy, 66.0), (1, 0, 0)), ((ex, ey, z0), (0, 1, 0))]
+    pins = [((cx, cy, 66.0), (0, 1, 0)), ((ex, ey, z0), (0, 1, 0))]
     return pts, pins
 
 

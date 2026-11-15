@@ -53,6 +53,25 @@ def head_exit():
     return kit.head_xyz(H.CABLE_U, 0.0, 0.0)
 
 
+def servo_lead_path(which):
+    """a servo lead from where it leaves the spline end of its case down the cable column to the
+    foot floor, pan 0, both servos are dropped in with the lead on the side the model has"""
+    frame = kit.pan_servo_frame() if which == "pan" else kit.tilt_servo_frame()
+    o, xd, zd = (np.asarray(v, float) for v in frame)
+    yd = np.cross(zd, xd)
+    near = P.SERVO_SHAFT_FROM_END
+    start = o + xd * (near + 0.3) + yd * P.SERVO_LEAD_Y + zd * P.SERVO_LEAD_Z
+    col = N.column_x0() + 4.0
+    if which == "pan":
+        # straight out of the near end through the wall into the column, then down
+        pts = [start, turret(col, 0.0, start[2]), turret(col, 0.0, P.BASE_TOP + 10.0)]
+    else:
+        # up out of the top end, over to the column under the top wall, down past the pivot boss
+        top = start[2] + 2.5
+        pts = [start, (start[0], start[1], top), turret(col, 0.0, top), turret(col, 0.0, P.BASE_TOP + 10.0)]
+    return [tuple(float(v) for v in p) for p in pts] + [exit_points()[1]]
+
+
 def module_plug_end(name):
     (su, sv), (iu, iv) = kit.sensor_layout()[name]
     off = P.LDR_FROM_END if name != "lux" else P.BH_CHIP_FROM_END
@@ -170,16 +189,8 @@ def budget():
                  "worst": f"pan {uno_pose[0]:.0f}, tilt {loop_pose:.0f}"})
     # servo leads, one plug at the uno end only
     dg = sum(P.UNO_DGVS_W) / 3
-    to, _, _ = kit.tilt_servo_frame()
-    tilt_lead = turret(to[0] - P.SERVO_LEAD_Z, 0.0, P.Z_TILT - (P.SERVO_L - P.SERVO_SHAFT_FROM_END) - 2.0)
-    tilt_path = [tilt_lead, turret(to[0] - P.SERVO_LEAD_Z, 0.0, P.Z_TILT - 21.0), turret(13.0, 0.0, P.Z_TILT - 21.0),
-                 turret(13.0, 0.0, P.BASE_TOP + 10.0), exit_points()[1]]
-    po, _, _ = kit.pan_servo_frame()
-    far = P.SERVO_SHAFT_FROM_END - P.SERVO_L
-    pan_lead = turret(far - 2.0, 0.0, po[2] - P.SERVO_LEAD_Z)
-    pan_path = [pan_lead, turret(far - 3.0, 0.0, po[2] + 3.0), turret(13.0, 0.0, po[2] + 3.0),
-                turret(13.0, 0.0, P.BASE_TOP + 10.0), exit_points()[1]]
-    for label, path, u in (("tilt servo to D10", tilt_path, P.UNO_D10_U), ("pan servo to D9", pan_path, P.UNO_D9_U)):
+    for label, path, u in (("tilt servo to D10", servo_lead_path("tilt"), P.UNO_D10_U),
+                           ("pan servo to D9", servo_lead_path("pan"), P.UNO_D9_U)):
         top = uno_pin_top(u, dg)
         uno_d, uno_pose = free_max(top, below, "neck", pans, [0.0])
         inner = poly_len(path) + ALLOW["servo"] + (P.LID_BOTTOM - 1.0 - 0) * 0
