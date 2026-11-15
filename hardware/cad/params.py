@@ -66,6 +66,10 @@ SERVO_LEAD_Z = 1.0  # the flat lead leaves the near short end, the spline side, 
 SERVO_LEAD_Y = 3.6  # middle of the lead off the middle of the case, toward one long side, either side fits
 SERVO_LEAD_W = 4.0
 SERVO_LEAD_T = 1.4
+# the pockets in the neck, the tabs set the servo along its shaft, the case gets air and crush ribs
+SERVO_PLAY = 0.5  # more air on every side of the case, one up to 1 mm longer and wider than above still goes in
+SERVO_BOSS_AIR = 0.5  # air around both bosses in every opening they pass
+SERVO_RIB_BITE = 0.1  # how far each crush rib reaches into a case of the size above
 
 # servo horns from the servo bag, both joints use the single arm horn
 # measure: hub diameter, total height from arm underside to hub top, arm thickness and length
@@ -225,7 +229,7 @@ PI_FINGER_D = 5.6
 
 # neck and turret
 
-NECK_W = 44.0  # room for the pan servo lead to bend up at the far end of the case
+NECK_W = 44.0  # the ears run outside the side walls, the tilt servo fits between them
 NECK_D = 30.0
 NECK_WALL = 2.0
 NECK_TOP_ABOVE_AXIS = 13.5

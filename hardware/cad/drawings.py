@@ -1524,8 +1524,10 @@ def sheet_neck(m, name):
     if front_half:
         hole(under, (xs[0], sy, z0), r_hole, None, "2x " + csk(), b.letter, at=(under.right + 10, under.bottom - 6))
         part = m.shape(name)
-        boss = across(part, (0, ty, z0 + P.FOOT_FLOOR_T / 2), (1, 0, 0)) / 2
-        hole(under, (0, ty, z0), boss, None, f"⌀{num(2 * boss)}", at=(under.left - 14, under.bottom - 8))
+        boss = across(part, (0, ty, z0 + P.FOOT_FLOOR_T / 2), (0, 1, 0)) / 2
+        small = 2 * (P.SERVO_BOSS2_R + P.SERVO_BOSS_AIR)
+        hole(under, (0, ty, z0), boss, None, f"keyhole ⌀{num(2 * boss)} and ⌀{num(small)}",
+             at=(under.left - 14, under.bottom - 8))
         pin = across(part, (-6, ty + 1.0, P.Z_TILT - 20), (1, 0, 0))
         rear.note((-6, ty, P.Z_TILT - 20), None, f"4x ⌀{num(pin)}", r=pin / 2,
                   at=(rear.right + 12, rear.p((0, 0, P.Z_TILT - 20))[1] - 10))
@@ -1535,7 +1537,7 @@ def sheet_neck(m, name):
                    at=(front.right + 4, front.bottom - 16))
         po = kit.pan_servo_frame()[0]
         front.note((po[0] - 8, ty, po[2] - 8), None,
-                   f"2x servo pocket {num(P.SERVO_L + 2 * P.FIT_SLIDE)} x {num(P.SERVO_W + 2 * P.FIT_SLIDE)}",
+                   f"2x servo pocket {num(P.SERVO_L + 2 * neck.side_air())} x {num(P.SERVO_W + 2 * neck.side_air())}",
                    at=(front.right - 4, front.bottom - 28))
     iso_view(sh, m, name, (1, -1, 1) if front_half else (1, 1, 1), 1.0, (345, 205))
     return sh
