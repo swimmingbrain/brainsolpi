@@ -1643,40 +1643,59 @@ def sheet_ears(m):
         xi = side * (P.NECK_W / 2 + P.EAR_GAP)
         xo = side * (P.NECK_W / 2 + P.EAR_GAP + P.EAR_T)
         xh = side * (P.NECK_W / 2 + P.EAR_GAP + P.EAR_T + P.EAR_HUB_H)
+        xr = xo + side * P.EAR_RIB_H
+        ye = ty + P.HEAD_OFFSET
+        eu = side * head.ear_screw_u()
+        # the tap holes in the end face show dashed in the first view, with their pointed ends
+        taps = [((eu, ye - P.EAR_SCREW_DEPTH - 2.0, zt + v), (eu, ye + 0.5, zt + v), P.M3_TAP / 2 + P.EAR_FOOT_C + 0.2)
+                for v in head.EAR_SCREWS_V]
         # both rows are seen from minus x, the horn ear shows its outside, the pivot ear its inside
         vs = part_views(sh, m, name, 2.0, {"main": (82, yrow), "right": (165, yrow), "far": (245, yrow)},
-                        (-1, 0, 0), (0, 0, 1))
+                        (-1, 0, 0), (0, 0, 1), hidden={"main": taps})
         a, end, b = vs["main"], vs["right"], vs["far"]
         outer, inner = (a, b) if side < 0 else (b, a)
+        part = m.shape(name)
         sh.text(a.left, a.top + 22, f"{NAMES[name]}, {m.parts[name].count}x", 3.5, ha="left")
-        a.dim((xh, ty - P.EAR_HUB_R, zt - P.EAR_W / 2), (xh, ty + P.HEAD_OFFSET, zt - P.EAR_W / 2), "h",
-              a.bottom - 8)
-        a.dim((xo, ty + P.HEAD_OFFSET, zt - P.EAR_W / 2), (xo, ty + P.HEAD_OFFSET, zt + P.EAR_W / 2), "v",
-              a.left - 8)
+        a.dim((xh, ty - P.EAR_HUB_R, zt - P.EAR_W / 2), (xh, ye, zt - P.EAR_W / 2), "h", a.bottom - 8)
+        # the full width is reached where the corners turn round, a little up from the end face
+        yw = ye - head.EAR_CORNER_R
+        a.dim((xo, yw, zt - P.EAR_W / 2), (xo, yw, zt + P.EAR_W / 2), "v", a.left - 8)
+        a.dim((xo, ye, zt + P.EAR_W / 2), (xo, yw, zt + P.EAR_W / 2), "h", a.top + 8, tpos="left")
         outer.cmark((xh, ty, zt), P.EAR_HUB_R)
         hc = outer.p((xh, ty, zt))
         hole(outer, (xh, ty, zt), P.EAR_HUB_R, None, f"⌀{num(2 * P.EAR_HUB_R)}", at=(hc[0] - 26, outer.top + 10))
         hole(outer, (xh, ty, zt), P.CAP_D / 2, None, f"⌀{num(P.CAP_D)} x {num(P.CAP_T)}",
              at=(hc[0] + 22, outer.top + 10))
         if side < 0:
-            hs = across(m.shape(name), (xh - side * (P.CAP_T + 0.5), ty, zt), (0, 1, 0))
-            hole(outer, (xh, ty, zt), hs / 2, None, f"⌀{num(hs)}", g.letter, at=(hc[0] + 22, outer.bottom - 6))
+            # across the print direction, the roof of the hole points away from the end face
+            hs = across(part, (xh - side * (P.CAP_T + 0.5), ty, zt), (0, 0, 1))
+            outer.note((xh, ty, zt), None, f"⌀{num(hs)}  {g.letter}", r=hs / 2, under="45° roof",
+                       at=(hc[0] + 26, outer.bottom - 6))
         else:
             hole(outer, (xh, ty, zt), P.M3_TAP / 2, None, csk(P.M3_TAP), f.letter, at=(hc[0] + 22, outer.bottom - 6))
-        ye = ty + P.HEAD_OFFSET
-        eu = side * head.ear_screw_u()
         for v in head.EAR_SCREWS_V:
             end.cmark((eu, ye, zt + v), P.M3_TAP / 2)
+        # the end face the ear stands on: the tap holes and the rib under the hub on the outer side,
+        # the flat width of the face on the inner side
+        out_right = end.p((xo, ye, zt))[0] > end.p((xi, ye, zt))[0]
         end.dim((xo, ye, zt + head.EAR_SCREWS_V[0]), (xo, ye, zt + head.EAR_SCREWS_V[1]), "v",
-                end.right + 8 if end.p((xo, ye, zt))[0] > end.p((xi, ye, zt))[0] else end.left - 8)
+                end.right + 8 if out_right else end.left - 8)
+        w = P.EAR_RIB_W / 2
+        end.dim((xr, ye, zt - w), (xr, ye, zt + w), "v", end.right + 16 if out_right else end.left - 16)
+        et = head.ear_end_t()
+        end.dim((xi, ye, zt - et), (xi, ye, zt + et), "v", end.left - 8 if out_right else end.right + 8)
         end.dim((xi, ye, zt - P.EAR_W / 2), (xo, ye, zt - P.EAR_W / 2), "h", end.bottom - 8)
+        end.dim((xo, ye, zt - w), (xr, ye, zt - w), "h", end.bottom - 8, tpos="right" if out_right else "left")
         end.dim((xi, ye, zt + P.EAR_W / 2), (xh, ye, zt + P.EAR_W / 2), "h", end.top + 8)
-        hole(end, (eu, ye, zt + head.EAR_SCREWS_V[0]), P.M3_TAP / 2, None, f"2x {tap()}", c.letter,
-             at=(end.right + 8, end.bottom - 14))
+        end.note((eu, ye, zt + head.EAR_SCREWS_V[0]), None, f"2x {tap()} x {num(P.EAR_SCREW_DEPTH)}  {c.letter}",
+                 r=P.M3_TAP / 2, under="pointed end", at=(end.right + 8, end.bottom - 22))
+        view_label(sh, end, "prints standing on this face", dy=34)
+        # the small chamfer round the end face against elephant foot
+        b.note((xi, ye - P.EAR_FOOT_C / 2, zt - 6.0), None, f"{num(P.EAR_FOOT_C)} x 45°",
+               at=(b.right + 8, b.p((xi, ye, zt - 6.0))[1] - 14))
         ic = inner.p((xi, ty, zt))
         if side < 0:
             # horn pocket in the inner face, depth, hub and reach measured on the ear
-            part = m.shape(name)
             pd = reach(part, (xi, ty + P.HORN_SINGLE_LEN / 2, zt), (side, 0, 0))
             hub = across(part, (xi + side, ty, zt), (0, 0, 1))
             arm = reach(part, (xi + side, ty, zt), (0, 1, 0))
@@ -1684,7 +1703,8 @@ def sheet_ears(m):
             inner.axis((xi, ty - hub / 2, zt), (xi, ty + arm, zt))
             inner.axis((xi, ty, zt - hub / 2), (xi, ty, zt + hub / 2))
             inner.axis((xi, ty + arm - tip, zt - tip), (xi, ty + arm - tip, zt + tip))
-            hole(inner, (xi, ty, zt), hub / 2, None, f"⌀{num(hub)} x {num(pd)}", at=(ic[0] - 12, inner.top + 10))
+            inner.note((xi, ty, zt), None, f"⌀{num(hub)} x {num(pd)}", r=hub / 2, under="45° roof",
+                       at=(ic[0] - 12, inner.top + 10))
             k = tip * math.sqrt(0.5)
             inner.note((xi, ty + arm - tip + k, zt + k), (20, 20), f"R{num(tip)}")
             inner.dim((xi, ty, zt), (xi, ty + arm, zt), "h", inner.bottom - 8)
