@@ -177,7 +177,7 @@ def build_schema() -> dict:
             "lon": Num(16.37, -180.0, 180.0),
             "heading": Num(180.0, 0.0, 360.0),
         },
-        "panel": {"w": Num(125.0, 10.0, 1000.0), "h": Num(85.0, 10.0, 1000.0), "eff": Num(0.15, 0.01, 0.5)},
+        "panel": {"w": Num(137.0, 10.0, 1000.0), "h": Num(85.0, 10.0, 1000.0), "eff": Num(0.15, 0.01, 0.5)},
         "serial": {
             "rate": Num(50, 1, 100, integer=True),
             "slew": Num(30, 1, 200, integer=True),
