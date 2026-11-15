@@ -1232,12 +1232,13 @@ def sheet_screws_neck(m):
     b, g = m.screw("neck"), m.screw("horn")
     sh.letters = {b.letter, g.letter}
     front_half, back_half = m.shape("neck_front"), m.shape("neck_back")
-    # the open neck, the servos and the front half pulled forward
+    # the open neck seen from behind, the servos lifted out of the front half they go into and the
+    # back half that closes it pulled back further
     sv, fh = 30.0, 72.0
-    servos = shift([kit.pan_servo(), kit.tilt_servo()], (0, sv, 0))
-    opened = [back_half] + servos + shift([front_half], (0, fh, 0))
+    servos = shift([kit.pan_servo(), kit.tilt_servo()], (0, -sv, 0))
+    opened = [front_half] + servos + shift([back_half], (0, -fh, 0))
     lo, hi = bbox(opened)
-    iso = View(sh, opened, (1.25, 1.0, 0.8), (0, 0, 1), 1.0, (305, 185), (lo + hi) / 2)
+    iso = View(sh, opened, (1.25, -1.0, 0.8), (0, 0, 1), 1.0, (305, 185), (lo + hi) / 2)
     # the closed neck from the front with the screws from below and the pan horn
     out_b, horn_drop, out_g = 18.0, 16.0, 16.0
     hmove = (0, 0, -horn_drop)
@@ -1256,12 +1257,12 @@ def sheet_screws_neck(m):
     tag_screw(front, b, out_b, "l", -4)
     tag(front, head_point(g, 0, out_g, hmove), g.letter, "r", -4)
     kit_name(front, (-9, ty, kit.pan_horn_frame()[0][2] - horn_drop - 0.8), "pan horn, kit", "r", 12)
-    tag(iso, (-P.NECK_W / 2 + 1, ty - 8, P.NECK_TOP - 12), str(it["neck_back"]), "l", 8)
-    tag(iso, (P.FOOT_W / 2 - 4, ty + fh + 10, P.BASE_TOP + 4), str(it["neck_front"]), "r", -6)
+    tag(iso, (-P.NECK_W / 2 + 1, ty + 8, P.NECK_TOP - 12), str(it["neck_front"]), "r", 8)
+    tag(iso, (P.FOOT_W / 2 - 4, ty - fh - 10, P.BASE_TOP + 6), str(it["neck_back"]), "l", -6)
     po = kit.pan_servo_frame()[0]
-    kit_name(iso, (po[0] + 3, ty + sv + P.SERVO_W / 2, po[2] - 14), "pan servo, kit", "l", -14)
+    kit_name(iso, (po[0] + 3, ty - sv - P.SERVO_W / 2, po[2] - 14), "pan servo, kit", "l", -14)
     to = kit.tilt_servo_frame()[0]
-    kit_name(iso, (to[0] - 14, ty + sv + P.SERVO_W / 2, P.Z_TILT + 3), "tilt servo, kit", "r", 10)
+    kit_name(iso, (to[0] - 14, ty - sv - P.SERVO_W / 2, P.Z_TILT + 3), "tilt servo, kit", "r", 10)
     return sh
 
 
