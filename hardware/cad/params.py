@@ -266,7 +266,8 @@ PARTS_TO_PANEL = 0.5
 HEAD_JOINT = 7.0  # parting plane of back shell and bezel, from the back face
 SHADE_K = 1.2  # target shade wall height over sensor width, the k of simmodel.py
 EYE_FLARE = 45.0
-BH_WINDOW_D = 3.6
+BH_WINDOW_D = 3.6  # width of the slot in front of the bh1750 chip
+BH_WINDOW_SIDE = (2.0, 3.0)  # the slot lets the chip look out anywhere this far below the board centre line
 HEAD_CABLE_U = 0.0  # cable exit in the back of the head, centred between the side sensors
 
 # ranges of the two axes

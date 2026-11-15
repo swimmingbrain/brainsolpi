@@ -233,14 +233,38 @@ def bezel():
     # eyes and the lux window
     for name, (s, i) in kit.sensor_layout().items():
         if name == "lux":
-            cuts.append(hcyl_n(P.BH_WINDOW_D / 2, P.PANEL_BACK_N - 1.0, T + 1.0, s[0], s[1]))
-            cuts.append(hcone_n(P.BH_WINDOW_D / 2, P.BH_WINDOW_D / 2 + 2.3, T - 2.3, T + 0.01, s[0], s[1]))
+            cuts.append(lux_window(s, i))
         else:
             cuts.append(eye_cut(s, i))
     # tap holes in the bosses
     for u, v in BEZEL_SCREWS:
         cuts.append(hcyl_n(P.M3_TAP / 2, P.BACK_T, P.BACK_T + 7.5, u, v))
     return body - union_all(cuts)
+
+
+def lux_window(s, i):
+    """slot in front of the bh1750 chip with a 45 degree flare at the front
+
+    the chip sits beside the board centre line, the slot runs across the board so the chip looks
+    straight out anywhere in BH_WINDOW_SIDE, s is the sensor point on the centre line
+    """
+    yu, yv = kit.board_side(i)
+    near, far = P.BH_WINDOW_SIDE
+    a = (s[0] - near * yu, s[1] - near * yv)
+    b = (s[0] - far * yu, s[1] - far * yv)
+    cu, cv = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
+    span = math.hypot(b[0] - a[0], b[1] - a[1])
+    ang = math.degrees(math.atan2(b[1] - a[1], b[0] - a[0]))
+    w = P.BH_WINDOW_D
+    T = P.HEAD_T
+    fl = 2.3
+
+    def face(n, grow):
+        return uv_face(stadium_points(cu, cv, span + w + 2 * grow, w + 2 * grow, ang, n=24), n)
+
+    straight = extrude(face(P.PANEL_BACK_N - 1.0, 0.0), T + 1.0 - (P.PANEL_BACK_N - 1.0))
+    flare = loft([face(T - fl, 0.0), face(T + 0.01, fl + 0.01)], ruled=True)
+    return straight + flare
 
 
 def eye_cut(s, i):
