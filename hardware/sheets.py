@@ -613,8 +613,10 @@ def step_marks(pen, name, to_pic, m):
     elif name == "steps/head_back":
         screw_tag(pen, at("C0"), "C", "4x", (-150, -120, -30))
     elif name == "steps/modules":
-        for key, text in (("L", "A0"), ("R", "A1"), ("U", "A2"), ("D", "A3"), ("lux", "SDA SCL")):
+        for key, text in (("L", "A0"), ("R", "A1"), ("U", "A2"), ("D", "A3")):
             note(pen, at(key), text)
+        # the bh1750 sits in the corner below A1, its label goes out below so its line misses that module
+        note(pen, at("lux"), "SDA SCL", (40, 20, 60, 0))
     elif name == "steps/bezel":
         screw_tag(pen, at("D"), "D", "8x", (150, 120, 180))
     elif name == "steps/base":
