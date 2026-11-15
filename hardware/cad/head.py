@@ -336,12 +336,6 @@ def ear_plane(x):
     return Plane(origin=(x, P.TURRET_Y, P.Z_TILT), x_dir=(0, 1, 0), z_dir=(1, 0, 0))
 
 
-def layer_line(z):
-    """first layer line of the ears at or above z, z from the bed"""
-    k = math.ceil(round((z - P.LAYER_FIRST) / P.LAYER_EAR, 6))
-    return P.LAYER_FIRST + max(k, 0) * P.LAYER_EAR
-
-
 def ear_box(side, s0, s1, t0, t1, z0, z1):
     """box in the ear frame, s and t as in ear_outline, z from the inner face outward"""
     xi = side * (P.NECK_W / 2 + P.EAR_GAP)
@@ -384,7 +378,7 @@ def ear(side):
     if side < 0:
         # horn pocket, hub and arm snug from the inner face to just past the arm, the arm points to
         # the head, the horn seat stays where the tilt servo expects it
-        pd = layer_line(P.HORN_SEAT_DEPTH + P.HORN_ARM_T + 0.2)
+        pd = P.HORN_POCKET_DEPTH
 
         def pocket(z1):
             # local z of the arm solid runs from the inner face outward
