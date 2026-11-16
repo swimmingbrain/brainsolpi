@@ -114,6 +114,8 @@ Now build the body as [docs/drawings.pdf](docs/drawings.pdf) shows, every screw 
 - Both servos go into the front half of the neck while it lies on its front face. Put the pan servo in about
   6 mm higher than its place and slide it down onto its seats. Both leads leave at the spline end and run down
   the cable column to the exit in the foot, then the back half goes on.
+- Before the neck goes onto the lid, push every plug down through the opening in its foot, the wide 4 pin plug
+  of the BH1750 cable first.
 - The screws cut their own thread. Turn them in slowly and stop when the head sits.
 - The notch in the back wall of the tray passes only the power cable, no plug. Widen it to about 13 x 10 mm
   with a file, or cut the cable, lead it in and join it again inside.
