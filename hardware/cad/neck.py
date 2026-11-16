@@ -11,6 +11,7 @@ the tilt servo drops in with its bosses in the half keyhole of the left wall, bo
 their servo at the spline end and run down the cable column to the exit in the floor
 then the back half goes on, its crush ribs take the play out of both cases and two screws pull
 it down
+every plug goes down through the wide opening around the exit before the foot sits on the lid
 """
 
 import math
@@ -29,6 +30,8 @@ PIN_D = 3.0
 LEAD_CLEAR = 1.0  # air above the lead in its relief
 RIB_SPOTS = 8.0  # height of the crush ribs and bumps above the case bottom, between the lead and the tabs
 BUMP_IN = 3.5  # bumps on the long sides this far in from each case end
+OPENING_ROUND = 2.5  # corner radius of the wide cable opening at its front end
+OPENING_CHAMFER = 1.0  # 45 degree corners under the flat bridge at its back end
 
 
 def ty():
@@ -338,6 +341,28 @@ def exit_outline():
     return pts[:-1]
 
 
+def opening_outline():
+    """wide cable opening in the foot floor around the exit, all seven plugs pass it before the
+    neck goes onto the lid
+    it runs from the foot of the column wall out to the kept floor around the countersink of the
+    right foot screw and along the outer edge, the pin block stands further out
+    the back end is the top while the front half prints, a flat bridge with 45 degree corners"""
+    t = ty()
+    x0 = column_x0()
+    x1 = SCREW_XY[1][0] - P.M3_CSK_D / 2 - P.EXIT_KEEP
+    half = P.NECK_D / 2 - P.EDGE - P.EXIT_KEEP
+    r, c = OPENING_ROUND, OPENING_CHAMFER
+    pts = [(x0 + c, t - half), (x1 - c, t - half), (x1, t - half + c)]
+    for i in range(N_ARC + 1):
+        a = math.radians(90 * i / N_ARC)
+        pts.append((x1 - r + r * math.cos(a), t + half - r + r * math.sin(a)))
+    for i in range(N_ARC + 1):
+        a = math.radians(90 + 90 * i / N_ARC)
+        pts.append((x0 + r + r * math.cos(a), t + half - r + r * math.sin(a)))
+    pts.append((x0, t - half + c))
+    return pts
+
+
 def build():
     """both halves at their place in the device frame, pan 0"""
     t = ty()
@@ -418,6 +443,8 @@ def halves():
     front_keep = box(-50, 50, t, t + 30, z0() - 1, P.NECK_TOP + 2) + box(-50, 50, t - 30, t, z0() - 1, floor_top)
     back_keep = box(-50, 50, t - 30, t, floor_top, P.NECK_TOP + 2)
     front = (body & front_keep) - groove
+    # the wide opening only cuts the floor, the column wall and the back half keep the exit as before
+    front = front - poly_prism(opening_outline(), z0() - 1, floor_top + 1)
     back = (body & back_keep) - groove
     front, back = add_screws_and_pins(front, back)
     return front, back

@@ -245,6 +245,7 @@ SLOT_W = 6.0
 SLOT_HALF_ANGLE = 118.0
 EXIT_W = 5.0  # cable exit in the foot floor
 EXIT_L = 13.0
+EXIT_KEEP = 2.5  # floor kept around the wide cable opening beside the exit, to the right foot screw and the outer edge
 PIVOT_BOSS_R = 4.0
 PIVOT_BOSS_X0 = 15.5  # inner end of the pivot boss, the cable column passes beside it
 
