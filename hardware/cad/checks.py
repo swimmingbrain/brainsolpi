@@ -1,4 +1,4 @@
-"""programmatic checks: interference sweep, closed solids, bed fit, overhangs, thin walls"""
+"""programmatic checks: interference sweep, closed solids, bed fit, overhangs, thin walls, the cable exit"""
 
 import math
 
@@ -8,6 +8,7 @@ import numpy as np
 from . import assembly as A
 from . import params as P
 from . import signature as S
+from . import wires as W
 
 CONTACT_TOL = 1.0  # mm3, two faces that touch on purpose leave a sliver of this size at most
 
@@ -308,6 +309,122 @@ def engraving_failures(rep):
         out.append(f"only {rep['skin']:.1f} mm of solid lid behind the signature")
     if rep["clear"] < P.ENGRAVE_CLEAR_MIN:
         out.append(f"the signature comes within {rep['clear']:.1f} mm of an edge or a hole")
+    return out
+
+
+# the cable exit in the foot floor, measured on the meshes of the neck and the lid
+
+
+def dupont_plug(n):
+    """housing of a female dupont plug with n positions, across the wires"""
+    return (n * P.PITCH, P.DUPONT_W)
+
+
+def cable_set():
+    """the seven cables that leave the neck through the foot floor: name, wires, wire radius and
+    the plug that has to pass the floor, its housing across the wires"""
+    out = [(f"photoresistor {k}", 3, W.JUMPER_R, dupont_plug(3)) for k in ("L", "R", "U", "D")]
+    out.append(("bh1750", 4, W.JUMPER_R, dupont_plug(4)))
+    out += [(f"{k} servo", 3, W.SERVO_R, W.SERVO_PLUG) for k in ("tilt", "pan")]
+    return out
+
+
+def cable_section(wires, r):
+    """a flat cable lies with its wires side by side, each wire takes a square of its diameter"""
+    return wires * (2 * r) ** 2
+
+
+def open_section(mans, zs, centre, half):
+    """the square around centre that no mesh fills at any of the heights zs"""
+    region = m3d.CrossSection.square((2 * half, 2 * half), True).translate(centre)
+    return region - S.union([m.slice(z) for m in mans for z in zs])
+
+
+def piece_at(cs, pt):
+    """the piece of a cross section that holds a point, empty if none does"""
+    probe = m3d.CrossSection.square((0.02, 0.02), True).translate(pt)
+    for p in cs.decompose():
+        if not (p ^ probe).is_empty():
+            return p
+    return m3d.CrossSection()
+
+
+def plug_fits(cs, w, d, step=0.25):
+    """a plug outline w by d fits somewhere in the cross section, tried every step mm and 15 degrees"""
+    room = S.offset(cs, -d / 2)
+    if room.is_empty():
+        return False
+    x0, y0, x1, y1 = room.bounds()
+    for ang in range(0, 180, 15):
+        plug = m3d.CrossSection.square((w, d), True).rotate(ang)
+        for x in np.arange(x0, x1 + 1e-9, step):
+            for y in np.arange(y0, y1 + 1e-9, step):
+                if (plug.translate((x, y)) - cs).area() < 1e-4:
+                    return True
+    return False
+
+
+def cable_exit_report(neck_meshes, lid_mesh, pan_step=1.0):
+    """the exit in the foot floor against the seven cables
+
+    exit: the hole through the floor at pan 0, cut at three heights in the floor
+    way in: the part of the exit over the lid slot, the neck turns over the lid for every pan angle
+    a: the seven cables fill the way in at most CABLE_FILL_MAX at every pan angle
+    b: six cables already in the exit and the largest plug beside them fill it at most as much,
+    and that plug fits through the exit
+    """
+    centre = (P.TURRET_X, P.TURRET_Y)
+    z0 = P.BASE_TOP
+    floor = [z0 + 0.2, z0 + P.FOOT_FLOOR_T / 2, z0 + P.FOOT_FLOOR_T - 0.2]
+    neck = open_section([to_manifold(m) for m in neck_meshes], floor, centre, 30.0)
+    exit_cs = piece_at(neck, (P.TURRET_X + P.SLOT_R, P.TURRET_Y))
+    lid_z = [P.LID_BOTTOM + 0.2, P.BASE_TOP - P.LID_T / 2, P.BASE_TOP - 0.2]
+    lid = open_section([to_manifold(lid_mesh)], lid_z, centre, 30.0)
+    slot = piece_at(lid, (P.TURRET_X + P.SLOT_R, P.TURRET_Y))
+    pans = np.arange(P.PAN_RANGE[0], P.PAN_RANGE[1] + 1e-6, pan_step)
+    way = []
+    for pan in pans:
+        m = A.group_matrix("neck", pan, 0.0)
+        way.append((exit_cs.transform(m[:2, [0, 1, 3]]) ^ slot).area())
+    way = np.array(way)
+    worst = int(np.argmin(way))
+    cables = cable_set()
+    total = sum(cable_section(n, r) for _, n, r, _ in cables)
+    big = max(cables, key=lambda c: c[3][0] * c[3][1])
+    plug = big[3][0] * big[3][1]
+    six = total - cable_section(big[1], big[2])
+    rep = {
+        "exit": exit_cs.area(),
+        "slot": slot.area(),
+        "way_pan0": float(np.interp(0.0, pans, way)),
+        "way_min": float(way[worst]),
+        "way_min_pan": float(pans[worst]),
+        "cables": total,
+        "cable_rows": [(name, n, cable_section(n, r)) for name, n, r, _ in cables],
+        "plug_name": big[0],
+        "plug_size": [float(v) for v in big[3]],
+        "plug": plug,
+        "six": six,
+    }
+    rep["fill"] = total / rep["way_min"] if rep["way_min"] > 0 else math.inf
+    rep["thread_fill"] = (six + plug) / rep["exit"] if rep["exit"] > 0 else math.inf
+    rep["plug_fits"] = plug_fits(exit_cs, *big[3])
+    for k in ("exit", "slot", "way_pan0", "way_min", "cables", "plug", "six", "fill", "thread_fill"):
+        rep[k] = round(float(rep[k]), 3)
+    rep["cable_rows"] = [(name, n, round(float(a), 3)) for name, n, a in rep["cable_rows"]]
+    return rep
+
+
+def cable_exit_failures(rep):
+    out = []
+    if rep["fill"] > P.CABLE_FILL_MAX:
+        out.append(f"the seven cables fill {100 * rep['fill']:.0f} % of the way through the foot floor and the lid "
+                   f"slot at pan {rep['way_min_pan']:.0f}, the limit is {100 * P.CABLE_FILL_MAX:.0f} %")
+    if rep["thread_fill"] > P.CABLE_FILL_MAX:
+        out.append(f"the {rep['plug_name']} plug and six cables fill {100 * rep['thread_fill']:.0f} % of the exit in "
+                   f"the foot floor, the limit is {100 * P.CABLE_FILL_MAX:.0f} %")
+    if not rep["plug_fits"]:
+        out.append(f"the {rep['plug_name']} plug does not fit through the exit in the foot floor")
     return out
 
 

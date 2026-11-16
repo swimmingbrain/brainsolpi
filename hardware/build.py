@@ -65,7 +65,37 @@ def engraving_lines(eng):
     return L
 
 
-def write_report(path, parts_rep, static_bad, sweep, cable_rows, fast_rows, web_sizes, est, failures, engraving=None):
+def exit_lines(rep):
+    """the section about the cable exit in the foot floor"""
+    L = ["## Cable exit", ""]
+    L.append("The seven cables leave the neck through the exit in the foot floor and go into the base through the")
+    L.append("slot in the lid right under it. The exit is measured on the neck at pan 0, cut through the floor, the")
+    L.append("way in is the part of it over the lid slot while the neck turns. Each wire counts as a square of its")
+    L.append("diameter.")
+    L.append("")
+    L.append("| cable | wires | mm2 |")
+    L.append("|---|---|---|")
+    for name, n, a in rep["cable_rows"]:
+        L.append(f"| {name} | {n} | {fmt(a, 2)} |")
+    L.append(f"| together | {sum(n for _, n, _ in rep['cable_rows'])} | {fmt(rep['cables'], 2)} |")
+    L.append("")
+    lim = f"{100 * P.CABLE_FILL_MAX:.0f} %"
+    w, d = rep["plug_size"]
+    L.append("| value | measured | limit |")
+    L.append("|---|---|---|")
+    L.append(f"| exit in the foot floor | {fmt(rep['exit'])} mm2 | |")
+    L.append(f"| way in at pan 0 | {fmt(rep['way_pan0'])} mm2 | |")
+    L.append(f"| way in at the worst pan angle, {rep['way_min_pan']:.0f} | {fmt(rep['way_min'])} mm2 | |")
+    L.append(f"| seven cables in the way in | {fmt(100 * rep['fill'], 0)} % | {lim} |")
+    L.append(f"| {rep['plug_name']} plug, {fmt(w, 2)} x {fmt(d, 2)} mm, and six cables in the exit | "
+             f"{fmt(100 * rep['thread_fill'], 0)} % | {lim} |")
+    L.append(f"| that plug fits through the exit | {'yes' if rep['plug_fits'] else 'no'} | yes |")
+    L.append("")
+    return L
+
+
+def write_report(path, parts_rep, static_bad, sweep, cable_rows, fast_rows, web_sizes, est, failures, engraving=None,
+                 cable_exit=None):
     L = []
     L.append("# brainSOL hardware checks")
     L.append("")
@@ -131,6 +161,8 @@ def write_report(path, parts_rep, static_bad, sweep, cable_rows, fast_rows, web_
         L.append(f"| {r['cable']} | {fmt(r['uno'])} | {fmt(r['neck'])} | {fmt(r['loop'])} | {fmt(r['head'])} | "
                  f"{fmt(r['total'])} | {fmt(r['available'])} | {fmt(r['slack'])} | {r['worst']} |")
     L.append("")
+    if cable_exit is not None:
+        L += exit_lines(cable_exit)
     L.append("## Fasteners")
     L.append("")
     L.append("| screw | where | count |")
@@ -211,6 +243,8 @@ def main():
     lid = next(p for p in parts if p.name == "lid")
     engraving = checks.engraving_report(lid.mesh()) if P.SIG_ON else None
     log("signature check", t0)
+    cable_exit = checks.cable_exit_report([p.mesh() for p in parts if p.group == "neck"], lid.mesh())
+    log("cable exit check", t0)
 
     fit = assembly.fit_test_part()
     tests = [fit, assembly.servo_test_part()]
@@ -255,11 +289,12 @@ def main():
         failures.append(f"the web files are {sum(size for size, _ in web_sizes.values())} bytes together")
     if engraving is not None:
         failures += checks.engraving_failures(engraving)
+    failures += checks.cable_exit_failures(cable_exit)
 
     write_report(report_dir / "checks.md", parts_rep, static_bad, sweep, cable_rows, fast_rows, web_sizes, est, failures,
-                 engraving)
+                 engraving, cable_exit)
     summary = {"failures": failures, "sweep": {k: v for k, v in sweep.items() if k != "worst"},
-               "cables": cable_rows, "assembly": web_json, "engraving": engraving,
+               "cables": cable_rows, "cable_exit": cable_exit, "assembly": web_json, "engraving": engraving,
                "parts": [{k: v for k, v in r.items() if k not in ("steep_worst",)} for r in parts_rep],
                "estimate": est}
     (report_dir / "summary.json").write_text(json.dumps(summary, indent=1, default=str) + "\n", encoding="utf-8", newline=LF)

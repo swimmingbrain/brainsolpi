@@ -114,6 +114,10 @@ CABLE_LEN_INCLUDES_PLUGS = True  # the safe reading, 200 tip to tip leaves 172 o
 # spare wire we want on the worst pose, it was 8 until the 137 mm panel moved the left and right sensors 6 mm
 # out, their cables keep about 4 and 6 mm in the cautious reading above and the back shell is already printed
 CABLE_SLACK_MIN = 3.0
+# the cables may fill half of the way through the foot floor and the lid slot, the free half lets the bundle
+# slide when the neck pans and lets the last plug pass, each wire counts as a square of its diameter, so this
+# is about the 40 percent rule for round wires in a conduit
+CABLE_FILL_MAX = 0.5
 
 # solar panel, measure: width, height, thickness and where the lead leaves the back
 
