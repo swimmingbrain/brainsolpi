@@ -32,6 +32,7 @@ SERVO_R = 0.52
 USB_R = 2.1
 POWER_R = 1.7
 DUPONT_L = 14.0  # housing from the header base to where the wires leave it
+SERVO_PLUG = (3 * PITCH + 0.1, 2.9)  # housing of the servo plug across the wires
 
 
 def unit(v):
@@ -247,7 +248,7 @@ def dupont_housing(n):
 
 
 def servo_housing():
-    w, d = 3 * PITCH + 0.1, 2.9
+    w, d = SERVO_PLUG
     h = cbox(-w / 2, w / 2, -d / 2, d / 2, 0.0, 14.5, 0.3)
     # the ridge on the signal side that keys the plug
     h += box(w / 2 - 2.0, w / 2 - 0.6, d / 2 - 0.1, d / 2 + 0.5, 1.0, 13.0)
