@@ -1533,6 +1533,16 @@ def sheet_neck(m, name):
         # the leader ends on the round end of the small boss, clear of the cable exit beside the keyhole
         hole(under, (-P.SERVO_BOSS2_X, ty, z0), small / 2, None, f"keyhole ⌀{num(2 * boss)} and ⌀{num(small)}",
              at=(under.right + 10, under.top + 2))
+        # the wide cable opening around the exit, every plug passes it, measured through the middle of the
+        # floor, the width in front of the old exit, which pokes out of it a little at the centre line, the
+        # leader comes from its back end, the flat bridge, the text stands below the view on the left
+        xs_open = [x for x, _ in neck.opening_outline()]
+        ox = (min(xs_open) + max(xs_open)) / 2
+        oz = z0 + P.FOOT_FLOOR_T / 2
+        ol = across(part, (ox, ty, oz), (0, 1, 0))
+        ow = across(part, (ox, ty + P.EXIT_L / 2 + 1.5, oz), (1, 0, 0))
+        ob = (ox, ty - ol / 2 + 0.01, z0)
+        under.note(ob, None, f"cable opening {num(ow)} x {num(ol)}", at=(under.p(ob)[0] - 6, under.bottom - 10))
         pin = across(part, (-6, ty + 1.0, P.Z_TILT - 20), (1, 0, 0))
         rear.note((-6, ty, P.Z_TILT - 20), None, f"4x ⌀{num(pin)}", r=pin / 2,
                   at=(rear.right + 12, rear.p((0, 0, P.Z_TILT - 20))[1] - 10))
