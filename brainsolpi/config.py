@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import logging
 import math
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -122,6 +123,33 @@ class Text:
         return v
 
 
+_ADDRESS = re.compile(r"^(https?)://([^/\s?#@]+)(/[^\s?#]*)?$", re.IGNORECASE)
+
+
+def parse_address(text: str) -> str | None:
+    # a server address as people type it, None for none. a missing scheme means http
+    text = (text or "").strip()
+    if not text:
+        return None
+    if "://" not in text:
+        text = f"http://{text}"
+    m = _ADDRESS.match(text)
+    if m is None:
+        raise ValueError("must be an http address like http://jetson:8000")
+    return f"{m.group(1).lower()}://{m.group(2)}{(m.group(3) or '').rstrip('/')}"
+
+
+class Address:
+    # the http address of a server on another machine, empty for none
+    def __init__(self, default: str = ""):
+        self.default = default
+
+    def check(self, v: Any) -> str:
+        if not isinstance(v, str) or len(v) > 256:
+            raise ValueError("must be text up to 256 characters")
+        return parse_address(v) or ""
+
+
 def _fmt(x: float) -> str:
     return f"{x:g}"
 
@@ -186,6 +214,9 @@ def build_schema() -> dict:
         },
         "calib": calib,
         "auth": {"pin": Text("", 256)},
+        # the brain server with the planner and the recipe chatbot, http://jetson:8000 for example.
+        # empty means none, then /brain answers offline and the plan mode is refused
+        "brain": Address(""),
     }
 
 
@@ -314,6 +345,10 @@ class Settings:
     @property
     def panel(self) -> dict:
         return self.data["panel"]
+
+    @property
+    def brain(self) -> str:
+        return self.data["brain"]
 
     @property
     def pin_hash(self) -> str:
