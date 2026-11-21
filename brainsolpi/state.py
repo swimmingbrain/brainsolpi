@@ -9,7 +9,7 @@ from .jsonio import read_json, write_atomic
 
 log = logging.getLogger(__name__)
 
-MODES = ("auto", "manual", "sun", "hold", "park", "demo")
+MODES = ("auto", "manual", "sun", "hold", "park", "demo", "plan")
 
 DEFAULT_SIM = {"az": 25.0, "el": 40.0, "on": True, "lux": 900.0, "amb": 60.0}
 # a handful of boards is plenty, the list stays small
