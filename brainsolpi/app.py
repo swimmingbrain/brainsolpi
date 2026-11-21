@@ -14,6 +14,7 @@ from aiohttp import web
 from . import paths, service
 from .auth import Auth, hash_pin
 from .autoflash import AutoFlash
+from .brain import Brain
 from .commands import Commands
 from .config import Settings
 from .drivers.base import Driver
@@ -232,11 +233,18 @@ async def serve(args) -> int:
     elif not pin_hash:
         log.warning("no admin pin is set, admin login is refused until you run brainsolpi setpin")
 
+    # the switch wins for this run, the settings keep the address between runs
+    address = args.brain if getattr(args, "brain", None) is not None else settings.brain
+    brain = Brain(address or None)
+    if brain.url:
+        log.info("brain server at %s, the page reaches it under /brain and the plan mode follows it", brain.url)
+
     looked: dict = {}
     driver = await open_driver(args, settings, looked)
     hub = Hub()
     store = ExperimentStore(data_dir / "experiments", writer)
-    engine = Engine(settings, state, driver, store=store, data_dir=data_dir, sink=hub, sysinfo=SysInfo())
+    engine = Engine(settings, state, driver, store=store, data_dir=data_dir, sink=hub, sysinfo=SysInfo(),
+                    brain=brain)
     hub.engine = engine
 
     def save_tokens(tokens: list) -> None:
@@ -317,6 +325,7 @@ async def serve(args) -> int:
             board_task.cancel()
         await hub.close_all()
         await runner.cleanup()
+        await brain.close()
         await driver.stop()
         writer.close()
         log.info("stopped, pose and settings saved")
