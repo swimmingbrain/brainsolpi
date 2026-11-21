@@ -64,6 +64,29 @@ def setpin(args, ask=getpass.getpass) -> int:
     return 0
 
 
+# setbrain
+
+
+def setbrain(args) -> int:
+    path = _cfg_dir(args) / "settings.json"
+    address = args.address or ""
+    # the service writes its settings at the end, so it is stopped meanwhile and starts with the new one
+    try:
+        with service.Paused("the brain address is written"):
+            settings = Settings.load(path)
+            settings.data["brain"] = address
+            settings.save()
+    except service.ServiceBusy:
+        print(f"the brainsolpi service still runs, nothing changed. stop it with: {service.STOP_HINT}")
+        return 1
+    if address:
+        print(f"brain server {address} saved in {path}")
+        print("the page now reaches it through this pi under /brain and offers the plan mode")
+    else:
+        print(f"no brain server any more, saved in {path}")
+    return 0
+
+
 # centre
 
 
