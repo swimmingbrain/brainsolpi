@@ -255,6 +255,15 @@ def validate(spec: Any, value: Any, where: str, problems: list[str]) -> Any:
         return copy.deepcopy(spec.default)
 
 
+def missing(spec: Any, value: Any) -> bool:
+    # true when the file lacks a setting the schema knows, one that a newer version added
+    if not isinstance(spec, dict):
+        return False
+    if not isinstance(value, dict):
+        return True
+    return any(key not in value or missing(sub, value[key]) for key, sub in spec.items())
+
+
 # keys besides the params that the set command accepts
 EXTRA_KEYS = {
     "pan_min": ("limits", "pan", 0),
@@ -289,8 +298,9 @@ class Settings:
         s = cls(path, raw)
         for p in s.problems:
             log.warning("settings: %s", p)
-        if raw is None:
-            # first start, write the defaults so people can see and edit them
+        if raw is None or missing(s.schema, raw):
+            # first start, or settings a newer version added, write the defaults so people can see
+            # and edit them
             try:
                 s.save()
             except OSError as e:
