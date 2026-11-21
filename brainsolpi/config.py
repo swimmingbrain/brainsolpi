@@ -205,7 +205,15 @@ def build_schema() -> dict:
             "lon": Num(16.37, -180.0, 180.0),
             "heading": Num(180.0, 0.0, 360.0),
         },
-        "panel": {"w": Num(137.0, 10.0, 1000.0), "h": Num(85.0, 10.0, 1000.0), "eff": Num(0.15, 0.01, 0.5)},
+        "panel": {
+            "w": Num(137.0, 10.0, 1000.0),
+            "h": Num(85.0, 10.0, 1000.0),
+            "eff": Num(0.15, 0.01, 0.5),
+            # only for the bridge variant with the panel on a4: the ratio of the voltage divider in
+            # front of the pin and the load resistor on the panel in ohm, the current is volts over ohm
+            "div": Num(2.0, 1.0, 100.0),
+            "ohm": Num(33.0, 0.1, 100000.0),
+        },
         "serial": {
             "rate": Num(50, 1, 100, integer=True),
             "slew": Num(30, 1, 200, integer=True),
@@ -258,6 +266,8 @@ EXTRA_KEYS = {
     "panel_w": ("panel", "w", None),
     "panel_h": ("panel", "h", None),
     "panel_eff": ("panel", "eff", None),
+    "panel_div": ("panel", "div", None),
+    "panel_ohm": ("panel", "ohm", None),
 }
 
 
