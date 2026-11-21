@@ -10,6 +10,7 @@ SETTINGS = {
     # part: layer height, infill percent, infill pattern, colour role
     "tray": (0.2, 15, "gyroid"),
     "lid": (0.2, 15, "gyroid"),
+    "bedlid": (0.2, 15, "gyroid"),
     "foot": (0.2, 100, "concentric"),
     "neck_front": (0.2, 25, "gyroid"),
     "neck_back": (0.2, 25, "gyroid"),
