@@ -10,7 +10,7 @@ from pathlib import Path
 
 from . import paths, service
 from .auth import hash_pin, pin_problem
-from .config import Settings
+from .config import Settings, build_schema
 from .jsonio import read_json
 from .kinematics import ServoMap
 from .state import StateStore
@@ -84,6 +84,46 @@ def setbrain(args) -> int:
         print("the page now reaches it through this pi under /brain and offers the plan mode")
     else:
         print(f"no brain server any more, saved in {path}")
+    return 0
+
+
+# setpanel
+
+
+def panel_value(key: str, value: float) -> float:
+    # the limits the settings file has for div and ohm, a bad value raises ValueError
+    return build_schema()["panel"][key].check(value)
+
+
+def _panel_text(panel: dict) -> str:
+    return f"panel on A4: divider {panel['div']:g}, load resistor {panel['ohm']:g} ohm"
+
+
+def setpanel(args) -> int:
+    path = _cfg_dir(args) / "settings.json"
+    changes = {key: getattr(args, key, None) for key in ("div", "ohm")}
+    changes = {key: value for key, value in changes.items() if value is not None}
+    if not changes:
+        # read only, a look must not write the settings of a fresh pi
+        print(_panel_text(Settings(None, read_json(path)).panel))
+        return 0
+    for key, value in changes.items():
+        try:
+            changes[key] = panel_value(key, value)
+        except ValueError as e:
+            print(f"--{key} {e}, nothing changed")
+            return 1
+    # the service writes its settings at the end, so it is stopped meanwhile and starts with the new values
+    try:
+        with service.Paused("the panel values are written"):
+            settings = Settings.load(path)
+            settings.data["panel"].update(changes)
+            settings.save()
+    except service.ServiceBusy:
+        print(f"the brainsolpi service still runs, nothing changed. stop it with: {service.STOP_HINT}")
+        return 1
+    print(f"{_panel_text(settings.panel)}, saved in {path}")
+    print("brainsolpi doctor shows what the panel gives with them")
     return 0
 
 
