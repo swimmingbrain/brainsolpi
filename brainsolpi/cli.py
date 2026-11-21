@@ -36,6 +36,9 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--web", help="folder with the built web app, default web in the repo when it exists")
     run.add_argument("--config-dir", help="folder for settings.json and state.json")
     run.add_argument("--data-dir", help="folder for experiments and recordings")
+    run.add_argument("--brain", type=_address, metavar="URL",
+                     help="address of the brain server for this run, http://jetson:8000 for example, the brain "
+                     "in the settings is used otherwise and an empty one turns it off")
     run.add_argument(
         "--autoflash",
         action="store_true",
@@ -59,13 +62,31 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--check", action="store_true",
                     help="only tell whether a pin is set, exit code 0 when one is set and 1 when not")
 
+    sb = sub.add_parser("setbrain", help="set the address of the brain server, the planner and the recipe chatbot")
+    sb.add_argument("address", nargs="?", type=_address,
+                    help="http://jetson:8000 for example, off or leaving it out removes it")
+    sb.add_argument("--config-dir", help="folder for settings.json")
+
     ce = sub.add_parser("centre", help="hold both servos at 1500 us while mounting the horns")
     ce.add_argument("--port", help="serial port of the board")
     ce.add_argument("--config-dir", help="folder for state.json")
 
     de = sub.add_parser("demo", help="try the whole tracker simulated on this computer, nothing is kept")
     de.add_argument("--http-port", type=int, default=8080, help="http port, default 8080")
+    de.add_argument("--brain", type=_address, metavar="URL", help="address of a brain server to try the plan mode")
     return p
+
+
+def _address(text: str) -> str:
+    # an empty address or off means no brain server
+    from .config import parse_address
+
+    if text.strip().lower() == "off":
+        return ""
+    try:
+        return parse_address(text) or ""
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(str(e)) from None
 
 
 def demo_args(args) -> argparse.Namespace:
@@ -85,7 +106,7 @@ def demo_args(args) -> argparse.Namespace:
 
     return argparse.Namespace(
         driver="sim", port=None, host="127.0.0.1", http_port=port, pin=pin, web=None,
-        config_dir=None, data_dir=None, verbose=False, demo=True, ready=ready,
+        config_dir=None, data_dir=None, verbose=False, demo=True, ready=ready, brain=getattr(args, "brain", None),
     )
 
 
@@ -156,7 +177,8 @@ def main(argv: list[str] | None = None) -> int:
             return doctor(args)
         from . import tools
 
-        return {"flash": tools.flash, "setpin": tools.setpin, "centre": tools.centre}[args.command](args)
+        commands = {"flash": tools.flash, "setpin": tools.setpin, "setbrain": tools.setbrain, "centre": tools.centre}
+        return commands[args.command](args)
     except KeyboardInterrupt:
         print("\nstopped", file=sys.stderr)
         return 130
