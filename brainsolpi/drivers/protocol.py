@@ -10,6 +10,9 @@ RAW_MAX = 8184
 
 CAP_LUX = 1
 CAP_PV = 2
+# the bridge built with PANEL_A4 reads the panel through a divider on a4 and has nothing on i2c,
+# the mv field of its frames is the voltage at the pin and the ua field stays 0
+CAP_PV_PIN = 4
 
 FLAG_ATTACHED = 1
 FLAG_WATCHDOG = 2
@@ -31,6 +34,10 @@ class Ident:
     @property
     def pv(self) -> bool:
         return bool(self.caps & CAP_PV)
+
+    @property
+    def pv_pin(self) -> bool:
+        return bool(self.caps & CAP_PV_PIN)
 
 
 @dataclass(slots=True)
