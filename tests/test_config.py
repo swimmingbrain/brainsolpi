@@ -94,6 +94,21 @@ def test_divider_and_load_of_the_panel_on_a4():
     assert Settings(data={"panel": {"ohm": 0}}).panel["ohm"] == 33.0
 
 
+def test_a_file_from_before_gets_the_new_settings_written_in(tmp_path):
+    path = tmp_path / "settings.json"
+    path.write_text(json.dumps({"panel": {"w": 120, "h": 80, "eff": 0.2}, "auth": {"pin": "x"}}), encoding="utf-8")
+    s = Settings.load(path)
+    assert s.panel == {"w": 120, "h": 80, "eff": 0.2, "div": 2.0, "ohm": 33.0}
+    saved = read_json(path)
+    # the defaults are in the file now, so people see them, and nothing that was there is lost
+    assert saved["panel"] == {"w": 120, "h": 80, "eff": 0.2, "div": 2.0, "ohm": 33.0}
+    assert saved["auth"]["pin"] == "x"
+    # a file that has everything stays as it is
+    text = path.read_text(encoding="utf-8")
+    Settings.load(path)
+    assert path.read_text(encoding="utf-8") == text
+
+
 def test_settings_round_trip_through_the_file(tmp_path):
     path = tmp_path / "settings.json"
     s = Settings.load(path)
