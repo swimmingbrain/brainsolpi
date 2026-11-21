@@ -67,6 +67,13 @@ def build_parser() -> argparse.ArgumentParser:
                     help="http://jetson:8000 for example, off or leaving it out removes it")
     sb.add_argument("--config-dir", help="folder for settings.json")
 
+    pa = sub.add_parser("setpanel", help="set the load resistor and the divider of the panel on A4, "
+                        "without options it shows the values in use")
+    pa.add_argument("--ohm", type=_panel("ohm"), metavar="OHM", help="the load resistor on the panel in ohm")
+    pa.add_argument("--div", type=_panel("div"), metavar="RATIO",
+                    help="the ratio of the divider in front of A4, 2 for two equal resistors")
+    pa.add_argument("--config-dir", help="folder for settings.json")
+
     ce = sub.add_parser("centre", help="hold both servos at 1500 us while mounting the horns")
     ce.add_argument("--port", help="serial port of the board")
     ce.add_argument("--config-dir", help="folder for state.json")
@@ -87,6 +94,23 @@ def _address(text: str) -> str:
         return parse_address(text) or ""
     except ValueError as e:
         raise argparse.ArgumentTypeError(str(e)) from None
+
+
+def _panel(key: str):
+    # a value of the panel block, checked with the same limits as the settings file
+    def check(text: str) -> float:
+        from .tools import panel_value
+
+        try:
+            value = float(text)
+        except ValueError:
+            raise argparse.ArgumentTypeError("must be a number") from None
+        try:
+            return panel_value(key, value)
+        except ValueError as e:
+            raise argparse.ArgumentTypeError(str(e)) from None
+
+    return check
 
 
 def demo_args(args) -> argparse.Namespace:
@@ -177,7 +201,8 @@ def main(argv: list[str] | None = None) -> int:
             return doctor(args)
         from . import tools
 
-        commands = {"flash": tools.flash, "setpin": tools.setpin, "setbrain": tools.setbrain, "centre": tools.centre}
+        commands = {"flash": tools.flash, "setpin": tools.setpin, "setbrain": tools.setbrain,
+                    "setpanel": tools.setpanel, "centre": tools.centre}
         return commands[args.command](args)
     except KeyboardInterrupt:
         print("\nstopped", file=sys.stderr)
