@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from brainsolpi.derived import gain, light_estimate, measured_mw, offset_deg, panel_mw, tangents
+from brainsolpi.derived import gain, light_estimate, offset_deg, panel_mw, pin_pv, tangents
 from brainsolpi.kinematics import angle_between, frame
 
 
@@ -42,4 +42,14 @@ def test_panel_power():
     # 1100 lux is 10 W per square metre, on 0.01 square metres at 15 percent that is 15 mW
     assert panel_mw(1100, 100, 100, 0.15) == pytest.approx(15)
     assert panel_mw(None, 100, 100, 0.15) is None
-    assert measured_mw(5000, 20000) == pytest.approx(100)
+
+
+def test_panel_on_a4_from_the_pin_voltage():
+    # 1250 mV at the pin behind a divider of 2 are 2.5 V of panel voltage, on 33 ohm that is 75.8 mA
+    v, ma = pin_pv(1250, 2.0, 33.0)
+    assert v == pytest.approx(2.5)
+    assert ma == pytest.approx(2.5 / 33.0 * 1000.0)
+    assert v * ma == pytest.approx(189.39, abs=0.01)
+    assert pin_pv(0, 2.0, 33.0) == (0.0, 0.0)
+    # a divider of 3 and 100 ohm: 4995 mV, the top of the pin, are 14.985 V and 149.85 mA
+    assert pin_pv(4995, 3.0, 100.0) == pytest.approx((14.985, 149.85))
