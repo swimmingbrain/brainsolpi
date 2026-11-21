@@ -13,6 +13,9 @@ struct MockBus {
   uint8_t ina_pointer = 0;
   uint32_t timeout_us = 0;
   bool timeout_reset = false;
+  // the variant with the panel on a4 must never touch the bus
+  bool began = false;
+  int transfers = 0;
 };
 extern MockBus bus;
 
@@ -22,7 +25,7 @@ class TwoWire {
   std::vector<uint8_t> tx;
   std::deque<uint8_t> rx;
 
-  void begin() {}
+  void begin() { bus.began = true; }
   void setWireTimeout(uint32_t timeout, bool reset) {
     bus.timeout_us = timeout;
     bus.timeout_reset = reset;
@@ -36,6 +39,7 @@ class TwoWire {
     return 1;
   }
   uint8_t endTransmission() {
+    bus.transfers++;
     if (bus.bh_present && tx_addr == bus.bh_addr) {
       for (uint8_t b : tx) {
         if (b == 0x01) {
@@ -60,6 +64,7 @@ class TwoWire {
     return 2;
   }
   uint8_t requestFrom(uint8_t addr, uint8_t n) {
+    bus.transfers++;
     rx.clear();
     uint16_t value;
     if (bus.bh_present && addr == bus.bh_addr) {

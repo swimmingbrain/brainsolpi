@@ -1,11 +1,19 @@
 // runs the bridge sketch on a pc against a fake uart, fake servos, a fake adc and fake
 // i2c sensors, and checks the protocol, the timing, the slew and the watchdog.
-// build and run it with firmware/test/run.sh
+// build and run it with firmware/test/run.sh, it builds this file once as it is and once with
+// PANEL_A4 for the variant with the panel on a4
 #include "Arduino.h"
 #include "Servo.h"
 #include "Wire.h"
 
 #include <regex>
+
+// the identity line after boot, the variant says 4 for the panel on a4
+#ifdef PANEL_A4
+#define IDENTITY "I,brainsol,1.0.0,4"
+#else
+#define IDENTITY "I,brainsol,1.0.0,0"
+#endif
 
 uint64_t mock_time_us = 0;
 uint64_t mock_us_offset = 0;
@@ -44,7 +52,7 @@ int digitalRead(uint8_t pin) {
 // ===========================================================================
 // simulation
 
-// the four light sensors, the first reading after a channel switch is a mix with the
+// the four light sensors and a4, the first reading after a channel switch is a mix with the
 // previous channel like on the real chip, so a missing throwaway would show
 uint16_t adc_value[8] = {100, 200, 300, 400, 0, 0, 0, 0};
 int adc_last_channel = -1;
@@ -195,7 +203,7 @@ void test_boot_and_frames() {
   ADCSRA = 0x87;  // what the core leaves behind: adc on, prescaler 128
   setup();
   std::vector<std::string> lines = take_lines();
-  CHECK(lines.size() == 1 && lines[0] == "I,brainsol,1.0.0,0", "identity line comes first");
+  CHECK(lines.size() == 1 && lines[0] == IDENTITY, "identity line comes first");
 
   run_ms(1000);
   std::vector<Frame> frames = frames_of(take_lines());
@@ -217,7 +225,7 @@ void test_boot_and_frames() {
 }
 
 void test_command_parser() {
-  CHECK(one_answer(ask("?\n"), "I,brainsol,1.0.0,0"), "identity on ?");
+  CHECK(one_answer(ask("?\n"), IDENTITY), "identity on ?");
   CHECK(one_answer(ask("P,12345678901234567890\n"), "P,12345678901234567890"), "ping with 20 digits");
   CHECK(one_answer(ask("P,123456789012345678901\n"), "E,1,bad number"), "ping with 21 digits");
   CHECK(one_answer(ask("P,12a\n"), "E,1,bad number"), "ping with a letter");
@@ -240,7 +248,7 @@ void test_command_parser() {
 
   // an overlong line is dropped up to its newline and the next line works again
   std::vector<std::string> got = ask(std::string(300, 'A') + "\n?\n", 100);
-  CHECK(got.size() == 2 && got[0] == "E,2,line too long" && got[1] == "I,brainsol,1.0.0,0",
+  CHECK(got.size() == 2 && got[0] == "E,2,line too long" && got[1] == IDENTITY,
         "overlong line, then a good one");
   std::string p96 = "P," + std::string(94, '1');
   CHECK(one_answer(ask(p96 + "\n"), "E,1,bad number"), "96 characters are still parsed");
@@ -254,7 +262,7 @@ void test_command_parser() {
   // a half line left over from an earlier session is glued to the next command
   ask("M,15");
   CHECK(one_answer(ask("?\n"), "E,1,wrong field count"), "half line plus a new command");
-  CHECK(one_answer(ask("?\n"), "I,brainsol,1.0.0,0"), "the line after that works");
+  CHECK(one_answer(ask("?\n"), IDENTITY), "the line after that works");
 }
 
 void test_first_move() {
@@ -385,6 +393,7 @@ void test_detach() {
   CHECK(pan_servo.pulse_us == 800 && tilt_servo.pulse_us == 2200, "the next M attaches at its pulse");
 }
 
+#ifndef PANEL_A4
 void test_sensors() {
   // plugged in while running
   bus.bh_present = true;
@@ -423,6 +432,44 @@ void test_sensors() {
   run_ms(400);
   CHECK(last_frame(frames_of(take_lines()), __LINE__).v[LUX10] == 1000, "120 counts are 100.0 lux");
 }
+#else
+// the variant with the panel on a4: a4 is a fifth channel of the same round with the same
+// throwaway and the same sum of 8, the panel field carries the pin voltage in mv, lux and the
+// current stay 0, and the i2c bus is never touched
+Frame frame_after(uint16_t a4_counts) {
+  adc_value[4] = a4_counts;
+  take_lines();
+  run_ms(100);
+  return last_frame(frames_of(take_lines()), __LINE__);
+}
+
+void test_panel_pin() {
+  CHECK(!bus.began && bus.timeout_us == 0 && bus.transfers == 0, "the bus was never started");
+  // a4 right after a much brighter a3, a mixed first reading would show in both sums
+  adc_value[3] = 1000;
+  Frame f = frame_after(512);
+  printf("a4 at 512 counts: %ld mv\n", f.v[MV]);
+  CHECK(f.v[MV] == 2500, "8 x 512 counts are 2500 mv at the pin");
+  CHECK(f.v[D] == 8000, "a3 keeps its own sum");
+  CHECK(f.v[L] == 800 && f.v[R] == 1600 && f.v[U] == 2400, "a0 after a4 drops its mixed first reading too");
+  CHECK(f.v[LUX10] == 0 && f.v[UA] == 0, "no lux and no current in this variant");
+  CHECK(frame_after(1023).v[MV] == 4995, "the top of the range is 4995 mv");
+  CHECK(frame_after(1).v[MV] == 5, "one count is about 5 mv");
+  CHECK(frame_after(0).v[MV] == 0, "nothing at the pin is 0 mv");
+  adc_value[3] = 400;
+
+  // sensors on the bus are never looked for, the caps stay the same
+  bus.bh_present = true;
+  bus.ina_present = true;
+  run_ms(3500);
+  CHECK(one_answer(ask("?\n"), IDENTITY), "caps 4 with sensors on the bus");
+  f = frame_after(0);
+  CHECK(f.v[LUX10] == 0 && f.v[UA] == 0, "still no lux and no current");
+  CHECK(bus.transfers == 0 && !bus.bh_powered && bus.ina_regs[0] == 0, "nobody talked to them");
+  bus.bh_present = false;
+  bus.ina_present = false;
+}
+#endif
 
 void test_longest_frame() {
   char buf[100];
@@ -475,6 +522,9 @@ int main(int argc, char **argv) {
     mock_ms_offset = 0xFFFFFFFFULL - 2000ULL;
     printf("run across the clock wrap\n");
   }
+#ifdef PANEL_A4
+  printf("variant with the panel on a4\n");
+#endif
   test_boot_and_frames();
   test_command_parser();
   test_first_move();
@@ -482,7 +532,11 @@ int main(int argc, char **argv) {
   test_rate();
   test_watchdog();
   test_detach();
+#ifdef PANEL_A4
+  test_panel_pin();
+#else
   test_sensors();
+#endif
   test_longest_frame();
   test_transmit_pressure();
   printf("%s, %d failures\n", failures ? "FAILED" : "all ok", failures);
