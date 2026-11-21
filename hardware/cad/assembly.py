@@ -50,10 +50,11 @@ class Part:
         return out
 
 
-def build_parts():
+def build_parts(lid=None):
+    """every printed part, lid takes another part in place of the lid, the bed lid of cad/bedlid.py"""
     parts = []
     parts.append(Part("tray", base.tray(), "base", "body", note="floor on the bed"))
-    parts.append(Part("lid", base.lid(), "base", "body", print_rot=((1, 0, 0), 180.0), note="top face on the bed"))
+    parts.append(lid or Part("lid", base.lid(), "base", "body", print_rot=((1, 0, 0), 180.0), note="top face on the bed"))
     feet = base.feet()
     f0 = feet[0]
     x0, y0 = base.COLUMN_XY[0]
