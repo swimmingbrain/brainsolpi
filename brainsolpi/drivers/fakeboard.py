@@ -12,6 +12,7 @@ from ..simmodel import Light, illuminate, panel_lux, raw_value
 from .protocol import (
     CAP_LUX,
     CAP_PV,
+    CAP_PV_PIN,
     FLAG_ATTACHED,
     FLAG_SLEWING,
     FLAG_WATCHDOG,
@@ -94,6 +95,13 @@ def pipe_pair(timeout: float = 0.02) -> tuple[PipeEnd, PipeEnd, _Link]:
     return PipeEnd(a, b, link, timeout), PipeEnd(b, a, link, timeout), link
 
 
+def pin_mv(volts: float) -> int:
+    # what the sketch built with PANEL_A4 sends for a voltage at a4: 8 readings of 1024 steps of
+    # the 5 v reference summed, then turned into mv and rounded the same way
+    counts = max(0, min(1023, int(volts / 5.0 * 1024)))
+    return (counts * 8 * 5000 + 4096) // 8192
+
+
 class FakeBoard:
     SLEW_TICK = 0.01
     WATCHDOG_S = 1.5
@@ -107,11 +115,19 @@ class FakeBoard:
         light: Light | None = None,
         seed: int | None = None,
         rest: tuple[float, float] = (0.0, 90.0),
+        pv_pin: bool = False,
+        div: float = 2.0,
+        ohm: float = 33.0,
     ):
         self.boot_s = boot_s
         self.fw = fw
         self.has_lux = lux
         self.has_pv = pv
+        # the variant with the panel on a4, nothing on i2c then. div and ohm are the parts on the
+        # bench, the divider in front of the pin and the load resistor on the panel
+        self.pv_pin = pv_pin
+        self.div = div
+        self.ohm = ohm
         self.light = light or Light()
         self.rng = random.Random(seed)
         self.plugged = True
@@ -149,6 +165,8 @@ class FakeBoard:
 
     @property
     def caps(self) -> int:
+        if self.pv_pin:
+            return CAP_PV_PIN
         return (CAP_LUX if self.has_lux else 0) | (CAP_PV if self.has_pv else 0)
 
     # the usb side
@@ -289,6 +307,12 @@ class FakeBoard:
     def angles(self) -> tuple[float, float]:
         return self.head
 
+    def panel_volts(self, lux: float) -> float:
+        # the same small panel as the ina219 model below, 0.0106 square metres at 15 percent and
+        # 5.5 V without a load. all of its power goes into the load resistor, so u = sqrt(p r)
+        watts = max(lux, 0.0) / 110.0 * 0.0106 * 0.15
+        return min(5.5, (watts * self.ohm) ** 0.5)
+
     def _frame(self, port: PipeEnd) -> None:
         seq = self.seq
         self.seq = (self.seq + 1) & 0xFFFF
@@ -299,9 +323,11 @@ class FakeBoard:
         luxes, e = illuminate(self.light, pan, tilt)
         raws = [raw_value(x * 0.03 if k in self.covered else x, self.rng) for k, x in enumerate(luxes)]
         lux = panel_lux(e, self.light.amb, self.rng)
-        lux10 = int(round(lux * 10)) if self.has_lux else 0
+        lux10 = int(round(lux * 10)) if self.has_lux and not self.pv_pin else 0
         mv = ua = 0
-        if self.has_pv:
+        if self.pv_pin:
+            mv = pin_mv(self.panel_volts(lux) / self.div)
+        elif self.has_pv:
             # a small panel model, voltage settles quickly, current grows with the light
             mv = int(5500 * min(1.0, lux / 200.0)) if lux > 5 else 0
             ua = int(lux / 110.0 * 0.0106 * 0.15 / 5.5 * 1e6) if mv else 0
