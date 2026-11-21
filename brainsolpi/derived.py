@@ -44,5 +44,8 @@ def panel_mw(lux: float | None, w_mm: float, h_mm: float, eff: float) -> float |
     return lux / LUX_PER_WM2 * area * eff * 1000.0
 
 
-def measured_mw(mv: int, ua: int) -> float:
-    return mv * ua / 1e6
+def pin_pv(pin_mv: float, div: float, ohm: float) -> tuple[float, float]:
+    # the panel on an analog pin of the uno, in volts and milliamps: the divider brought the panel
+    # voltage down to what the pin sees, and all the current goes through the load resistor
+    v = pin_mv / 1000.0 * div
+    return v, v / ohm * 1000.0
