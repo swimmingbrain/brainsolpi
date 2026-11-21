@@ -12,6 +12,7 @@ from ..sysinfo import supply
 from .base import Driver
 from .protocol import (
     BAUD,
+    CAP_PV_PIN,
     Frame,
     Ident,
     LineReader,
@@ -328,5 +329,8 @@ class BridgeDriver(Driver):
 
 
 def _caps_text(caps: int) -> str:
+    if caps & CAP_PV_PIN:
+        # the variant with the panel on a4 never looks for anything on i2c
+        return "panel on A4, nothing on I2C"
     parts = ["BH1750 found" if caps & 1 else "no BH1750", "INA219 found" if caps & 2 else "no INA219"]
     return ", ".join(parts)
