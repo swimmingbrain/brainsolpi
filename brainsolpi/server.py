@@ -10,6 +10,7 @@ from aiohttp import WSMsgType, web
 
 from . import PROTO, __version__, paths
 from .auth import Auth
+from .brain import BrainError
 from .commands import Commands
 from .engine import Engine
 from .hub import Client, Hub
@@ -21,6 +22,10 @@ MAX_SPAN = 6 * 3600
 # commands per second a client may send on average, with some burst on top
 CMD_RATE = 40.0
 CMD_BURST = 80.0
+# a recipe pasted into the planner page may be bigger than anything the pi itself takes
+BRAIN_BODY_MAX = 2 * 1024 * 1024
+# the admin token for the posts of the planner page opened through the pi
+TOKEN_COOKIE = "brainsol_token"
 
 ENGINE = web.AppKey("engine", Engine)
 HUB = web.AppKey("hub", Hub)
@@ -34,25 +39,34 @@ def json_response(data, status: int = 200) -> web.Response:
     return web.Response(text=dumps(data), status=status, content_type="application/json")
 
 
+def is_brain_path(path: str) -> bool:
+    return path == "/brain" or path.startswith("/brain/")
+
+
 @web.middleware
 async def api_headers(request: web.Request, handler):
-    # the web app on github pages talks to the pi from another origin
+    # the web app on github pages talks to the pi from another origin, the same for the brain
+    # behind the pi, which also takes posts
     is_api = request.path.startswith("/api/")
-    if is_api and request.method == "OPTIONS":
+    is_brain = is_brain_path(request.path)
+    if (is_api or is_brain) and request.method == "OPTIONS":
         resp = web.Response(status=204)
     else:
         try:
             resp = await handler(request)
         except web.HTTPException as e:
-            if not is_api:
+            if is_brain:
+                resp = json_response({"err": "bad", "msg": e.reason}, e.status)
+            elif is_api:
+                resp = json_response({"err": e.reason}, e.status)
+            else:
                 raise
-            resp = json_response({"err": e.reason}, e.status)
         except Exception:
             log.exception("request %s failed", request.path)
             resp = json_response({"err": "internal error"}, 500)
-    if is_api:
+    if is_api or is_brain:
         resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["Access-Control-Allow-Methods"] = "GET, OPTIONS"
+        resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS" if is_brain else "GET, OPTIONS"
         resp.headers["Access-Control-Allow-Headers"] = "*"
         resp.headers.setdefault("Cache-Control", "no-store")
     return resp
@@ -70,6 +84,8 @@ async def info(request: web.Request) -> web.Response:
             "caps": eng.caps(),
             "viewers": hub.counts()[0],
             "uptime": int(time.monotonic() - request.app[STARTED]),
+            # the page then finds the brain server under /brain and offers the plan mode
+            "brain": eng.brain.url is not None,
         }
     )
 
@@ -129,6 +145,59 @@ async def record(request: web.Request) -> web.Response:
 
 async def healthz(request: web.Request) -> web.Response:
     return web.Response(text="ok")
+
+
+def brain_error(status: int, code: str, msg: str) -> web.Response:
+    # the error shape of the recipe server, so the page reads both the same way
+    return json_response({"err": code, "msg": msg}, status)
+
+
+def _without_token(query: str) -> str:
+    # the admin token is for the pi, the brain never sees it. the rest stays as it came
+    return "&".join(p for p in query.split("&") if p and p.split("=", 1)[0] != "token")
+
+
+async def _body(request: web.Request) -> bytes | None:
+    if not request.body_exists:
+        return None
+    if request.content_length is not None and request.content_length > BRAIN_BODY_MAX:
+        raise web.HTTPRequestEntityTooLarge(BRAIN_BODY_MAX, request.content_length,
+                                            reason="the request is too big for the brain")
+    data = bytearray()
+    async for chunk in request.content.iter_chunked(64 * 1024):
+        data += chunk
+        if len(data) > BRAIN_BODY_MAX:
+            raise web.HTTPRequestEntityTooLarge(BRAIN_BODY_MAX, len(data), reason="the request is too big for the brain")
+    return bytes(data)
+
+
+async def brain_pass(request: web.Request) -> web.StreamResponse:
+    # everything under /brain goes on to the brain server, the answer comes back as it is
+    brain = request.app[ENGINE].brain
+    if brain.url is None:
+        return brain_error(503, "offline", "no brain server is set on this pi, start it with --brain or run "
+                                           "brainsolpi setbrain on the pi")
+    auth = request.app[AUTH]
+    given = request.query.get("token")
+    token = given or request.cookies.get(TOKEN_COOKIE)
+    exp = auth.verify_token(token)
+    if request.method not in ("GET", "HEAD") and exp is None:
+        return brain_error(403, "admin", "admin only, the token is missing or expired")
+    path = request.rel_url.raw_path[len("/brain"):] or "/"
+    query = _without_token(request.rel_url.raw_query_string)
+    if given and request.method == "GET" and exp is not None:
+        # the planner page opened from the plant tab: the token moves into a cookie for its own
+        # posts and out of the address bar
+        resp = web.Response(status=303, headers={"Location": f"/brain{path}{'?' + query if query else ''}"})
+        resp.set_cookie(TOKEN_COOKIE, given, max_age=max(1, int(exp - time.time())), path="/brain/",
+                        httponly=True, samesite="Lax")
+        return resp
+    body = await _body(request)
+    try:
+        status, headers, data = await brain.forward(request.method, path, query, request.headers, body)
+    except BrainError as e:
+        return brain_error(e.status, e.code, e.msg)
+    return web.Response(status=status, body=data, headers=headers)
 
 
 def _allow(c: Client) -> bool:
@@ -273,6 +342,8 @@ def make_app(engine: Engine, hub: Hub, auth: Auth, commands: Commands, web_dir: 
     app.router.add_route("OPTIONS", "/api/{tail:.*}", healthz)
     app.router.add_get("/healthz", healthz)
     app.router.add_get("/ws", ws_handler)
+    app.router.add_route("*", "/brain", brain_pass)
+    app.router.add_route("*", "/brain/{tail:.*}", brain_pass)
     static = _static(root)
     app.router.add_get("/", static)
     app.router.add_get("/{path:.*}", static)
