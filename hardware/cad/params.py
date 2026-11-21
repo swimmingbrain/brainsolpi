@@ -294,6 +294,49 @@ HEAD_CABLE_U = 0.0  # cable exit in the back of the head, centred between the si
 PAN_RANGE = (-90.0, 90.0)
 TILT_RANGE = (0.0, 180.0)
 
+# plant bed lid, a deep lid that holds soil, cad/bedlid.py, the lid above stays as it is
+# it keeps the whole underside of the lid and its plate is the floor of the tub, the neck rides on a
+# hollow island whose top is the lid top moved up, the rim and the island top lie in one plane and
+# the part prints upside down on it
+
+BED_LIFT = 60.0  # island top above the lid top, the neck and the head sit this much higher, 48 mm of soil
+BED_WALL = 1.2  # tub wall above the tray, three lines, the soil backs it and the bead stiffens its top edge
+BED_RIM_BEAD = (2.8, 1.2, 0.4)  # bead inside the rim: width, height, edge chamfer, the rim stands 3.2 wide on the plate
+BED_FLOOR_T = 2.0  # tub floor over the lid underside, about 0.7 mm of sag under 1.5 kg of wet soil
+BED_CHAMFER = 3.0  # 45 degree chamfer where the tub floor meets the wall or the island, for a liner or sealant
+BED_POST_CHAMFER = 3.0  # the same round the foot of each sensor post
+BED_SOIL_BELOW_RIM = 14.5  # soil surface under the rim, the tables stand out of it and a tie passes under them
+BED_ISLAND_R = 29.5  # top of the island, the foot of the neck sweeps a circle of 27.9 over the pan range
+BED_ISLAND_STEM_R = 21.6  # outside of the hollow stem, a 1.6 wall, it flares at 45 degrees to the top
+BED_ISLAND_BORE_R = 20.0  # inside of the stem, the pad and the slot rim under the top stay inside it
+# the cable slot in the island top, a C round the pan axis that opens toward the cable side like the
+# slot of the lid, wider: inside the hub hole needs a wall, outside the foot of the neck covers only
+# 14.2 from the axis on its narrow sides, the ends run parallel to the horn arm
+BED_SLOT_R = (5.6, 14.0)  # inner and outer radius
+BED_SLOT_END = 5.0  # the ends lie this far from the line of the horn arm, 1.85 of wall to its pocket
+BED_SLOT_FILLET = 1.5  # round corners at the ends
+BED_SLOT_CHAMFER = (0.5, 1.0)  # 45 degree edges on the top face and under the rim
+BED_SLOT_RIM = 1.6  # wall of the rim round the slot under the top plate
+# a table for a small light sensor board on a hollow post in each corner, the same for any board
+# the post and its opening sit in the corner, the board beside them toward the middle of the tub
+BED_BOARD = (26.0, 32.5)  # board zone across and along, boards up to 25.5 x 32 like the kit module
+BED_BOARD_X = 59.0  # middle of the board zone from the middle of the tub
+BED_STOP = (4.0, 1.6, 1.2)  # stops at the four corners only: leg, wall, height over the seat
+BED_SPINE = (8.0, 24.0)  # the board rests on this strip along the middle of the zone
+BED_RELIEF = 3.0  # seat over the table, pins pointing down under the edges of the board fit in it
+BED_TABLE_T = 1.6  # the spine and the stops stiffen it
+BED_SEAT_DROP = 6.5  # seat under the rim, the head passes 3 mm over the rim and a board stack still clears it
+BED_BOARD_STACK = 7.1  # what a board may take above the seat, 1.6 board and 5.5 of parts like a trimmer
+BED_POST_XY = (56.0, 56.0)  # post, its bore and the opening, the bore clears the columns and ribs under the floor
+BED_STEM_R = 8.6  # outside of each post, a 1.6 wall round the bore
+BED_STEM_BORE_R = 7.0  # cable way down the post, a 5 pin row of 12.7 x 2.5 passes it turned any way
+BED_COLLAR = (1.6, 2.5)  # wall and height of the collar round the opening, water on the table stays out
+BED_OPENING_GAP = 3.0  # between the corner stops and the collar
+BED_TIE = (4.0, 2.5, 9.5)  # notch for a cable tie or a band: width, depth, off the middle, the tie crosses the spine
+BED_PLUG_OUT = (17.0, 15.5)  # room for a plug sticking out sideways, on the free sides and on the island side
+# the 200 mm 3 pin cables of the kit are too short once the neck sits higher, the build assumes longer ones
+BED_PHOTO_CABLE = 300.0
+
 # kit fasteners
 
 KIT_FASTENERS = {
