@@ -8,7 +8,7 @@ from brainsolpi.kinematics import angle_between, frame, pose_for
 
 S_FIELDS = {
     "t", "ts", "mode", "st", "pan", "tilt", "vp", "vt", "ldr", "raw", "ex", "ey", "lvl", "lux",
-    "pmw", "pv", "gain", "off", "tgt", "sun", "sim",
+    "pmw", "pv", "gain", "off", "tgt", "sun", "sim", "plan",
 }
 SYS_FIELDS = {
     "t", "viewers", "admins", "cpu", "temp", "mem", "up", "hz", "jit", "drv", "link", "fw", "rec", "act", "drop",
@@ -62,7 +62,7 @@ def test_state_frame_has_every_field_and_no_nan(sim):
     assert "NaN" not in text
     assert json.loads(text)["sim"] == {"az": 25.0, "el": 40.0, "on": True, "lux": 900.0, "amb": 60.0}
     assert len(f["ldr"]) == 4 and len(f["raw"]) == 4
-    assert f["pv"] is None
+    assert f["pv"] is None and f["plan"] is None
     sysf = s.sink.of("sys")[-1]
     assert sysf["drv"] == "sim" and sysf["link"] == "ok" and sysf["fw"] is None
     assert sysf["hz"] == pytest.approx(50, abs=0.1)
