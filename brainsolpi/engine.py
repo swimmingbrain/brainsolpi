@@ -13,9 +13,9 @@ from .activities import Activity
 from .brain import Brain
 from .config import Settings
 from .controller import AutoLoop, Tracker
-from .derived import gain, light_estimate, measured_mw, offset_deg, panel_mw
+from .derived import gain, light_estimate, offset_deg, panel_mw, pin_pv
 from .drivers.base import Driver
-from .drivers.protocol import CAP_LUX, CAP_PV, FLAG_ATTACHED, FLAG_WATCHDOG
+from .drivers.protocol import CAP_LUX, CAP_PV, CAP_PV_PIN, FLAG_ATTACHED, FLAG_WATCHDOG
 from .history import History, Recorder
 from .jsonio import r1, r2, r3
 from .kinematics import ServoMap, clamp
@@ -231,7 +231,9 @@ class Engine:
     def caps(self) -> dict:
         ident = self.driver.ident
         bits = ident.caps if ident is not None else 0
-        return {"lux": bool(bits & CAP_LUX), "pv": bool(bits & CAP_PV), "simlight": self.driver.has_simlight}
+        # pv means the panel is measured, by the ina219 or on a4
+        pv = bool(bits & (CAP_PV | CAP_PV_PIN))
+        return {"lux": bool(bits & CAP_LUX), "pv": pv, "simlight": self.driver.has_simlight}
 
     @property
     def fw(self) -> str | None:
@@ -527,13 +529,28 @@ class Engine:
             g = gain(m.pan, m.tilt, rp, rt, light_estimate(m.pan, m.tilt, t.ex, t.ey))
         return off, g
 
-    def power(self, lux: float | None) -> float | None:
+    def pv(self) -> tuple[float, float] | None:
+        # the measured panel in volts and milliamps, None when nothing measures it. the one place
+        # that reads the panel fields of a frame, so the state frame, the history and the recorder
+        # agree. the ina219 sends both, the variant with the panel on a4 sends the voltage at the
+        # pin and the rest follows from the divider and the load resistor in the settings
         f = self.frame
         bits = self.driver.ident.caps if self.driver.ident is not None else 0
         if not self.link or f is None:
             return None
         if bits & CAP_PV:
-            return measured_mw(f.mv, f.ua)
+            return f.mv / 1000.0, f.ua / 1000.0
+        if bits & CAP_PV_PIN:
+            panel = self.settings.panel
+            return pin_pv(f.mv, panel["div"], panel["ohm"])
+        return None
+
+    def power(self, lux: float | None) -> float | None:
+        if not self.link or self.frame is None:
+            return None
+        pv = self.pv()
+        if pv is not None:
+            return pv[0] * pv[1]
         panel = self.settings.panel
         return panel_mw(lux, panel["w"], panel["h"], panel["eff"])
 
@@ -555,10 +572,8 @@ class Engine:
         f = self.frame
         seeded = t.seeded
         off, g = self.offset_gain()
-        bits = self.driver.ident.caps if self.driver.ident is not None else 0
-        pv = None
-        if bits & CAP_PV and f is not None and self.link:
-            pv = {"v": r3(f.mv / 1000.0), "ma": r2(f.ua / 1000.0)}
+        measured = self.pv()
+        pv = {"v": r3(measured[0]), "ma": r2(measured[1])} if measured is not None else None
         sim = None
         if self.driver.has_simlight:
             light = self.driver.light
