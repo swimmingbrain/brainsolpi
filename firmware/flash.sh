@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 # writes the brainsol bridge firmware to the keyestudio uno with avrdude
 #
-# usage: firmware/flash.sh [port]
+# usage: firmware/flash.sh [--a4] [port]
 #   without a port it takes the first arduino it finds under /dev/serial/by-id,
 #   then /dev/ttyACM*, then /dev/ttyUSB*
+#   --a4 flashes the variant with the panel on a4 and nothing on i2c, brainsol_bridge_a4.hex
 #   BRAINSOL_HEX=/path/to/other.hex firmware/flash.sh flashes another hex file
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-hex="${BRAINSOL_HEX:-$here/brainsol_bridge.hex}"
+firmware="brainsol_bridge.hex"
+if [ "${1:-}" = "--a4" ]; then
+  firmware="brainsol_bridge_a4.hex"
+  shift
+fi
+hex="${BRAINSOL_HEX:-$here/$firmware}"
 
 say() {
   printf '%s\n' "$*"
