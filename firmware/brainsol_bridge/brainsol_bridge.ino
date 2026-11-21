@@ -7,9 +7,17 @@
 // firmware/brainsol_bridge.hex is this sketch built with arduino-cli 1.6.0 and the arduino:avr 1.8.8 core:
 //   arduino-cli compile --fqbn arduino:avr:uno --output-dir <dir> firmware/brainsol_bridge
 // then <dir>/brainsol_bridge.ino.hex with lf line endings. firmware/test/run.sh runs it on a pc
+//
+// with PANEL_A4 defined the same sketch builds the variant for a board with nothing on i2c:
+// no bh1750 and no ina219, a4 reads the panel voltage through a divider instead.
+// firmware/brainsol_bridge_a4.hex is that variant, built with one more option:
+//   arduino-cli compile --fqbn arduino:avr:uno --build-property compiler.cpp.extra_flags=-DPANEL_A4
+//     --output-dir <dir> firmware/brainsol_bridge
 
 #include <Servo.h>
+#ifndef PANEL_A4
 #include <Wire.h>
+#endif
 
 #define FW_VERSION "1.0.0"
 
@@ -22,6 +30,8 @@ const uint8_t LINE_MAX = 96;
 // caps bits in the identity line
 const uint8_t CAP_BH1750 = 1;
 const uint8_t CAP_INA219 = 2;
+// the panel voltage on a4, only the PANEL_A4 variant sends it
+const uint8_t CAP_PANEL_A4 = 4;
 
 // error codes in E lines
 const uint8_t ERR_BAD_COMMAND = 1;
@@ -102,14 +112,32 @@ bool tick_due(uint32_t &last, uint32_t period, uint32_t now) {
 
 // adc channels 0 to 3 are the pins a0 to a3: left, right, up, down
 const uint8_t LDR_COUNT = 4;
+#ifdef PANEL_A4
+// the panel divider on a4 is channel 4, it is measured in the same round as the light sensors
+const uint8_t PANEL_CHANNEL = 4;
+const uint8_t ADC_CHANNELS = 5;
+#else
+const uint8_t ADC_CHANNELS = LDR_COUNT;
+#endif
 // readings summed per channel and set, 8 x 1023 = 8184 still fits into a uint16_t
 const uint8_t ADC_READS = 8;
 
 // the last complete set of sums, this is what the frames report
 uint16_t ldr_sum[LDR_COUNT];
 
+#ifdef PANEL_A4
+// the voltage at a4 in mv from the last complete set, the frames send it in the panel field
+uint16_t panel_mv = 0;
+
+// one reading has 1024 steps of the 5 v reference, so a sum of 8 has 8192 of them.
+// done in 32 bit and rounded, 8184 x 5000 needs more than 16 bit
+uint16_t sum_to_mv(uint16_t sum) {
+  return (uint16_t)(((uint32_t)sum * 5000 + 4096) / 8192);
+}
+#endif
+
 // the set being measured right now
-uint16_t adc_work[LDR_COUNT];
+uint16_t adc_work[ADC_CHANNELS];
 uint8_t adc_channel = 0;
 // conversions done on this channel so far, number 0 is the throwaway one
 uint8_t adc_reads = 0;
@@ -141,18 +169,23 @@ void adc_step() {
   if (adc_reads > ADC_READS) {
     adc_reads = 0;
     adc_channel++;
-    if (adc_channel == LDR_COUNT) {
+    if (adc_channel == ADC_CHANNELS) {
       // a full set is done, publish it and start the next one
       for (uint8_t i = 0; i < LDR_COUNT; i++) {
         ldr_sum[i] = adc_work[i];
         adc_work[i] = 0;
       }
+#ifdef PANEL_A4
+      panel_mv = sum_to_mv(adc_work[PANEL_CHANNEL]);
+      adc_work[PANEL_CHANNEL] = 0;
+#endif
       adc_channel = 0;
     }
   }
   adc_start(adc_channel);
 }
 
+#ifndef PANEL_A4
 // ===========================================================================
 // i2c sensors
 
@@ -342,6 +375,20 @@ uint8_t caps() {
   }
   return bits;
 }
+
+#else
+// ===========================================================================
+// no i2c sensors
+
+// this variant never starts the bus, a4 measures the panel instead. lux and the current stay 0
+// like the protocol says for a missing sensor, the pi works the current out from the load resistor
+const uint32_t lux10 = 0;
+const long panel_ua = 0;
+
+uint8_t caps() {
+  return CAP_PANEL_A4;
+}
+#endif
 
 // ===========================================================================
 // servos
@@ -752,11 +799,13 @@ void setup() {
   Serial.begin(BAUD);
   adc_start(0);
 
+#ifndef PANEL_A4
   Wire.begin();
   Wire.setWireTimeout(I2C_TIMEOUT_US, true);
   // the sensors are looked for before the identity line, so its caps are right
   bh1750_probe();
   ina219_probe();
+#endif
 
   send_identity();
   last_sample_us = micros();
@@ -781,5 +830,7 @@ void loop() {
 
   uint32_t now_ms = millis();
   watchdog_check(now_ms);
+#ifndef PANEL_A4
   sensors_step(now_ms);
+#endif
 }
