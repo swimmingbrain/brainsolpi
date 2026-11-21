@@ -73,8 +73,8 @@ async def test_http_endpoints(tmp_path):
         r = await c.get("/api/info")
         info = await r.json()
         assert r.headers["Access-Control-Allow-Origin"] == "*"
-        assert set(info) == {"name", "version", "proto", "driver", "caps", "viewers", "uptime"}
-        assert info["driver"] == "sim" and info["proto"] == 1
+        assert set(info) == {"name", "version", "proto", "driver", "caps", "viewers", "uptime", "brain"}
+        assert info["driver"] == "sim" and info["proto"] == 1 and info["brain"] is False
         assert info["caps"] == {"lux": True, "pv": False, "simlight": True}
         await asyncio.sleep(2.2)
         h = await (await c.get("/api/history?span=900")).json()
