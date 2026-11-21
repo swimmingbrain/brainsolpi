@@ -9,6 +9,7 @@ from typing import Callable
 
 from . import paths, service
 from .config import Settings
+from .derived import pin_pv
 from .drivers.bridge import BridgeDriver, open_serial, wait_ident
 from .drivers.detect import candidates, find_board
 from .drivers.fakeboard import FakeBoard
@@ -30,6 +31,8 @@ PINS = {"L": "A0", "R": "A1", "U": "A2", "D": "A3"}
 # a covered sensor has to move at least this share of its open reading
 MIN_CHANGE = 0.08
 WIGGLE = 5
+# a4 this close to the 5 V reference is cut off, the panel may give more than it shows
+PIN_TOP_MV = 4900
 
 
 def bar(value: float, width: int = 12) -> str:
@@ -173,6 +176,9 @@ class Doctor:
     def step_firmware(self) -> bool:
         ident = self.drv.ident
         self.out(f"  bridge firmware {ident.fw}")
+        if ident.pv_pin:
+            self.out("  the variant with the panel on A4, it has nothing on I2C, so no BH1750 and no INA219")
+            return self.record("firmware", True, f"{ident.fw} with the panel on A4")
         self.out(f"  BH1750 light sensor {'found' if ident.lux else 'not found'}")
         self.out(f"  INA219 current sensor {'found' if ident.pv else 'not found, that is fine, it is an optional extra'}")
         return self.record("firmware", True, ident.fw)
@@ -225,6 +231,7 @@ class Doctor:
         ident = self.drv.ident
         if not ident.lux:
             self.out("  no BH1750 found, check the 4 pin cable: VCC to 5 V, GND, SDA to A4, SCL to A5")
+            self.out("  when the panel sits on A4 instead, flash the variant for it with: firmware/flash.sh --a4")
             return self.record("BH1750", False, "not found")
         time.sleep(0.3)
         f = self.drv.latest()
@@ -233,6 +240,39 @@ class Doctor:
         if lux <= 0:
             self.out("  it reads zero, that only happens in a dark room, otherwise check the cable")
         return self.record("BH1750", lux > 0, f"{lux:.0f} lux")
+
+    def panel_on_a4(self) -> bool:
+        ident = self.drv.ident if self.drv is not None else None
+        return ident is not None and ident.pv_pin
+
+    def light_title(self) -> str:
+        # the variant with the panel on a4 has no BH1750, its step 5 looks at the panel instead
+        return "panel on A4" if self.panel_on_a4() else "BH1750 light sensor"
+
+    def step_light(self) -> bool:
+        return self.step_panel() if self.panel_on_a4() else self.step_lux()
+
+    def step_panel(self) -> bool:
+        # read only, the values the service uses for the divider and the load resistor
+        settings = Settings(None, read_json(self.cfg_dir / "settings.json")) if not self.fake else Settings()
+        div, ohm = settings.panel["div"], settings.panel["ohm"]
+        self.out(f"  panel on A4 behind a divider of {div:g}, load resistor {ohm:g} ohm")
+        if not self.fake:
+            self.out("  change them with: brainsolpi setpanel --ohm <ohm> --div <ratio>")
+        time.sleep(0.3)
+        f = self.drv.latest()
+        pin = f.mv if f is not None else 0
+        v, ma = pin_pv(pin, div, ohm)
+        reading = f"{v:.2f} V, {ma:.1f} mA, {v * ma:.1f} mW"
+        self.out(f"  {pin / 1000.0:.2f} V at the pin, so the panel gives {reading}")
+        if pin >= PIN_TOP_MV:
+            self.out("  the pin sits at the top of its range, the panel may give more than it shows. use a divider "
+                     "with a bigger ratio, the pin has to stay below 5 V")
+            return self.record("panel on A4", False, "the pin is at 5 V")
+        if pin <= 0:
+            self.out("  it reads zero, that only happens in the dark, otherwise check the divider and its cable "
+                     "on S of A4")
+        return self.record("panel on A4", pin > 0, f"{reading}, divider {div:g}, load {ohm:g} ohm")
 
     def step_servos(self) -> bool | None:
         if not self.confirm("  wiggle both servos by a few degrees? the head must be free to move"):
@@ -281,7 +321,8 @@ class Doctor:
             ("firmware", self.step_firmware),
             ("sample frames", self.step_frames),
             ("light sensors", self.step_sensors),
-            ("BH1750 light sensor", self.step_lux),
+            # the board is known by then, the title says which one it checks
+            (self.light_title, self.step_light),
             ("servos", self.step_servos),
         ]
         self.out("brainSOL doctor, a step by step check of the board, the sensors and the servos")
@@ -291,7 +332,7 @@ class Doctor:
             with self.paused or contextlib.nullcontext():
                 try:
                     for i, (title, fn) in enumerate(steps, 1):
-                        self.out(f"\nstep {i} of {len(steps)}, {title}")
+                        self.out(f"\nstep {i} of {len(steps)}, {title() if callable(title) else title}")
                         ok = fn()
                         if ok is False and i <= 1:
                             break
@@ -360,6 +401,9 @@ class Doctor:
         if ok.get("BH1750", (True, ""))[0] is False:
             steps.append("plug in the BH1750 as step 5 says. the tracker works without it, "
                          "but lux, the power figure and the cosine and compare experiments need it")
+        if ok.get("panel on A4", (True, ""))[0] is False:
+            steps.append("check the panel on A4 as step 5 says. the tracker works without it, only the power "
+                         "figure needs it")
         # read only, the doctor does not write the settings of the service
         settings = Settings(None, read_json(self.cfg_dir / "settings.json"))
         if not settings.pin_hash:
