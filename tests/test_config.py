@@ -39,7 +39,8 @@ def test_defaults_match_the_shared_contract():
     assert s.pan_limits == (-88, 88)
     assert s.tilt_limits == (4, 176)
     assert s.park == (0, 90)
-    assert s.panel == {"w": 137.0, "h": 85.0, "eff": 0.15}
+    # div and ohm only matter for the bridge variant with the panel on a4, the page does not use them
+    assert s.panel == {"w": 137.0, "h": 85.0, "eff": 0.15, "div": 2.0, "ohm": 33.0}
     assert s.problems == []
 
 
@@ -77,6 +78,20 @@ def test_set_value_checks_ranges_and_relations():
         s.set_value("ref_pan", 60)
     assert s.cfg()["params"]["ref_pan"]["max"] == 40
     assert s.dirty
+
+
+def test_divider_and_load_of_the_panel_on_a4():
+    s = Settings()
+    assert s.set_value("panel_ohm", 47) == 47.0
+    assert s.set_value("panel_div", 3.2) == 3.2
+    assert s.panel["ohm"] == 47.0 and s.panel["div"] == 3.2
+    assert s.cfg()["panel"] == {"w": 137.0, "h": 85.0, "eff": 0.15, "div": 3.2, "ohm": 47.0}
+    # no load at all would divide by zero, a divider makes the voltage smaller, never bigger
+    for key, bad in (("panel_ohm", 0), ("panel_ohm", -5), ("panel_div", 0.5), ("panel_ohm", "33")):
+        with pytest.raises(ValueError):
+            s.set_value(key, bad)
+    assert s.panel["ohm"] == 47.0
+    assert Settings(data={"panel": {"ohm": 0}}).panel["ohm"] == 33.0
 
 
 def test_settings_round_trip_through_the_file(tmp_path):
