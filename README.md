@@ -184,6 +184,54 @@ kit the lamp of the sim becomes the sun of the simulated moment, with the kit on
 in the simulation the head parks. When the brain stops answering the head holds its pose and parks after 10 s, the
 mode stays on and goes on when the brain is back. The page offers Plan only when the Pi has a brain.
 
+## Panel on A4
+
+Use this when the UNO should measure the power of the panel itself and there is no INA219. The BH1750 comes off,
+nothing is left on I2C and A4 reads the panel voltage. The four light sensors and both servos stay as they are.
+
+- A load resistor goes straight across the panel, plus to minus.
+- Panel minus goes to G of the A4 header.
+- Two 10 kΩ resistors in series from panel plus to G make the divider, their middle goes to S of A4. Never use the V
+  pin of the header, it carries the 5 V of the UNO.
+- The panel voltage divided by the divider ratio has to stay below 5 V at the pin. With two equal resistors the
+  ratio is 2, so the panel may give up to about 9 V.
+
+Flash the variant for it, a plain `firmware/flash.sh` writes the normal firmware as before:
+
+```
+cd ~/brainsolpi
+firmware/flash.sh --a4
+```
+
+The board answers `I,brainsol,1.0.0,4`, the 4 says panel on A4. `brainsolpi flash --hex firmware/brainsol_bridge_a4.hex`
+does the same. The service leaves this board alone, it only flashes an UNO that does not answer at all.
+
+The Pi works out the panel from the voltage at the pin: volts = pin volts times the divider ratio, milliamps = volts
+over the load in ohm times 1000, power = volts times milliamps. The divider starts at 2 and the load at 33 ohm.
+The 33 is only a start value, put in the resistor you really use:
+
+```
+brainsolpi setpanel --ohm 47
+brainsolpi doctor
+```
+
+`setpanel` stops the service for a moment, writes the value into the `panel` block of the settings and starts it
+again, the same as `setbrain`. `--div 2` sets the divider, both can go into one call, and `brainsolpi setpanel`
+alone shows the two values in use. The load takes 0.1 to 100000 ohm, the divider 1 to 100. Step 5 of the doctor
+then shows the divider and the load it uses and the voltage, current and power right now. An admin can also change
+them while the tracker runs with the `set` command, `panel_div` and `panel_ohm`, like `panel_w`. The page shows the
+power as measured.
+
+What it costs:
+
+- No I2C sensors on this UNO. Without lux the page shows the mean level of the four sensors instead, and the cosine
+  and compare experiments need the BH1750. Following the light works the same, it only uses the four sensors.
+- A few percent of accuracy. The pin is measured against the 5 V of the USB supply, which sags a little when the
+  servos move, and the resistors have their own tolerance. The divider draws a little current of its own that is
+  not counted, about 0.3 mA at 6 V.
+- The install script and `brainsolpi flash` write the normal firmware. When `deploy/update.sh` says the firmware
+  changed, flash this board with `firmware/flash.sh --a4` again.
+
 ## Update
 
 ```
@@ -199,9 +247,11 @@ When it says the bridge firmware changed, run `brainsolpi flash`.
 |---|---|
 | `brainsolpi doctor` | checks the board, the sensors and the servos step by step |
 | `brainsolpi flash` | writes the bridge firmware to the UNO |
+| `firmware/flash.sh --a4` | writes the variant with the panel on A4 and nothing on I2C |
 | `brainsolpi centre` | holds both servos in the middle |
 | `brainsolpi setpin` | sets a new admin pin |
 | `brainsolpi setbrain <address>` | sets the address of the brain server, `off` removes it |
+| `brainsolpi setpanel --ohm <ohm> --div <ratio>` | sets the load resistor and the divider of the panel on A4, alone it shows them |
 | `journalctl -u brainsolpi -f` | the live log, Ctrl+C ends it |
 | `sudo systemctl restart brainsolpi` | restarts the tracker |
 
