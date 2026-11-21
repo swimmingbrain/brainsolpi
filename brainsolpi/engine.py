@@ -10,6 +10,7 @@ from pathlib import Path
 
 from . import PROTO, __version__
 from .activities import Activity
+from .brain import Brain
 from .config import Settings
 from .controller import AutoLoop, Tracker
 from .derived import gain, light_estimate, measured_mw, offset_deg, panel_mw
@@ -18,7 +19,7 @@ from .drivers.protocol import CAP_LUX, CAP_PV, FLAG_ATTACHED, FLAG_WATCHDOG
 from .history import History, Recorder
 from .jsonio import r1, r2, r3
 from .kinematics import ServoMap, clamp
-from .modes import AUTO, MODES, STOP, Manual, Mode, make_mode
+from .modes import AUTO, MODES, STOP, Manual, Mode, Plan, make_mode
 from .motion import Motion
 from .state import StateStore
 from .store import ExperimentStore
@@ -113,6 +114,7 @@ class Engine:
         wall=time.time,
         sink: Sink | None = None,
         sysinfo: SysInfo | None = None,
+        brain: Brain | None = None,
     ):
         self.settings = settings
         self.state = state
@@ -120,6 +122,8 @@ class Engine:
         self.wall = wall
         self.sink = sink or Sink()
         self.sysinfo = sysinfo
+        # the brain server on another machine, the plan mode follows its planner
+        self.brain = brain or Brain(None)
         self.store = store or ExperimentStore(None)
         self.params = settings.params
         self.tracker = Tracker(self.params)
@@ -143,7 +147,12 @@ class Engine:
             pose = state.simpose if state.simpose is not None else (state.pan, state.tilt)
         # the first command goes out at the saved pose so the head does not jump
         self.motion = Motion(clamp(pose[0], *lp), clamp(pose[1], *lt))
-        self.mode: Mode = make_mode(state.mode if state.mode in MODES else "auto")
+        start = state.mode if state.mode in MODES else "auto"
+        plan_gone = start == "plan" and self.brain.url is None
+        if plan_gone:
+            # the plan mode was saved, but this run has no brain to follow
+            start = "auto"
+        self.mode: Mode = make_mode(start)
         # a real board starts gently, its calibration came from the simulated phone light and
         # may not fit the real sensors, so without a saved one it holds, and without a pose
         # that was really driven nobody knows where the head sits, so it holds as well
@@ -208,6 +217,8 @@ class Engine:
         self._crash_logged = 0
         for msg in self.first_start_notes():
             self.event("warn", msg)
+        if plan_gone:
+            self.event("warn", "the plan mode was on, but no brain server is set, the tracker goes on in auto")
 
     # setup
 
@@ -579,6 +590,8 @@ class Engine:
             "tgt": {"pan": r1(self.tgt[0]), "tilt": r1(self.tgt[1])} if self.tgt is not None else None,
             "sun": sun,
             "sim": sim,
+            # only in the plan mode: whether the brain answers, the simulated moment and why the pose
+            "plan": self.mode.frame(self) if isinstance(self.mode, Plan) else None,
         }
 
     def sys_frame(self) -> dict:
@@ -633,7 +646,7 @@ class Engine:
             st.simpose = (self.motion.pan, self.motion.tilt)
         # the hold of a first start is no choice of anyone, the next start decides again
         st.mode = self.resume if self.first_start else self.mode.name
-        if self.driver.has_simlight and not isinstance(self.mode, MODES["sun"]):
+        if self.driver.has_simlight and not isinstance(self.mode, (MODES["sun"], Plan)):
             st.sim = self.driver.light_state()
         st.save()
 
@@ -656,6 +669,11 @@ class Engine:
     def set_mode(self, name: str) -> None:
         if name not in MODES:
             raise CommandError(f"unknown mode {name}")
+        if name == "plan" and self.brain.url is None:
+            raise CommandError(
+                "the plan mode needs a brain server, start the service with --brain or set brain in the settings",
+                "unsupported",
+            )
         self.first_start = []
         self._end_activity("stopped by a mode change")
         if name != self.mode.name or name == "manual":
@@ -707,6 +725,8 @@ class Engine:
             raise CommandError("simlight needs the sim driver", "unsupported")
         if self.mode.name == "sun":
             raise CommandError("the sun moves the light in sun mode, pick another mode first", "busy")
+        if self.mode.name == "plan":
+            raise CommandError("the sun of the plan moves the light in plan mode, pick another mode first", "busy")
         self.driver.set_light(az=az, el=el, on=on, lux=lux, amb=amb)
         return self.driver.light_state()
 
@@ -796,6 +816,8 @@ class Engine:
     async def run(self, stop: asyncio.Event) -> None:
         ticker = Ticker(DT)
         ticker.start()
+        # the plan mode reads what this asks the brain, outside the tick so it never waits
+        follow = asyncio.create_task(self.brain.follow(self))
         deadline = None
         try:
             while True:
@@ -811,6 +833,7 @@ class Engine:
                 self.tick(now)
         finally:
             ticker.stop()
+            follow.cancel()
             self.shutdown()
 
 
