@@ -157,6 +157,33 @@ the address of the Pi, share it as `https://sol.swimmingbrain.dev/?pi=brainsol.<
 a computer in the same tailnet may block that page, open `http://brainsol:8080` there instead.
 `sudo tailscale funnel reset` turns the funnel off.
 
+## Brain server
+
+The planner and the recipe chatbot run on another machine, the brain server in the `server/` folder of the
+[brainsol](https://github.com/swimmingbrain/brainsol) repo. The page only ever talks to the Pi, so the Pi passes
+everything under `/brain/` on to it. Tell the Pi where it is:
+
+```
+brainsolpi setbrain http://jetson:8000
+```
+
+It stops the service for a moment, writes `brain` into the settings and starts it again. `brainsolpi setbrain off`
+takes it away, `brainsolpi run --brain <address>` sets it for one run only. `/api/info` then says `"brain": true`.
+
+- `/brain/recipe` goes to `<brain>/recipe`, `/brain/plan/` to `<brain>/plan/` and so on. Method, query, body and
+  content type go through unchanged, the answer comes back with its status and content type. The Pi waits up to
+  150 s, the language model is slow.
+- Reading is open, a `POST` needs the admin token as `?token=`, the same as `/api/record.csv`. Opening
+  `/brain/plan/?token=<token>` puts the token into a cookie, so the buttons of the planner page work too.
+- Without a brain, or when it does not answer: `{"err": "offline", "msg": "..."}` with 503 or 502, a timeout gives
+  `{"err": "timeout", ...}` with 504.
+
+The mode Plan makes the tracker do what the simulation of the planner does. About once a second the Pi asks
+`<brain>/plan/api/state` and turns the head to the pose of the simulation, held inside its own limits. Without the
+kit the lamp of the sim becomes the sun of the simulated moment, with the kit only the pose is mirrored. At night
+in the simulation the head parks. When the brain stops answering the head holds its pose and parks after 10 s, the
+mode stays on and goes on when the brain is back. The page offers Plan only when the Pi has a brain.
+
 ## Update
 
 ```
@@ -174,6 +201,7 @@ When it says the bridge firmware changed, run `brainsolpi flash`.
 | `brainsolpi flash` | writes the bridge firmware to the UNO |
 | `brainsolpi centre` | holds both servos in the middle |
 | `brainsolpi setpin` | sets a new admin pin |
+| `brainsolpi setbrain <address>` | sets the address of the brain server, `off` removes it |
 | `journalctl -u brainsolpi -f` | the live log, Ctrl+C ends it |
 | `sudo systemctl restart brainsolpi` | restarts the tracker |
 
