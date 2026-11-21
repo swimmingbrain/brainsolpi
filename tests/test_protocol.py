@@ -48,8 +48,11 @@ def test_bad_lines_are_ignored(line):
 def test_identity_and_caps():
     i = parse_line("I,brainsol,1.0.0,3")
     assert i == Ident("1.0.0", 3)
-    assert i.lux and i.pv
+    assert i.lux and i.pv and not i.pv_pin
     assert not parse_line("I,brainsol,1.2.0,0").lux
+    # the variant with the panel on a4 has nothing on i2c
+    a4 = parse_line("I,brainsol,1.0.0,4")
+    assert a4.pv_pin and not a4.lux and not a4.pv
 
 
 def test_pong_and_notice():
